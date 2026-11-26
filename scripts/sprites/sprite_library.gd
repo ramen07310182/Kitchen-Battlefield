@@ -4,12 +4,16 @@ extends RefCounted
 ##   絵:   assets/sprites/<名前>.png
 ##   設定: data/sprites/<名前>.tres（SpriteSheetData。なければ1コマ・足元基準）
 ## 絵がなければ null を返すので、呼ぶ側は今の図形（代用品）を表示する。
+## ドット絵はぼかさずに表示する（Nearest）。プロジェクトの既定は文字とUIのために Linear なので、
+## アイコンや枠として渡すテクスチャは、Nearest を指定した CanvasTexture に包んで返す。
 
 const SPRITE_DIR := "res://assets/sprites/"
 const DATA_DIR := "res://data/sprites/"
 
 ## 名前 -> SpriteSheet。絵がなかった名前は null を入れて、何度も探さないようにする
 static var _cache: Dictionary = {}
+## 名前 -> Nearest 指定の1コマ目（アイコン・枠用）
+static var _pixel_cache: Dictionary = {}
 
 
 ## 絵を探す。なければ null
@@ -35,10 +39,10 @@ static func find_sheet(keys: PackedStringArray) -> SpriteSheet:
 	return null
 
 
-## 1コマ目のテクスチャ（ボタンのアイコンなど）。なければ null
+## 1コマ目のテクスチャ（ボタンのアイコンなど）。ぼかさずに表示される。なければ null
 static func get_icon(key: String) -> Texture2D:
 	var sheet: SpriteSheet = get_sheet(key)
-	return sheet.frames[0] if sheet != null else null
+	return _pixel_first_frame(sheet) if sheet != null else null
 
 
 ## UIの枠・背景用の StyleBox。絵がなければ null
@@ -47,7 +51,7 @@ static func get_style_box(key: String) -> StyleBoxTexture:
 	if sheet == null:
 		return null
 	var box: StyleBoxTexture = StyleBoxTexture.new()
-	box.texture = sheet.frames[0]
+	box.texture = _pixel_first_frame(sheet)
 	box.set_texture_margin_all(sheet.nine_patch_margin)
 	box.set_content_margin_all(maxf(3.0, float(sheet.nine_patch_margin)))
 	if sheet.tile:
@@ -69,6 +73,25 @@ static func get_data_path(key: String) -> String:
 ## 読み込み済みの絵を忘れる（絵を置き直したあとに読み直したいとき）
 static func clear_cache() -> void:
 	_cache.clear()
+	_pixel_cache.clear()
+
+
+## 1コマ目を、Nearest を指定した CanvasTexture にして返す（置いたノードのフィルタ設定に関係なくぼかさない）
+static func _pixel_first_frame(sheet: SpriteSheet) -> Texture2D:
+	if _pixel_cache.has(sheet.key):
+		return _pixel_cache[sheet.key] as Texture2D
+	var base: Texture2D = sheet.frames[0]
+	if base is AtlasTexture:
+		# コマを切り出した画像にする（CanvasTexture は AtlasTexture の切り出しを使えないため）
+		var region: Rect2i = Rect2i((base as AtlasTexture).region)
+		var image: Image = sheet.texture.get_image()
+		if image != null and not image.is_empty():
+			base = ImageTexture.create_from_image(image.get_region(region))
+	var pixel: CanvasTexture = CanvasTexture.new()
+	pixel.diffuse_texture = base
+	pixel.texture_filter = CanvasItem.TEXTURE_FILTER_NEAREST
+	_pixel_cache[sheet.key] = pixel
+	return pixel
 
 
 static func _load_data(key: String) -> SpriteSheetData:

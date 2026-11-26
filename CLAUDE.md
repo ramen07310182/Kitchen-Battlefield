@@ -22,7 +22,7 @@ Godot 4.x（GDScript）で作る iPhone / iPad 向けの2Dドット絵の定食�
 
 ## 画面・操作
 - 画面の向き: **横向き（landscape）で固定**
-- 基準解像度: 640×360（ドット絵）。stretch: `canvas_items` ＋ aspect `expand`。テクスチャフィルタは `Nearest`
+- 基準解像度: 640×360（ドット絵）。stretch: `canvas_items` ＋ aspect `expand`。テクスチャフィルタは、絵（`assets/sprites/`）は `Nearest`、文字とUIは `Linear`（プロジェクトの既定は Linear。絵を表示するノードや読み込み側で Nearest を指定する）
 - iPhoneとiPadの両方の縦横比で崩れないようにする
 - UIは `DisplayServer.get_display_safe_area()` を使ってノッチやホームバーを避けて配置する
 - タッチ操作が前提。ホバーや右クリック、ドラッグ前提の操作にしない。PCではマウスのクリックで同じ操作ができること

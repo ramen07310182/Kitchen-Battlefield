@@ -32,7 +32,6 @@ func setup(capacity: int) -> void:
 		button.add_theme_color_override("font_color", Color(0.1, 0.08, 0.05))
 		button.add_theme_color_override("font_disabled_color", Color(0.1, 0.08, 0.05))
 		button.icon_alignment = HORIZONTAL_ALIGNMENT_CENTER
-		button.texture_filter = CanvasItem.TEXTURE_FILTER_NEAREST
 		button.pressed.connect(_on_slot_pressed.bind(i))
 		_grid.add_child(button)
 		_buttons.append(button)

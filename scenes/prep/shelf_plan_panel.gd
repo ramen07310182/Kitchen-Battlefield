@@ -28,7 +28,6 @@ func _ready() -> void:
 		slot.add_theme_color_override("font_color", Color(0.1, 0.08, 0.05))
 		slot.add_theme_color_override("font_disabled_color", Color(0.1, 0.08, 0.05))
 		slot.icon_alignment = HORIZONTAL_ALIGNMENT_CENTER
-		slot.texture_filter = CanvasItem.TEXTURE_FILTER_NEAREST
 		slot.pressed.connect(func() -> void: remove_requested.emit(i))
 		_slots.add_child(slot)
 		_slot_buttons.append(slot)
