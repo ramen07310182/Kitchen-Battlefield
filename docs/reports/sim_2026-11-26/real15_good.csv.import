@@ -1,0 +1,19 @@
+[remap]
+
+importer="csv_translation"
+type="Translation"
+uid="uid://co3wj8xnc58r7"
+
+[deps]
+
+files=["res://docs/reports/sim_2026-11-26/real15_good.date.translation", "res://docs/reports/sim_2026-11-26/real15_good.reputation.translation", "res://docs/reports/sim_2026-11-26/real15_good.reputation.translation", "res://docs/reports/sim_2026-11-26/real15_good.rank.translation", "res://docs/reports/sim_2026-11-26/real15_good.money.translation", "res://docs/reports/sim_2026-11-26/real15_good.profit.translation", "res://docs/reports/sim_2026-11-26/real15_good.visitors.translation", "res://docs/reports/sim_2026-11-26/real15_good.served.translation", "res://docs/reports/sim_2026-11-26/real15_good.angry.translation", "res://docs/reports/sim_2026-11-26/real15_good.missed.translation", "res://docs/reports/sim_2026-11-26/real15_good.stars.translation", "res://docs/reports/sim_2026-11-26/real15_good.tables.translation", "res://docs/reports/sim_2026-11-26/real15_good.shelf.translation", "res://docs/reports/sim_2026-11-26/real15_good.stove.translation", "res://docs/reports/sim_2026-11-26/real15_good.fryer.translation", "res://docs/reports/sim_2026-11-26/real15_good.rice.translation", "res://docs/reports/sim_2026-11-26/real15_good.unlocked.translation", "res://docs/reports/sim_2026-11-26/real15_good.unlocked.translation", "res://docs/reports/sim_2026-11-26/real15_good.bought.translation"]
+
+source_file="res://docs/reports/sim_2026-11-26/real15_good.csv"
+dest_files=["res://docs/reports/sim_2026-11-26/real15_good.date.translation", "res://docs/reports/sim_2026-11-26/real15_good.reputation.translation", "res://docs/reports/sim_2026-11-26/real15_good.reputation.translation", "res://docs/reports/sim_2026-11-26/real15_good.rank.translation", "res://docs/reports/sim_2026-11-26/real15_good.money.translation", "res://docs/reports/sim_2026-11-26/real15_good.profit.translation", "res://docs/reports/sim_2026-11-26/real15_good.visitors.translation", "res://docs/reports/sim_2026-11-26/real15_good.served.translation", "res://docs/reports/sim_2026-11-26/real15_good.angry.translation", "res://docs/reports/sim_2026-11-26/real15_good.missed.translation", "res://docs/reports/sim_2026-11-26/real15_good.stars.translation", "res://docs/reports/sim_2026-11-26/real15_good.tables.translation", "res://docs/reports/sim_2026-11-26/real15_good.shelf.translation", "res://docs/reports/sim_2026-11-26/real15_good.stove.translation", "res://docs/reports/sim_2026-11-26/real15_good.fryer.translation", "res://docs/reports/sim_2026-11-26/real15_good.rice.translation", "res://docs/reports/sim_2026-11-26/real15_good.unlocked.translation", "res://docs/reports/sim_2026-11-26/real15_good.unlocked.translation", "res://docs/reports/sim_2026-11-26/real15_good.bought.translation"]
+
+[params]
+
+compress=1
+delimiter=0
+unescape_keys=false
+unescape_translations=true

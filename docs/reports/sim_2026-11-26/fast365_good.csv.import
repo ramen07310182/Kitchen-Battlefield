@@ -1,0 +1,19 @@
+[remap]
+
+importer="csv_translation"
+type="Translation"
+uid="uid://d35q85j22yieo"
+
+[deps]
+
+files=["res://docs/reports/sim_2026-11-26/fast365_good.date.translation", "res://docs/reports/sim_2026-11-26/fast365_good.reputation.translation", "res://docs/reports/sim_2026-11-26/fast365_good.reputation.translation", "res://docs/reports/sim_2026-11-26/fast365_good.rank.translation", "res://docs/reports/sim_2026-11-26/fast365_good.money.translation", "res://docs/reports/sim_2026-11-26/fast365_good.profit.translation", "res://docs/reports/sim_2026-11-26/fast365_good.visitors.translation", "res://docs/reports/sim_2026-11-26/fast365_good.served.translation", "res://docs/reports/sim_2026-11-26/fast365_good.angry.translation", "res://docs/reports/sim_2026-11-26/fast365_good.missed.translation", "res://docs/reports/sim_2026-11-26/fast365_good.stars.translation", "res://docs/reports/sim_2026-11-26/fast365_good.tables.translation", "res://docs/reports/sim_2026-11-26/fast365_good.shelf.translation", "res://docs/reports/sim_2026-11-26/fast365_good.stove.translation", "res://docs/reports/sim_2026-11-26/fast365_good.fryer.translation", "res://docs/reports/sim_2026-11-26/fast365_good.rice.translation", "res://docs/reports/sim_2026-11-26/fast365_good.unlocked.translation", "res://docs/reports/sim_2026-11-26/fast365_good.unlocked.translation", "res://docs/reports/sim_2026-11-26/fast365_good.bought.translation"]
+
+source_file="res://docs/reports/sim_2026-11-26/fast365_good.csv"
+dest_files=["res://docs/reports/sim_2026-11-26/fast365_good.date.translation", "res://docs/reports/sim_2026-11-26/fast365_good.reputation.translation", "res://docs/reports/sim_2026-11-26/fast365_good.reputation.translation", "res://docs/reports/sim_2026-11-26/fast365_good.rank.translation", "res://docs/reports/sim_2026-11-26/fast365_good.money.translation", "res://docs/reports/sim_2026-11-26/fast365_good.profit.translation", "res://docs/reports/sim_2026-11-26/fast365_good.visitors.translation", "res://docs/reports/sim_2026-11-26/fast365_good.served.translation", "res://docs/reports/sim_2026-11-26/fast365_good.angry.translation", "res://docs/reports/sim_2026-11-26/fast365_good.missed.translation", "res://docs/reports/sim_2026-11-26/fast365_good.stars.translation", "res://docs/reports/sim_2026-11-26/fast365_good.tables.translation", "res://docs/reports/sim_2026-11-26/fast365_good.shelf.translation", "res://docs/reports/sim_2026-11-26/fast365_good.stove.translation", "res://docs/reports/sim_2026-11-26/fast365_good.fryer.translation", "res://docs/reports/sim_2026-11-26/fast365_good.rice.translation", "res://docs/reports/sim_2026-11-26/fast365_good.unlocked.translation", "res://docs/reports/sim_2026-11-26/fast365_good.unlocked.translation", "res://docs/reports/sim_2026-11-26/fast365_good.bought.translation"]
+
+[params]
+
+compress=1
+delimiter=0
+unescape_keys=false
+unescape_translations=true

@@ -1,0 +1,19 @@
+[remap]
+
+importer="csv_translation"
+type="Translation"
+uid="uid://bbjqp7old41en"
+
+[deps]
+
+files=["res://docs/reports/sim_2026-11-26/fast365_sloppy.date.translation", "res://docs/reports/sim_2026-11-26/fast365_sloppy.reputation.translation", "res://docs/reports/sim_2026-11-26/fast365_sloppy.reputation.translation", "res://docs/reports/sim_2026-11-26/fast365_sloppy.rank.translation", "res://docs/reports/sim_2026-11-26/fast365_sloppy.money.translation", "res://docs/reports/sim_2026-11-26/fast365_sloppy.profit.translation", "res://docs/reports/sim_2026-11-26/fast365_sloppy.visitors.translation", "res://docs/reports/sim_2026-11-26/fast365_sloppy.served.translation", "res://docs/reports/sim_2026-11-26/fast365_sloppy.angry.translation", "res://docs/reports/sim_2026-11-26/fast365_sloppy.missed.translation", "res://docs/reports/sim_2026-11-26/fast365_sloppy.stars.translation", "res://docs/reports/sim_2026-11-26/fast365_sloppy.tables.translation", "res://docs/reports/sim_2026-11-26/fast365_sloppy.shelf.translation", "res://docs/reports/sim_2026-11-26/fast365_sloppy.stove.translation", "res://docs/reports/sim_2026-11-26/fast365_sloppy.fryer.translation", "res://docs/reports/sim_2026-11-26/fast365_sloppy.rice.translation", "res://docs/reports/sim_2026-11-26/fast365_sloppy.unlocked.translation", "res://docs/reports/sim_2026-11-26/fast365_sloppy.unlocked.translation", "res://docs/reports/sim_2026-11-26/fast365_sloppy.bought.translation"]
+
+source_file="res://docs/reports/sim_2026-11-26/fast365_sloppy.csv"
+dest_files=["res://docs/reports/sim_2026-11-26/fast365_sloppy.date.translation", "res://docs/reports/sim_2026-11-26/fast365_sloppy.reputation.translation", "res://docs/reports/sim_2026-11-26/fast365_sloppy.reputation.translation", "res://docs/reports/sim_2026-11-26/fast365_sloppy.rank.translation", "res://docs/reports/sim_2026-11-26/fast365_sloppy.money.translation", "res://docs/reports/sim_2026-11-26/fast365_sloppy.profit.translation", "res://docs/reports/sim_2026-11-26/fast365_sloppy.visitors.translation", "res://docs/reports/sim_2026-11-26/fast365_sloppy.served.translation", "res://docs/reports/sim_2026-11-26/fast365_sloppy.angry.translation", "res://docs/reports/sim_2026-11-26/fast365_sloppy.missed.translation", "res://docs/reports/sim_2026-11-26/fast365_sloppy.stars.translation", "res://docs/reports/sim_2026-11-26/fast365_sloppy.tables.translation", "res://docs/reports/sim_2026-11-26/fast365_sloppy.shelf.translation", "res://docs/reports/sim_2026-11-26/fast365_sloppy.stove.translation", "res://docs/reports/sim_2026-11-26/fast365_sloppy.fryer.translation", "res://docs/reports/sim_2026-11-26/fast365_sloppy.rice.translation", "res://docs/reports/sim_2026-11-26/fast365_sloppy.unlocked.translation", "res://docs/reports/sim_2026-11-26/fast365_sloppy.unlocked.translation", "res://docs/reports/sim_2026-11-26/fast365_sloppy.bought.translation"]
+
+[params]
+
+compress=1
+delimiter=0
+unescape_keys=false
+unescape_translations=true
