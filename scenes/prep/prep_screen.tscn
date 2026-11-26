@@ -54,6 +54,7 @@ theme_override_constants/separation = 3
 [node name="MenuTitle" type="Label" parent="SafeArea/VBox/Body/MenuPanel"]
 unique_name_in_owner = true
 layout_mode = 2
+theme_type_variation = &"HeaderLabel"
 text = "今日のメニュー・仕込み"
 
 [node name="MenuList" type="VBoxContainer" parent="SafeArea/VBox/Body/MenuPanel"]
@@ -86,6 +87,7 @@ theme_override_constants/separation = 3
 [node name="IngredientTitle" type="Label" parent="SafeArea/VBox/Body/IngredientPanel"]
 unique_name_in_owner = true
 layout_mode = 2
+theme_type_variation = &"HeaderLabel"
 text = "食材の仕入れ"
 
 [node name="IngredientList" type="VBoxContainer" parent="SafeArea/VBox/Body/IngredientPanel"]

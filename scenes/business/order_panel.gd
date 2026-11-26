@@ -51,6 +51,7 @@ func _add_row() -> void:
 	var row: PanelContainer = PanelContainer.new()
 	var box: StyleBoxFlat = UIUtil.flat_box(Color(0.2, 0.32, 0.22), Color.WHITE, 0, 2)
 	box.border_width_left = 5
+	box.content_margin_left = 9
 	row.add_theme_stylebox_override("panel", box)
 	var label: Label = Label.new()
 	row.add_child(label)

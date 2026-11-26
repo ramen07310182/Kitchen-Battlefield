@@ -1,14 +1,41 @@
 [gd_resource type="Theme" format=3]
 
-[ext_resource type="FontFile" path="res://assets/fonts/pixel_mplus/PixelMplus12-Regular.ttf" id="1_font12"]
-[ext_resource type="FontFile" path="res://assets/fonts/pixel_mplus/PixelMplus10-Regular.ttf" id="2_font10"]
+[ext_resource type="FontFile" path="res://assets/fonts/noto_sans_jp/NotoSansJP-VariableFont_wght.ttf" id="1_noto"]
+
+[sub_resource type="FontVariation" id="FontVariation_regular"]
+base_font = ExtResource("1_noto")
+variation_opentype = {
+2003265652: 400
+}
+spacing_top = -2
+spacing_bottom = -1
+
+[sub_resource type="FontVariation" id="FontVariation_medium"]
+base_font = ExtResource("1_noto")
+variation_opentype = {
+2003265652: 500
+}
+spacing_top = -2
+spacing_bottom = -1
+
+[sub_resource type="FontVariation" id="FontVariation_bold"]
+base_font = ExtResource("1_noto")
+variation_opentype = {
+2003265652: 700
+}
+spacing_top = -2
+spacing_bottom = -1
 
 [resource]
-default_font = ExtResource("1_font12")
-default_font_size = 12
+default_font = SubResource("FontVariation_regular")
+default_font_size = 13
+Button/fonts/font = SubResource("FontVariation_medium")
+HeaderLabel/base_type = &"Label"
+HeaderLabel/font_sizes/font_size = 14
+HeaderLabel/fonts/font = SubResource("FontVariation_bold")
 LargeLabel/base_type = &"Label"
 LargeLabel/font_sizes/font_size = 24
-LargeLabel/fonts/font = ExtResource("1_font12")
+LargeLabel/fonts/font = SubResource("FontVariation_bold")
 SmallLabel/base_type = &"Label"
-SmallLabel/font_sizes/font_size = 10
-SmallLabel/fonts/font = ExtResource("2_font10")
+SmallLabel/font_sizes/font_size = 11
+SmallLabel/fonts/font = SubResource("FontVariation_regular")

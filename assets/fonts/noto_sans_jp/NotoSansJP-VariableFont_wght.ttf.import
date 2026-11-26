@@ -2,18 +2,18 @@
 
 importer="font_data_dynamic"
 type="FontFile"
-uid="uid://ddu406sy7bumg"
-path="res://.godot/imported/PixelMplus10-Regular.ttf-02ba0aa070298f6ce54f4df873c6d7fa.fontdata"
+uid="uid://g3iy3inbnbj8"
+path="res://.godot/imported/NotoSansJP-VariableFont_wght.ttf-0093dd3d652a0b451a3a2756922c584f.fontdata"
 
 [deps]
 
-source_file="res://assets/fonts/pixel_mplus/PixelMplus10-Regular.ttf"
-dest_files=["res://.godot/imported/PixelMplus10-Regular.ttf-02ba0aa070298f6ce54f4df873c6d7fa.fontdata"]
+source_file="res://assets/fonts/noto_sans_jp/NotoSansJP-VariableFont_wght.ttf"
+dest_files=["res://.godot/imported/NotoSansJP-VariableFont_wght.ttf-0093dd3d652a0b451a3a2756922c584f.fontdata"]
 
 [params]
 
 Rendering=null
-antialiasing=0
+antialiasing=1
 generate_mipmaps=false
 disable_embedded_bitmaps=true
 multichannel_signed_distance_field=false
@@ -22,8 +22,8 @@ msdf_size=48
 allow_system_fallback=true
 force_autohinter=false
 modulate_color_glyphs=false
-hinting=0
-subpixel_positioning=0
+hinting=3
+subpixel_positioning=4
 keep_rounding_remainders=true
 oversampling=0.0
 Fallbacks=null

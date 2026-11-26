@@ -12,6 +12,7 @@ theme_override_constants/separation = 3
 [node name="TitleLabel" type="Label" parent="VBox"]
 unique_name_in_owner = true
 layout_mode = 2
+theme_type_variation = &"HeaderLabel"
 text = "完成品置き場"
 
 [node name="HeldPanel" type="PanelContainer" parent="VBox"]
@@ -23,6 +24,8 @@ unique_name_in_owner = true
 layout_mode = 2
 text = "料理をタップして持つ"
 horizontal_alignment = 1
+clip_text = true
+text_overrun_behavior = 3
 
 [node name="SlotGrid" type="GridContainer" parent="VBox"]
 unique_name_in_owner = true
