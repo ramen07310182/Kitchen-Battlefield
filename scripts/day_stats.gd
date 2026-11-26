@@ -9,7 +9,14 @@ var visitors: int = 0
 var completed_orders: int = 0
 var left_angry: int = 0
 var mistakes: int = 0
+## その日の評判の増減（営業結果のときにまとめて反映した値）
 var reputation_change: int = 0
+## 客ごとの評判の点数の合計（売り逃しの分は含まない。GameState.get_day_reputation_points で合計する）
+var reputation_points: float = 0.0
+## この営業のあとに上がったランク（上がらなければ 0）
+var rank_up: int = 0
+## その日の準備を始めた時点の在庫の原価（在庫の増減の説明用）
+var day_start_stock_value: int = 0
 ## 営業終了時に残って捨てた料理（残り・置き場・調理中）の数と原価。原価は ingredient_cost に含まれている
 var waste_count: int = 0
 var waste_cost: int = 0

@@ -16,5 +16,5 @@ extends Resource
 @export var color: Color = Color.WHITE
 ## 一覧に並べる順番（小さいほど上）
 @export var sort_order: int = 0
-## 解放に必要な評判。0 なら最初から使える。営業結果のあと、評判がこの値以上なら解放する
-@export var unlock_reputation: int = 0
+## 解放に必要な店舗ランク（1 なら最初から使える）。営業結果のあと、ランクがこの値以上なら解放する
+@export var unlock_rank: int = 1

@@ -16,7 +16,7 @@ signal inventory_changed
 signal reputation_changed(value: int)
 
 const DEFAULT_SAVE_PATH := "user://save.json"
-const SAVE_VERSION := 6
+const SAVE_VERSION := 7
 
 var money: int = 0
 var day: int = 1
@@ -37,11 +37,14 @@ var last_shelf_plan: Array[String] = []
 var last_sold_counts: Dictionary = {}
 ## 前回の営業の、料理ごとの売り逃し（頼みたかったのに頼めなかった人数）{ 料理id: 人数 }（セーブする）
 var last_missed_counts: Dictionary = {}
-## 解放済みの料理のid（評判で解放する。一度解放したら評判が下がっても使える。セーブする）
+## 店舗ランク（1始まり）。評判で上がり、一度上がったら評判が下がっても下げない（セーブする）
+var rank: int = 1
+## 解放済みの料理のid（ランクで解放する。一度解放したら評判が下がっても使える。セーブする）
 var unlocked_dishes: Array[String] = []
 ## その日の準備を始めた時点の所持金と、その日に仕入れに使ったお金（結果画面の「所持金の増減」用。保存しない）
 var day_start_money: int = 0
 var day_purchase_cost: int = 0
+var day_start_stock_value: int = 0
 ## セーブファイルの場所。テストのときだけ別の場所に切り替える
 var save_path: String = DEFAULT_SAVE_PATH
 
@@ -80,15 +83,25 @@ func _new_game() -> void:
 	last_shelf_plan.clear()
 	last_sold_counts.clear()
 	last_missed_counts.clear()
+	rank = 1
 	unlocked_dishes.clear()
-	_unlock_by_reputation()
+	_unlock_by_rank()
 	_start_day_accounting()
 
 
-## その日のお金の記録を始める（準備画面を始める時点）
+## その日のお金の記録を始める（準備画面を始める時点）。在庫の原価も覚えておく（結果画面の「在庫の増減」用）
 func _start_day_accounting() -> void:
 	day_start_money = money
 	day_purchase_cost = 0
+	day_start_stock_value = get_stock_value()
+
+
+## 確定した在庫の原価の合計
+func get_stock_value() -> int:
+	var total: int = 0
+	for ing: IngredientData in Database.ingredients:
+		total += ing.price * get_stock(ing.id)
+	return total
 
 
 # ---------------------------------------------------------------
@@ -202,13 +215,13 @@ func get_unlocked_dishes() -> Array[DishData]:
 	return result
 
 
-## まだ解放していない料理（解放に必要な評判が低い順）
+## まだ解放していない料理（解放に必要なランクが低い順）
 func get_locked_dishes() -> Array[DishData]:
 	var result: Array[DishData] = []
 	for dish: DishData in Database.dishes:
 		if not is_unlocked(dish.id):
 			result.append(dish)
-	result.sort_custom(func(a: DishData, b: DishData) -> bool: return a.unlock_reputation < b.unlock_reputation)
+	result.sort_custom(func(a: DishData, b: DishData) -> bool: return a.unlock_rank < b.unlock_rank)
 	return result
 
 
@@ -224,21 +237,46 @@ func get_unlocked_ingredients() -> Array[IngredientData]:
 	return result
 
 
-## 今の評判で解放できる料理を解放する。新しく解放した料理を返す
-func _unlock_by_reputation() -> Array[DishData]:
+## 今のランクで解放できる料理を解放する。新しく解放した料理を返す
+func _unlock_by_rank() -> Array[DishData]:
 	var newly: Array[DishData] = []
 	for dish: DishData in Database.dishes:
-		if not is_unlocked(dish.id) and reputation >= dish.unlock_reputation:
+		if not is_unlocked(dish.id) and rank >= dish.unlock_rank:
 			unlocked_dishes.append(dish.id)
 			newly.append(dish)
 	return newly
 
 
-## 最初から使える料理（必要な評判が0以下）を解放済みに入れる
-func _unlock_starting_dishes() -> void:
-	for dish: DishData in Database.dishes:
-		if dish.unlock_reputation <= 0 and not is_unlocked(dish.id):
-			unlocked_dishes.append(dish.id)
+# ---------------------------------------------------------------
+# 店舗ランク
+# ---------------------------------------------------------------
+
+func get_rank_name() -> String:
+	return Database.config.get_rank_name(rank)
+
+
+func is_max_rank() -> bool:
+	return rank >= Database.config.get_max_rank()
+
+
+## 次のランクまでの進み具合（0〜1）。最高ランクなら1
+func get_rank_progress() -> float:
+	var cfg: GameConfig = Database.config
+	if is_max_rank():
+		return 1.0
+	var from: int = cfg.get_rank_threshold(rank)
+	var to: int = cfg.get_rank_threshold(rank + 1)
+	return clampf(float(reputation - from) / float(maxi(1, to - from)), 0.0, 1.0)
+
+
+## 評判でランクを上げる（下げない）。上がったら新しいランク、上がらなければ 0 を返す。
+## ランクが上がったら、そのランクで使える料理も解放する
+func _update_rank() -> int:
+	var by_reputation: int = Database.config.get_rank_for_reputation(reputation)
+	if by_reputation <= rank:
+		return 0
+	rank = by_reputation
+	return rank
 
 
 func get_prep_count(dish_id: String) -> int:
@@ -477,6 +515,7 @@ func begin_business() -> Dictionary:
 	today.dish_prepared = prep.duplicate()
 	today.day_start_money = day_start_money
 	today.purchase_cost = day_purchase_cost
+	today.day_start_stock_value = day_start_stock_value
 	var shelf: Array[String] = []
 	var placed: Dictionary = {}
 	for dish_id: String in shelf_plan:
@@ -539,13 +578,19 @@ func record_waste(leftover: Dictionary) -> void:
 		DayStats.add_to(today.dish_waste, dish_id, count)
 
 
+## 客1人の満足度を記録する。評判の点数はその日の分を足しておき、営業結果のときにまとめて反映する
 func _apply_rating(level: Satisfaction.Level) -> void:
 	var cfg: GameConfig = Database.config
-	var delta: int = Satisfaction.reputation_delta(level, cfg)
-	var before: int = reputation
-	add_reputation(delta)
-	today.reputation_change += reputation - before
+	today.reputation_points += Satisfaction.reputation_points(level, cfg)
 	today.add_rating(Satisfaction.stars(level, cfg))
+
+
+## その日の評判の点数（客ごとの点数＋売り逃しの点数）
+func get_day_reputation_points() -> float:
+	var missed: int = 0
+	for dish_id: String in today.dish_missed:
+		missed += int(today.dish_missed[dish_id])
+	return today.reputation_points + float(missed) * Database.config.reputation_missed
 
 
 ## 営業終了時に1回だけ呼ぶ。その他経費を払う
@@ -558,9 +603,14 @@ func finish_business() -> void:
 	for dish_id: String in today.get_prepared_dish_ids():
 		last_sold_counts[dish_id] = int(today.dish_sold.get(dish_id, 0))
 		last_missed_counts[dish_id] = int(today.dish_missed.get(dish_id, 0))
-	# 営業結果のあとに、評判で新しい料理を解放する
+	# その日の評判をまとめて反映する（点数 × 今のランクの倍率。マイナスの日は少しだけ下がる）
+	var before: int = reputation
+	add_reputation(Database.config.get_reputation_delta(get_day_reputation_points(), rank))
+	today.reputation_change = reputation - before
+	# 評判が届いていればランクを上げ、そのランクの料理を解放する
+	today.rank_up = _update_rank()
 	today.new_unlocks.clear()
-	for dish: DishData in _unlock_by_reputation():
+	for dish: DishData in _unlock_by_rank():
 		today.new_unlocks.append(dish.id)
 
 
@@ -597,6 +647,7 @@ func save_game() -> bool:
 		"last_sold": last_sold_counts.duplicate(),
 		"last_missed": last_missed_counts.duplicate(),
 		"unlocked": Array(unlocked_dishes),
+		"rank": rank,
 	}
 	var file: FileAccess = FileAccess.open(save_path, FileAccess.WRITE)
 	if file == null:
@@ -658,7 +709,10 @@ func load_game() -> bool:
 			var dish_id: String = str(item)
 			if Database.get_dish(dish_id) != null and not unlocked_dishes.has(dish_id):
 				unlocked_dishes.append(dish_id)
-	_unlock_starting_dishes()
+	# ランクは下げない。セーブのランクと、今の評判から決まるランクの高いほう
+	rank = clampi(maxi(int(data.get("rank", 1)), Database.config.get_rank_for_reputation(reputation)),
+		1, Database.config.get_max_rank())
+	_unlock_by_rank()
 	_start_day_accounting()
 	money_changed.emit(money)
 	reputation_changed.emit(reputation)
@@ -703,13 +757,15 @@ func _migrate(data: Dictionary) -> Dictionary:
 		data["last_missed"] = {}
 		version = 5
 	if version == 5:
-		# v6 で料理の解放を追加。読み込んだ時点の評判で、解放済みの料理を決める
-		var unlocked: Array = []
-		var saved_reputation: int = int(data.get("reputation", 0))
-		for dish: DishData in Database.dishes:
-			if saved_reputation >= dish.unlock_reputation:
-				unlocked.append(dish.id)
-		data["unlocked"] = unlocked
+		# v6 で料理の解放を追加（v7 でランクによる解放に変わったので、ここでは空にして v7 の移行で決める）
+		data["unlocked"] = []
 		version = 6
+	if version == 6:
+		# v7 で評判の上がり方と店舗ランクを変えた。
+		# 評判を今の範囲に換算し（来店ペースが同じになるように）、その評判でランクを決める。解放済みの料理はそのまま
+		var converted: int = roundi(float(data.get("reputation", 0)) * Database.config.legacy_reputation_scale)
+		data["reputation"] = maxi(0, converted)
+		data["rank"] = Database.config.get_rank_for_reputation(maxi(0, converted))
+		version = 7
 	data["version"] = version
 	return data

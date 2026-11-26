@@ -14,7 +14,8 @@ static func from_wait(elapsed: float, patience: float, config: GameConfig) -> Le
 	return Level.BAD
 
 
-static func reputation_delta(level: Level, config: GameConfig) -> int:
+## 客1人の評判の点数（その日の分を足して、営業結果のときに評判へ反映する）
+static func reputation_points(level: Level, config: GameConfig) -> float:
 	match level:
 		Level.GREAT:
 			return config.reputation_great

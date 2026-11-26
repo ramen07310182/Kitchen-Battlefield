@@ -1,5 +1,7 @@
 extends Control
 ## 営業結果画面。今日の集計と料理ごとの内訳を表示し、「次の日へ」で次の営業準備に進む。
+## お金は「利益」と「所持金」の2つを大きく出し、内訳は小さく出す。
+##   利益 ＝ 所持金の増減 ＋ 在庫の増減（原価）（仕入れた日と使った日がずれると、2つの数字が違う）
 ## 内訳では、売り切れて売り逃しが出た料理（黄）と、廃棄が多かった料理（赤）に色を付ける。
 
 signal next_day_requested
@@ -15,13 +17,19 @@ const COLOR_SOLD_OUT_BG := Color(0.33, 0.27, 0.1)
 const COLOR_WASTE := Color(1.0, 0.5, 0.42)
 const COLOR_WASTE_BG := Color(0.34, 0.15, 0.13)
 const COLOR_SUB := Color(0.7, 0.7, 0.7)
+const COLOR_PLUS := Color(0.6, 1.0, 0.6)
+const COLOR_MINUS := Color(1.0, 0.5, 0.45)
 
 @onready var _title_label: Label = %TitleLabel
-@onready var _money_grid: GridContainer = %MoneyGrid
-@onready var _service_grid: GridContainer = %ServiceGrid
+@onready var _reputation_change_label: Label = %ReputationChangeLabel
 @onready var _rating_label: Label = %RatingLabel
-@onready var _note_label: Label = %NoteLabel
+@onready var _news: HBoxContainer = %News
+@onready var _rank_up_label: Label = %RankUpLabel
 @onready var _unlock_label: Label = %UnlockLabel
+@onready var _note_label: Label = %NoteLabel
+@onready var _profit_grid: GridContainer = %ProfitGrid
+@onready var _money_grid: GridContainer = %MoneyGrid
+@onready var _service_label: Label = %ServiceLabel
 @onready var _dish_title: Label = %DishTitle
 @onready var _dish_legend: Label = %DishLegend
 @onready var _dish_table: VBoxContainer = %DishTable
@@ -33,54 +41,72 @@ func _ready() -> void:
 	_title_label.text = UIText.RESULT_TITLE % GameState.day
 	_next_button.text = UIText.RESULT_NEXT
 
-	_add_row(_money_grid, UIText.RESULT_SALES, UIText.money(stats.sales))
-	_add_row(_money_grid, UIText.RESULT_COST, UIText.money(-stats.ingredient_cost))
-	if stats.waste_count > 0:
-		_add_row(_money_grid, UIText.RESULT_WASTE % stats.waste_count, UIText.money(-stats.waste_cost), COLOR_WASTE)
-	_add_row(_money_grid, UIText.RESULT_OTHER, UIText.money(-stats.other_expense))
-	var profit: int = stats.profit()
-	_add_row(_money_grid, UIText.RESULT_PROFIT, UIText.money(profit),
-		Color(0.6, 1.0, 0.6) if profit >= 0 else Color(1.0, 0.5, 0.45))
-	_add_row(_money_grid, UIText.RESULT_MONEY, UIText.money(GameState.money))
-
-	_add_row(_service_grid, UIText.RESULT_VISITORS, UIText.RESULT_PEOPLE % stats.visitors)
-	_add_row(_service_grid, UIText.RESULT_COMPLETED, UIText.RESULT_COUNT % stats.completed_orders)
-	_add_row(_service_grid, UIText.RESULT_ANGRY, UIText.RESULT_PEOPLE % stats.left_angry)
-	_add_row(_service_grid, UIText.RESULT_MISTAKES, UIText.RESULT_TIMES % stats.mistakes)
-	_add_row(_service_grid, UIText.RESULT_REPUTATION,
-		"%d（%s）" % [GameState.reputation, UIText.signed(stats.reputation_change)])
-	# 所持金の動き: 仕入れ代は仕入れた時点で、売上と経費は営業で所持金に入っている
-	_add_row(_service_grid, UIText.RESULT_PURCHASE, UIText.money(-stats.purchase_cost))
-	var change: int = GameState.money - stats.day_start_money
-	_add_row(_service_grid, UIText.RESULT_MONEY_CHANGE, ("+" if change > 0 else "") + UIText.money(change),
-		Color(0.6, 1.0, 0.6) if change >= 0 else Color(1.0, 0.5, 0.45))
-
+	# 評判の増減と評価
+	var rep: int = stats.reputation_change
+	_reputation_change_label.text = UIText.RESULT_REPUTATION_CHANGE % UIText.signed(rep)
+	_reputation_change_label.add_theme_color_override("font_color", COLOR_PLUS if rep > 0 else (COLOR_MINUS if rep < 0 else COLOR_SUB))
 	if stats.has_ratings():
 		_rating_label.text = "%s  %s" % [UIText.RESULT_RATING, UIText.stars(stats.rounded_stars())]
 	else:
 		_rating_label.text = "%s  %s" % [UIText.RESULT_RATING, UIText.RESULT_NO_RATING]
-	_note_label.text = UIText.RESULT_SOLD_OUT if stats.sold_out else ""
-	_note_label.visible = stats.sold_out
+
+	# ランクアップ・新メニュー解放・売り切れ
+	_rank_up_label.visible = stats.rank_up > 0
+	if stats.rank_up > 0:
+		_rank_up_label.text = UIText.RESULT_RANK_UP % Database.config.get_rank_name(stats.rank_up)
 	var names: PackedStringArray = PackedStringArray()
 	for dish_id: String in stats.new_unlocks:
 		names.append(Database.get_dish(dish_id).display_name)
 	_unlock_label.text = UIText.RESULT_UNLOCK % "・".join(names)
 	_unlock_label.visible = not names.is_empty()
+	_note_label.text = UIText.RESULT_SOLD_OUT
+	_note_label.visible = stats.sold_out
+	_news.visible = _rank_up_label.visible or _unlock_label.visible or _note_label.visible
+
+	# 利益（大）と内訳（小）
+	var profit: int = stats.profit()
+	_add_row(_profit_grid, UIText.RESULT_PROFIT, UIText.money(profit), COLOR_PLUS if profit >= 0 else COLOR_MINUS, true)
+	_add_row(_profit_grid, UIText.RESULT_SALES, UIText.money(stats.sales))
+	_add_row(_profit_grid, UIText.RESULT_COST, UIText.money(-stats.ingredient_cost))
+	if stats.waste_count > 0:
+		_add_row(_profit_grid, UIText.RESULT_WASTE % stats.waste_count, UIText.money(-stats.waste_cost), COLOR_WASTE)
+	_add_row(_profit_grid, UIText.RESULT_OTHER, UIText.money(-stats.other_expense))
+
+	# 所持金（大）と、利益との関係（小）
+	var money_change: int = GameState.money - stats.day_start_money
+	var stock_change: int = GameState.get_stock_value() - stats.day_start_stock_value
+	_add_row(_money_grid, UIText.RESULT_MONEY, UIText.money(GameState.money), Color.WHITE, true)
+	_add_row(_money_grid, UIText.RESULT_MONEY_CHANGE, _signed_money(money_change), COLOR_PLUS if money_change >= 0 else COLOR_MINUS)
+	_add_row(_money_grid, UIText.RESULT_PURCHASE, UIText.money(-stats.purchase_cost))
+	_add_row(_money_grid, UIText.RESULT_STOCK_CHANGE, _signed_money(stock_change))
+	_add_row(_money_grid, UIText.RESULT_PROFIT_FORMULA, "", COLOR_SUB)
+
+	_service_label.text = UIText.RESULT_SERVICE_LINE % [stats.visitors, stats.completed_orders, stats.left_angry,
+		stats.mistakes, GameState.reputation]
 
 	_build_dish_table(stats)
 	_next_button.pressed.connect(_on_next_pressed)
 
 
-func _add_row(grid: GridContainer, name_text: String, value_text: String, value_color: Color = Color.WHITE) -> void:
+## big: 大きく出す行（利益・所持金）。そうでない行は小さい文字で、少し下げて出す
+func _add_row(grid: GridContainer, name_text: String, value_text: String, value_color: Color = Color.WHITE, big: bool = false) -> void:
 	var name_label: Label = Label.new()
-	name_label.text = name_text
+	name_label.text = name_text if big else "　" + name_text
 	name_label.size_flags_horizontal = Control.SIZE_EXPAND_FILL
+	name_label.theme_type_variation = &"MediumLabel" if big else &"SmallLabel"
+	if not big:
+		name_label.modulate = Color(0.85, 0.85, 0.85)
 	grid.add_child(name_label)
 	var value_label: Label = Label.new()
 	value_label.text = value_text
 	value_label.horizontal_alignment = HORIZONTAL_ALIGNMENT_RIGHT
+	value_label.theme_type_variation = &"MediumLabel" if big else &"SmallLabel"
 	value_label.modulate = value_color
 	grid.add_child(value_label)
+
+
+func _signed_money(value: int) -> String:
+	return ("+" if value > 0 else "") + UIText.money(value)
 
 
 # ---------------------------------------------------------------

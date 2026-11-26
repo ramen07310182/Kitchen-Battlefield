@@ -12,4 +12,4 @@ ingredients = {"chicken": 1, "egg": 1, "onion": 1, "rice": 1}
 cook_time = 5.0
 color = Color(1, 0.88, 0.4, 1)
 sort_order = 3
-unlock_reputation = 60
+unlock_rank = 2

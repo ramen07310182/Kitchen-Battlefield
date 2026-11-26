@@ -85,8 +85,8 @@ func _run() -> void:
 	# 残りの営業は、簡単な自動配膳をしながら早送りして結果画面へ（内訳の表に数字が入るように）。
 	# 営業時間は残り20秒にして、売り切れと廃棄の両方が出やすくする
 	business.set("_time_left", minf(float(business.get("_time_left")), 20.0))
-	# 結果画面の「新メニュー解放」も撮るため、評判を親子丼の解放に届く値にしておく（見た目の確認用）
-	GameState.add_reputation(maxi(0, Database.get_dish("oyakodon").unlock_reputation - GameState.reputation))
+	# 結果画面の「ランクアップ」「新メニュー解放」も撮るため、評判をランク2のしきい値にしておく（見た目の確認用）
+	GameState.add_reputation(maxi(0, Database.config.get_rank_threshold(2) - GameState.reputation))
 	Engine.time_scale = 20.0
 	while String(_current_screen(main).name) == "Business":
 		_auto_serve(business)

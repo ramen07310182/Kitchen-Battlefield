@@ -54,7 +54,7 @@ func _rebuild_rows() -> void:
 		var panel: PanelContainer = PanelContainer.new()
 		panel.add_theme_stylebox_override("panel", UIUtil.flat_box(Color(0.15, 0.14, 0.13), Color(0.3, 0.3, 0.3), 1))
 		var label: Label = Label.new()
-		label.text = UIText.PREP_LOCKED % [dish.display_name, dish.unlock_reputation]
+		label.text = UIText.PREP_LOCKED % [dish.display_name, Database.config.get_rank_name(dish.unlock_rank)]
 		label.modulate = COLOR_LOCKED
 		panel.add_child(label)
 		_menu_list.add_child(panel)

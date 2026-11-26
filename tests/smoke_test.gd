@@ -153,19 +153,47 @@ func _check_rules() -> void:
 			has_egg = true
 	_check("最初は3品だけ解放され、親子丼は仕込めず、卵は仕入れ画面に出ない",
 		GameState.get_unlocked_dishes().size() == 3 and GameState.change_prep("oyakodon", 1) == 0 and not has_egg)
-	var oyako: DishData = Database.get_dish("oyakodon")
-	GameState.add_reputation(oyako.unlock_reputation - GameState.reputation)
+	# 評判の計算: 客ごとの点数をその日の分だけ足し、営業結果のときに「点数 × ランクの倍率」で反映する
+	GameState.today = DayStats.new()
+	for i: int in 10:
+		GameState.record_served("karaage", Satisfaction.Level.GREAT)
+	var rep_before: int = GameState.reputation
+	_check("営業中は評判が変わらない（営業結果のときにまとめて反映）", GameState.reputation == rep_before)
 	GameState.finish_business()
-	_check("評判が必要な値に届くと、営業結果のあとに解放される",
-		GameState.is_unlocked("oyakodon") and GameState.today.new_unlocks.has("oyakodon") and not GameState.is_unlocked("yasaiitame"),
-		"unlocked=%s new=%s" % [GameState.unlocked_dishes, GameState.today.new_unlocks])
+	var expected_gain: int = roundi(10.0 * cfg.reputation_great * cfg.reputation_gain_by_rank[0])
+	_check("上手な日は「点数 × ランクの倍率」だけ評判が上がる",
+		GameState.today.reputation_change == expected_gain and GameState.reputation == rep_before + expected_gain,
+		"change=%d expected=%d" % [GameState.today.reputation_change, expected_gain])
+	GameState.today = DayStats.new()
+	GameState.record_served("karaage", Satisfaction.Level.GREAT)
+	GameState.record_served("karaage", Satisfaction.Level.GREAT)
+	for i: int in 3:
+		GameState.record_angry()
+	GameState.record_missed("karaage", 5)
+	GameState.finish_business()
+	_check("怒って帰る客や売り逃しが多い日は、評判が少し下がる",
+		GameState.today.reputation_change < 0 and GameState.today.reputation_change >= -5,
+		"change=%d" % GameState.today.reputation_change)
+
+	# 店舗ランクと料理の解放
+	_check("最初は「無名店」（ランク1）", GameState.rank == 1 and GameState.get_rank_name() == cfg.get_rank_name(1))
+	GameState.today = DayStats.new()
+	GameState.add_reputation(cfg.get_rank_threshold(2) - GameState.reputation)
+	GameState.finish_business()
+	_check("評判がしきい値に届くと、営業結果のあとにランクが上がり、そのランクの料理が解放される",
+		GameState.rank == 2 and GameState.today.rank_up == 2 and GameState.is_unlocked("oyakodon")
+		and GameState.today.new_unlocks.has("oyakodon") and not GameState.is_unlocked("yasaiitame"),
+		"rank=%d unlocked=%s new=%s" % [GameState.rank, GameState.unlocked_dishes, GameState.today.new_unlocks])
+	_check("ランクの進み具合（次のランクまで）は0〜1", GameState.get_rank_progress() >= 0.0 and GameState.get_rank_progress() < 1.0)
 	GameState.add_reputation(-1000)
+	GameState.today = DayStats.new()
 	GameState.finish_business()
 	GameState.save_game()
 	GameState.use_save_path(TEST_SAVE_PATH)
-	_check("評判が下がっても、解放済みの料理は使えたまま（セーブにも残る）",
-		GameState.reputation == 0 and GameState.is_unlocked("oyakodon") and GameState.change_prep("oyakodon", 1) == 1,
-		"rep=%d unlocked=%s" % [GameState.reputation, GameState.unlocked_dishes])
+	_check("評判が下がっても、ランクと解放済みの料理はそのまま（セーブにも残る）",
+		GameState.reputation == 0 and GameState.rank == 2 and GameState.is_unlocked("oyakodon")
+		and GameState.change_prep("oyakodon", 1) == 1,
+		"rep=%d rank=%d unlocked=%s" % [GameState.reputation, GameState.rank, GameState.unlocked_dishes])
 
 	# 営業中の数の管理（DishSupply）
 	var supply: DishSupply = DishSupply.new({"karaage": 3}, ["karaage"] as Array[String])
@@ -215,9 +243,18 @@ func _check_migration() -> void:
 	_write_test_save({"version": 5, "money": 8000, "day": 7, "reputation": 70,
 		"inventory": {"rice": 4}, "last_prep": {}, "last_shelf": [], "last_sold": {}, "last_missed": {}})
 	GameState.use_save_path(TEST_SAVE_PATH)
-	_check("セーブ移行 v5 -> v6（読み込んだ時点の評判で解放済みの料理を決める）",
-		GameState.is_unlocked("karaage") and GameState.is_unlocked("oyakodon") and not GameState.is_unlocked("yasaiitame"),
-		"unlocked=%s" % [GameState.unlocked_dishes])
+	_check("セーブ移行 v5 -> 最新（評判を換算し、そのランクで解放する）",
+		GameState.reputation == roundi(70 * cfg.legacy_reputation_scale) and GameState.rank == cfg.get_rank_for_reputation(GameState.reputation)
+		and GameState.is_unlocked("karaage") and GameState.is_unlocked("oyakodon"),
+		"rep=%d rank=%d unlocked=%s" % [GameState.reputation, GameState.rank, GameState.unlocked_dishes])
+	_write_test_save({"version": 6, "money": 9000, "day": 8, "reputation": 20,
+		"inventory": {"rice": 4}, "last_prep": {}, "last_shelf": [], "last_sold": {}, "last_missed": {},
+		"unlocked": ["karaage", "yakizakana", "shogayaki", "oyakodon"]})
+	GameState.use_save_path(TEST_SAVE_PATH)
+	_check("セーブ移行 v6 -> v7（評判を換算してランクを決め、解放済みの料理はそのまま）",
+		GameState.rank == 1 and GameState.reputation == roundi(20 * cfg.legacy_reputation_scale)
+		and GameState.is_unlocked("oyakodon") and not GameState.is_unlocked("yasaiitame"),
+		"rep=%d rank=%d unlocked=%s" % [GameState.reputation, GameState.rank, GameState.unlocked_dishes])
 
 
 func _write_test_save(data: Dictionary) -> void:
@@ -253,7 +290,7 @@ func _do_prep_day1(screen: Node, dialog: ConfirmDialog) -> void:
 	var menu_rows: Array[MenuRow] = menu_step.get("_menu_rows")
 	var locked: Array[Label] = menu_step.get("_locked_labels")
 	_check("①には解放済みの3品と、まだ解放していない料理（評判 ○ で解放）が出る",
-		menu_rows.size() == 3 and locked.size() == 2 and locked[0].text.contains("評判"),
+		menu_rows.size() == 3 and locked.size() == 2 and locked[0].text.contains(Database.config.get_rank_name(2) + "で解放"),
 		"rows=%d locked=%d" % [menu_rows.size(), locked.size()])
 	GameState.change_prep("karaage", 2)
 	GameState.change_prep("yakizakana", 1)
@@ -565,6 +602,9 @@ func _do_result(screen: Node) -> void:
 	_check("所持金の増減は「売上 − 仕入れ代 − その他経費」（食材原価を二重に引いていない）",
 		change == s.sales - s.purchase_cost - s.other_expense,
 		"change=%d sales=%d purchase=%d other=%d profit=%d" % [change, s.sales, s.purchase_cost, s.other_expense, s.profit()])
+	var stock_change: int = GameState.get_stock_value() - s.day_start_stock_value
+	_check("利益 ＝ 所持金の増減 ＋ 在庫の増減（原価）", s.profit() == change + stock_change,
+		"profit=%d change=%d stock=%d" % [s.profit(), change, stock_change])
 	if _days_done == 0:
 		var prepared: int = 0
 		for dish_id: String in _day1_prep:
@@ -584,20 +624,21 @@ func _do_result(screen: Node) -> void:
 		_check("残った料理は廃棄として数え、原価に含める",
 			s.waste_count > 0 and s.waste_cost > 0 and s.ingredient_cost == cost_check,
 			"waste=%d cost=%d prep_cost=%d" % [s.waste_count, s.ingredient_cost, cost_check])
-		_check("結果画面に廃棄の行が出る", _grid_has_text(screen.get("_money_grid"), UIText.RESULT_WASTE % s.waste_count))
+		_check("結果画面に廃棄の行が出る", _grid_has_text(screen.get("_profit_grid"), "　" + UIText.RESULT_WASTE % s.waste_count))
 	if _days_done == 0:
 		# 2日目は料理5種類で確かめるため、テストのために評判を上げて残りの料理を解放しておく
 		# （解放の判定そのものは _check_rules で確かめている）
 		GameState.add_reputation(200)
-		GameState.call("_unlock_by_reputation")
+		GameState.call("_update_rank")
+		GameState.call("_unlock_by_rank")
 	(screen.get("_next_button") as Button).pressed.emit()
 	_days_done += 1
 	if _days_done >= DAYS_TO_RUN:
 		var saved: String = FileAccess.get_file_as_string(GameState.save_path)
 		print("[smoke] save: ", saved.replace("\n", " "))
-		_check("セーブは version 6 で、前回の置き場・売れた数・売り逃し・解放済みの料理を含む",
-			saved.contains("\"version\": 6") and saved.contains("last_shelf") and saved.contains("last_sold")
-			and saved.contains("last_missed") and saved.contains("\"unlocked\""))
+		_check("セーブは version 7 で、前回の置き場・売れた数・売り逃し・解放済みの料理・ランクを含む",
+			saved.contains("\"version\": 7") and saved.contains("last_shelf") and saved.contains("last_sold")
+			and saved.contains("last_missed") and saved.contains("\"unlocked\"") and saved.contains("\"rank\""))
 		_finish()
 
 

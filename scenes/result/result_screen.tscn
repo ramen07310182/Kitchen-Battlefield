@@ -47,6 +47,13 @@ size_flags_horizontal = 3
 theme_type_variation = &"LargeLabel"
 text = "1日目の営業結果"
 
+[node name="ReputationChangeLabel" type="Label" parent="SafeArea/VBox/Header"]
+unique_name_in_owner = true
+layout_mode = 2
+size_flags_vertical = 4
+theme_type_variation = &"MediumLabel"
+text = "評判 +0"
+
 [node name="RatingLabel" type="Label" parent="SafeArea/VBox/Header"]
 unique_name_in_owner = true
 layout_mode = 2
@@ -55,22 +62,43 @@ theme_type_variation = &"LargeLabel"
 text = "今日の評価"
 horizontal_alignment = 2
 
-[node name="NoteLabel" type="Label" parent="SafeArea/VBox"]
+[node name="News" type="HBoxContainer" parent="SafeArea/VBox"]
 unique_name_in_owner = true
 layout_mode = 2
-theme_override_colors/font_color = Color(1, 0.85, 0.4, 1)
-text = "売り切れで早めに閉店しました"
+theme_override_constants/separation = 16
 
-[node name="UnlockLabel" type="Label" parent="SafeArea/VBox"]
+[node name="RankUpLabel" type="Label" parent="SafeArea/VBox/News"]
+unique_name_in_owner = true
+layout_mode = 2
+theme_type_variation = &"HeaderLabel"
+theme_override_colors/font_color = Color(1, 0.85, 0.4, 1)
+text = "ランクアップ"
+
+[node name="UnlockLabel" type="Label" parent="SafeArea/VBox/News"]
 unique_name_in_owner = true
 layout_mode = 2
 theme_type_variation = &"HeaderLabel"
 theme_override_colors/font_color = Color(0.6, 1, 0.65, 1)
 text = "新メニュー解放"
 
+[node name="NoteLabel" type="Label" parent="SafeArea/VBox/News"]
+unique_name_in_owner = true
+layout_mode = 2
+size_flags_vertical = 4
+theme_override_colors/font_color = Color(1, 0.85, 0.4, 1)
+text = "売り切れで早めに閉店しました"
+
 [node name="Columns" type="HBoxContainer" parent="SafeArea/VBox"]
 layout_mode = 2
 theme_override_constants/separation = 28
+
+[node name="ProfitGrid" type="GridContainer" parent="SafeArea/VBox/Columns"]
+unique_name_in_owner = true
+layout_mode = 2
+size_flags_horizontal = 3
+theme_override_constants/h_separation = 12
+theme_override_constants/v_separation = 0
+columns = 2
 
 [node name="MoneyGrid" type="GridContainer" parent="SafeArea/VBox/Columns"]
 unique_name_in_owner = true
@@ -80,13 +108,14 @@ theme_override_constants/h_separation = 12
 theme_override_constants/v_separation = 0
 columns = 2
 
-[node name="ServiceGrid" type="GridContainer" parent="SafeArea/VBox/Columns"]
+[node name="ServiceLabel" type="Label" parent="SafeArea/VBox"]
 unique_name_in_owner = true
 layout_mode = 2
-size_flags_horizontal = 3
-theme_override_constants/h_separation = 12
-theme_override_constants/v_separation = 0
-columns = 2
+theme_type_variation = &"SmallLabel"
+theme_override_colors/font_color = Color(0.8, 0.8, 0.8, 1)
+text = "来客数"
+clip_text = true
+text_overrun_behavior = 3
 
 [node name="DishHeader" type="HBoxContainer" parent="SafeArea/VBox"]
 layout_mode = 2
