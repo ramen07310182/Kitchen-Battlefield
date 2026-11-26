@@ -1,0 +1,98 @@
+[gd_scene format=3]
+
+[ext_resource type="Script" path="res://scenes/prep/prep_screen.gd" id="1_prep"]
+[ext_resource type="Script" path="res://scripts/ui/safe_area_container.gd" id="2_safe"]
+[ext_resource type="PackedScene" path="res://scenes/common/top_bar.tscn" id="3_top"]
+
+[node name="PrepScreen" type="Control"]
+layout_mode = 3
+anchors_preset = 15
+anchor_right = 1.0
+anchor_bottom = 1.0
+grow_horizontal = 2
+grow_vertical = 2
+script = ExtResource("1_prep")
+
+[node name="Background" type="ColorRect" parent="."]
+layout_mode = 1
+anchors_preset = 15
+anchor_right = 1.0
+anchor_bottom = 1.0
+grow_horizontal = 2
+grow_vertical = 2
+mouse_filter = 2
+color = Color(0.13, 0.11, 0.1, 1)
+
+[node name="SafeArea" type="MarginContainer" parent="."]
+layout_mode = 1
+anchors_preset = 15
+anchor_right = 1.0
+anchor_bottom = 1.0
+grow_horizontal = 2
+grow_vertical = 2
+script = ExtResource("2_safe")
+
+[node name="VBox" type="VBoxContainer" parent="SafeArea"]
+layout_mode = 2
+theme_override_constants/separation = 4
+
+[node name="TopBar" parent="SafeArea/VBox" instance=ExtResource("3_top")]
+layout_mode = 2
+show_time = false
+
+[node name="Body" type="HBoxContainer" parent="SafeArea/VBox"]
+layout_mode = 2
+size_flags_vertical = 3
+theme_override_constants/separation = 6
+
+[node name="MenuPanel" type="VBoxContainer" parent="SafeArea/VBox/Body"]
+layout_mode = 2
+size_flags_horizontal = 3
+size_flags_stretch_ratio = 1.15
+theme_override_constants/separation = 3
+
+[node name="MenuTitle" type="Label" parent="SafeArea/VBox/Body/MenuPanel"]
+unique_name_in_owner = true
+layout_mode = 2
+text = "今日のメニュー・仕込み"
+
+[node name="MenuList" type="VBoxContainer" parent="SafeArea/VBox/Body/MenuPanel"]
+unique_name_in_owner = true
+layout_mode = 2
+theme_override_constants/separation = 3
+
+[node name="PrepTotalLabel" type="Label" parent="SafeArea/VBox/Body/MenuPanel"]
+unique_name_in_owner = true
+layout_mode = 2
+text = "仕込み合計"
+
+[node name="IngredientPanel" type="VBoxContainer" parent="SafeArea/VBox/Body"]
+layout_mode = 2
+size_flags_horizontal = 3
+theme_override_constants/separation = 3
+
+[node name="IngredientTitle" type="Label" parent="SafeArea/VBox/Body/IngredientPanel"]
+unique_name_in_owner = true
+layout_mode = 2
+text = "食材の仕入れ"
+
+[node name="IngredientList" type="VBoxContainer" parent="SafeArea/VBox/Body/IngredientPanel"]
+unique_name_in_owner = true
+layout_mode = 2
+theme_override_constants/separation = 3
+
+[node name="Footer" type="HBoxContainer" parent="SafeArea/VBox"]
+layout_mode = 2
+theme_override_constants/separation = 8
+
+[node name="MessageLabel" type="Label" parent="SafeArea/VBox/Footer"]
+unique_name_in_owner = true
+layout_mode = 2
+size_flags_horizontal = 3
+text = "準備ができたら営業開始！"
+
+[node name="StartButton" type="Button" parent="SafeArea/VBox/Footer"]
+unique_name_in_owner = true
+custom_minimum_size = Vector2(130, 36)
+layout_mode = 2
+text = "営業開始"

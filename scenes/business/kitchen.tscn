@@ -1,0 +1,55 @@
+[gd_scene format=3]
+
+[ext_resource type="Script" path="res://scenes/business/kitchen.gd" id="1_kitchen"]
+
+[node name="Kitchen" type="PanelContainer"]
+script = ExtResource("1_kitchen")
+
+[node name="HBox" type="HBoxContainer" parent="."]
+layout_mode = 2
+theme_override_constants/separation = 6
+
+[node name="CookButtons" type="VBoxContainer" parent="HBox"]
+unique_name_in_owner = true
+custom_minimum_size = Vector2(150, 0)
+layout_mode = 2
+theme_override_constants/separation = 3
+
+[node name="Status" type="VBoxContainer" parent="HBox"]
+custom_minimum_size = Vector2(110, 0)
+layout_mode = 2
+theme_override_constants/separation = 3
+
+[node name="ChefRow" type="HBoxContainer" parent="HBox/Status"]
+layout_mode = 2
+
+[node name="ChefFigure" type="ColorRect" parent="HBox/Status/ChefRow"]
+custom_minimum_size = Vector2(14, 18)
+layout_mode = 2
+mouse_filter = 2
+color = Color(0.95, 0.95, 0.95, 1)
+
+[node name="ChefLabel" type="Label" parent="HBox/Status/ChefRow"]
+unique_name_in_owner = true
+layout_mode = 2
+text = "店主"
+
+[node name="StatusLabel" type="Label" parent="HBox/Status"]
+unique_name_in_owner = true
+layout_mode = 2
+text = "待機中"
+
+[node name="CookProgress" type="ProgressBar" parent="HBox/Status"]
+unique_name_in_owner = true
+custom_minimum_size = Vector2(0, 8)
+layout_mode = 2
+max_value = 1.0
+step = 0.0
+show_percentage = false
+
+[node name="QueueLabel" type="Label" parent="HBox/Status"]
+unique_name_in_owner = true
+custom_minimum_size = Vector2(110, 0)
+layout_mode = 2
+text = "次: なし"
+autowrap_mode = 3

@@ -1,0 +1,54 @@
+class_name GameConfig
+extends Resource
+## 調整用の数値をまとめた設定。実体は data/game_config.tres。
+
+@export_group("ゲーム開始時")
+@export var start_money: int = 10000
+## 開始時の在庫: { 食材id: 個数 }
+@export var start_inventory: Dictionary = {}
+
+@export_group("営業")
+## 営業時間（秒）
+@export var business_duration: float = 120.0
+## 営業開始から最初のお客さんが来るまで（秒）
+@export var first_spawn_delay: float = 2.0
+## 来店間隔（秒）。この範囲でランダム
+@export var spawn_interval_min: float = 5.0
+@export var spawn_interval_max: float = 9.0
+## テーブルの数（1人用）
+@export var table_count: int = 4
+## お客さんの歩く速さ（px/秒）
+@export var walk_speed: float = 160.0
+## 着席してから注文するまで（秒）
+@export var order_delay: float = 1.5
+## 好きな料理が選ばれる重み（好きでない料理は1）
+@export var favorite_weight: float = 3.0
+## 完成品置き場の枠数（仕込みの合計もこれが上限）
+@export var shelf_capacity: int = 6
+## 営業終了後の画面に切り替わるまで（秒）
+@export var end_delay: float = 1.5
+
+@export_group("経費")
+## その他経費（1日あたり固定）
+@export var other_expense: int = 2000
+
+@export_group("満足度")
+## 待ち時間 ÷ 待てる時間 がこの値以下なら大満足
+@export var great_ratio: float = 0.35
+## この値以下なら満足、超えるとやや不満
+@export var good_ratio: float = 0.7
+## 評判の増減
+@export var reputation_great: int = 3
+@export var reputation_good: int = 1
+@export var reputation_bad: int = -1
+@export var reputation_angry: int = -3
+## その日の評価（★）に使う点数
+@export var stars_great: float = 5.0
+@export var stars_good: float = 4.0
+@export var stars_bad: float = 2.0
+@export var stars_angry: float = 1.0
+
+@export_group("営業準備")
+## 仕入れボタン1回で買う個数（小・大）
+@export var buy_step_small: int = 1
+@export var buy_step_large: int = 5

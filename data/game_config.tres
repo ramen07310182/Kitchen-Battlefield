@@ -1,0 +1,37 @@
+[gd_resource type="Resource" script_class="GameConfig" format=3]
+
+[ext_resource type="Script" path="res://scripts/data/game_config.gd" id="1_cfg"]
+
+[resource]
+script = ExtResource("1_cfg")
+start_money = 10000
+start_inventory = {
+"cabbage": 6,
+"chicken": 3,
+"fish": 3,
+"pork": 3,
+"rice": 10
+}
+business_duration = 120.0
+first_spawn_delay = 2.0
+spawn_interval_min = 5.0
+spawn_interval_max = 9.0
+table_count = 4
+walk_speed = 160.0
+order_delay = 1.5
+favorite_weight = 3.0
+shelf_capacity = 6
+end_delay = 1.5
+other_expense = 2000
+great_ratio = 0.35
+good_ratio = 0.7
+reputation_great = 3
+reputation_good = 1
+reputation_bad = -1
+reputation_angry = -3
+stars_great = 5.0
+stars_good = 4.0
+stars_bad = 2.0
+stars_angry = 1.0
+buy_step_small = 1
+buy_step_large = 5

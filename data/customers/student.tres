@@ -1,0 +1,14 @@
+[gd_resource type="Resource" script_class="CustomerTypeData" format=3]
+
+[ext_resource type="Script" path="res://scripts/data/customer_type_data.gd" id="1_cust"]
+
+[resource]
+script = ExtResource("1_cust")
+id = "student"
+display_name = "学生"
+patience = 40.0
+favorite_dishes = PackedStringArray("yakizakana")
+budget = 950
+eat_time = 6.0
+spawn_weight = 1.0
+color = Color(0.3, 0.6, 0.35, 1)

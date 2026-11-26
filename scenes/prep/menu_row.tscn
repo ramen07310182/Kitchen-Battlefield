@@ -1,0 +1,66 @@
+[gd_scene format=3]
+
+[ext_resource type="Script" path="res://scenes/prep/menu_row.gd" id="1_row"]
+
+[node name="MenuRow" type="PanelContainer"]
+script = ExtResource("1_row")
+
+[node name="HBox" type="HBoxContainer" parent="."]
+layout_mode = 2
+theme_override_constants/separation = 4
+
+[node name="Swatch" type="ColorRect" parent="HBox"]
+unique_name_in_owner = true
+custom_minimum_size = Vector2(8, 0)
+layout_mode = 2
+mouse_filter = 2
+
+[node name="Texts" type="VBoxContainer" parent="HBox"]
+layout_mode = 2
+size_flags_horizontal = 3
+theme_override_constants/separation = 0
+
+[node name="NameLabel" type="Label" parent="HBox/Texts"]
+unique_name_in_owner = true
+layout_mode = 2
+text = "料理名"
+clip_text = true
+text_overrun_behavior = 3
+
+[node name="InfoLabel" type="Label" parent="HBox/Texts"]
+unique_name_in_owner = true
+layout_mode = 2
+theme_override_font_sizes/font_size = 9
+text = "食材"
+clip_text = true
+text_overrun_behavior = 3
+
+[node name="ToggleButton" type="Button" parent="HBox"]
+unique_name_in_owner = true
+custom_minimum_size = Vector2(52, 32)
+layout_mode = 2
+text = "出す"
+
+[node name="PrepLabel" type="Label" parent="HBox"]
+unique_name_in_owner = true
+layout_mode = 2
+text = "仕込み"
+
+[node name="MinusButton" type="Button" parent="HBox"]
+unique_name_in_owner = true
+custom_minimum_size = Vector2(32, 32)
+layout_mode = 2
+text = "－"
+
+[node name="CountLabel" type="Label" parent="HBox"]
+unique_name_in_owner = true
+custom_minimum_size = Vector2(18, 0)
+layout_mode = 2
+text = "0"
+horizontal_alignment = 1
+
+[node name="PlusButton" type="Button" parent="HBox"]
+unique_name_in_owner = true
+custom_minimum_size = Vector2(32, 32)
+layout_mode = 2
+text = "＋"

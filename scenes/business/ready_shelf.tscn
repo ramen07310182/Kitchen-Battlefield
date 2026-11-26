@@ -1,0 +1,33 @@
+[gd_scene format=3]
+
+[ext_resource type="Script" path="res://scenes/business/ready_shelf.gd" id="1_shelf"]
+
+[node name="ReadyShelf" type="PanelContainer"]
+script = ExtResource("1_shelf")
+
+[node name="VBox" type="VBoxContainer" parent="."]
+layout_mode = 2
+theme_override_constants/separation = 3
+
+[node name="TitleLabel" type="Label" parent="VBox"]
+unique_name_in_owner = true
+layout_mode = 2
+text = "完成品置き場"
+
+[node name="HeldPanel" type="PanelContainer" parent="VBox"]
+unique_name_in_owner = true
+layout_mode = 2
+
+[node name="HeldLabel" type="Label" parent="VBox/HeldPanel"]
+unique_name_in_owner = true
+layout_mode = 2
+text = "料理をタップして持つ"
+horizontal_alignment = 1
+
+[node name="SlotGrid" type="GridContainer" parent="VBox"]
+unique_name_in_owner = true
+layout_mode = 2
+size_flags_horizontal = 4
+theme_override_constants/h_separation = 3
+theme_override_constants/v_separation = 3
+columns = 3

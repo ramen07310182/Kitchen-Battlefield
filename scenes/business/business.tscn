@@ -1,0 +1,168 @@
+[gd_scene format=3]
+
+[ext_resource type="Script" path="res://scenes/business/business.gd" id="1_business"]
+[ext_resource type="Script" path="res://scripts/ui/safe_area_container.gd" id="2_safe"]
+[ext_resource type="PackedScene" path="res://scenes/common/top_bar.tscn" id="3_top"]
+[ext_resource type="Script" path="res://scenes/business/dining_area.gd" id="4_dining"]
+[ext_resource type="PackedScene" path="res://scenes/business/kitchen.tscn" id="5_kitchen"]
+[ext_resource type="PackedScene" path="res://scenes/business/ready_shelf.tscn" id="6_shelf"]
+[ext_resource type="PackedScene" path="res://scenes/business/order_panel.tscn" id="7_orders"]
+[ext_resource type="Script" path="res://scenes/business/customer_spawner.gd" id="8_spawner"]
+
+[node name="Business" type="Control"]
+layout_mode = 3
+anchors_preset = 15
+anchor_right = 1.0
+anchor_bottom = 1.0
+grow_horizontal = 2
+grow_vertical = 2
+script = ExtResource("1_business")
+
+[node name="Background" type="ColorRect" parent="."]
+layout_mode = 1
+anchors_preset = 15
+anchor_right = 1.0
+anchor_bottom = 1.0
+grow_horizontal = 2
+grow_vertical = 2
+mouse_filter = 2
+color = Color(0.13, 0.11, 0.1, 1)
+
+[node name="SafeArea" type="MarginContainer" parent="."]
+layout_mode = 1
+anchors_preset = 15
+anchor_right = 1.0
+anchor_bottom = 1.0
+grow_horizontal = 2
+grow_vertical = 2
+script = ExtResource("2_safe")
+
+[node name="VBox" type="VBoxContainer" parent="SafeArea"]
+layout_mode = 2
+theme_override_constants/separation = 4
+
+[node name="TopBar" parent="SafeArea/VBox" instance=ExtResource("3_top")]
+unique_name_in_owner = true
+layout_mode = 2
+
+[node name="Main" type="HBoxContainer" parent="SafeArea/VBox"]
+layout_mode = 2
+size_flags_vertical = 3
+theme_override_constants/separation = 4
+
+[node name="LeftColumn" type="VBoxContainer" parent="SafeArea/VBox/Main"]
+layout_mode = 2
+size_flags_horizontal = 3
+theme_override_constants/separation = 4
+
+[node name="Dining" type="Control" parent="SafeArea/VBox/Main/LeftColumn"]
+unique_name_in_owner = true
+clip_contents = true
+layout_mode = 2
+size_flags_vertical = 3
+mouse_filter = 2
+script = ExtResource("4_dining")
+
+[node name="Floor" type="ColorRect" parent="SafeArea/VBox/Main/LeftColumn/Dining"]
+layout_mode = 1
+anchors_preset = 15
+anchor_right = 1.0
+anchor_bottom = 1.0
+grow_horizontal = 2
+grow_vertical = 2
+mouse_filter = 2
+color = Color(0.42, 0.36, 0.3, 1)
+
+[node name="Wall" type="ColorRect" parent="SafeArea/VBox/Main/LeftColumn/Dining"]
+layout_mode = 1
+anchors_preset = 10
+anchor_right = 1.0
+offset_bottom = 18.0
+grow_horizontal = 2
+mouse_filter = 2
+color = Color(0.55, 0.45, 0.35, 1)
+
+[node name="Entrance" type="ColorRect" parent="SafeArea/VBox/Main/LeftColumn/Dining"]
+unique_name_in_owner = true
+layout_mode = 1
+anchors_preset = 9
+anchor_bottom = 1.0
+offset_left = 4.0
+offset_top = 24.0
+offset_right = 38.0
+offset_bottom = -8.0
+grow_vertical = 2
+mouse_filter = 2
+color = Color(0.25, 0.2, 0.18, 1)
+
+[node name="EntranceLabel" type="Label" parent="SafeArea/VBox/Main/LeftColumn/Dining/Entrance"]
+layout_mode = 1
+anchors_preset = 10
+anchor_right = 1.0
+offset_bottom = 16.0
+grow_horizontal = 2
+theme_override_font_sizes/font_size = 9
+text = "入口"
+horizontal_alignment = 1
+
+[node name="Tables" type="Control" parent="SafeArea/VBox/Main/LeftColumn/Dining"]
+unique_name_in_owner = true
+layout_mode = 1
+anchors_preset = 15
+anchor_right = 1.0
+anchor_bottom = 1.0
+grow_horizontal = 2
+grow_vertical = 2
+mouse_filter = 2
+
+[node name="Customers" type="Control" parent="SafeArea/VBox/Main/LeftColumn/Dining"]
+unique_name_in_owner = true
+layout_mode = 1
+anchors_preset = 15
+anchor_right = 1.0
+anchor_bottom = 1.0
+grow_horizontal = 2
+grow_vertical = 2
+mouse_filter = 2
+
+[node name="KitchenRow" type="HBoxContainer" parent="SafeArea/VBox/Main/LeftColumn"]
+layout_mode = 2
+theme_override_constants/separation = 4
+
+[node name="Kitchen" parent="SafeArea/VBox/Main/LeftColumn/KitchenRow" instance=ExtResource("5_kitchen")]
+unique_name_in_owner = true
+layout_mode = 2
+size_flags_horizontal = 3
+
+[node name="ReadyShelf" parent="SafeArea/VBox/Main/LeftColumn/KitchenRow" instance=ExtResource("6_shelf")]
+unique_name_in_owner = true
+layout_mode = 2
+
+[node name="OrderPanel" parent="SafeArea/VBox/Main" instance=ExtResource("7_orders")]
+unique_name_in_owner = true
+layout_mode = 2
+
+[node name="EndLabel" type="Label" parent="."]
+unique_name_in_owner = true
+layout_mode = 1
+anchors_preset = 8
+anchor_left = 0.5
+anchor_top = 0.5
+anchor_right = 0.5
+anchor_bottom = 0.5
+offset_left = -120.0
+offset_top = -20.0
+offset_right = 120.0
+offset_bottom = 20.0
+grow_horizontal = 2
+grow_vertical = 2
+theme_override_colors/font_outline_color = Color(0, 0, 0, 1)
+theme_override_constants/outline_size = 6
+theme_override_font_sizes/font_size = 24
+text = "本日の営業終了！"
+horizontal_alignment = 1
+vertical_alignment = 1
+
+[node name="CustomerSpawner" type="Node" parent="."]
+unique_name_in_owner = true
+script = ExtResource("8_spawner")

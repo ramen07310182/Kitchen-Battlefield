@@ -1,0 +1,14 @@
+[gd_resource type="Resource" script_class="DishData" format=3]
+
+[ext_resource type="Script" path="res://scripts/data/dish_data.gd" id="1_dish"]
+
+[resource]
+script = ExtResource("1_dish")
+id = "karaage"
+display_name = "唐揚げ定食"
+short_name = "唐揚"
+price = 980
+ingredients = {"cabbage": 1, "chicken": 1, "rice": 1}
+cook_time = 6.0
+color = Color(0.95, 0.72, 0.3, 1)
+sort_order = 0
