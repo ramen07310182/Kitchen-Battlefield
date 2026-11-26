@@ -2,6 +2,7 @@
 
 [ext_resource type="Script" path="res://scenes/prep/ingredient_row.gd" id="1_row"]
 
+[ext_resource type="Script" path="res://scripts/ui/long_press_detector.gd" id="9_long"]
 [node name="IngredientRow" type="PanelContainer"]
 script = ExtResource("1_row")
 
@@ -71,3 +72,7 @@ custom_minimum_size = Vector2(30, 32)
 layout_mode = 2
 size_flags_vertical = 4
 text = "+5"
+
+[node name="LongPress" type="Node" parent="."]
+unique_name_in_owner = true
+script = ExtResource("9_long")

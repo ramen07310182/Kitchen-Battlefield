@@ -1,6 +1,6 @@
 class_name Kitchen
 extends PanelContainer
-## 厨房。料理ボタンをタップすると、その料理の「残り」を1つ使って調理キューに入り、店主が順番に作る。
+## 厨房。料理ボタン（2列に並べる）をタップすると、その料理の「残り」を1つ使って調理キューに入り、店主が順番に作る。
 ## 食材は営業開始のときに使っているので、ここでは使わない。
 ## 置き場の空き枠（調理中・調理待ちを含む）より多くは作れない。
 ## 「残りに戻す」で、置き場で持っている料理を残りに戻せる（置き場の枠が空く）。
@@ -15,8 +15,10 @@ var _current: DishData = null
 var _elapsed: float = 0.0
 var _free_slots: int = 0
 var _supply: DishSupply = null
+## 置き場の空き枠がなく、これ以上作れない
+var _full: bool = false
 
-@onready var _buttons_box: VBoxContainer = %CookButtons
+@onready var _buttons_box: GridContainer = %CookButtons
 @onready var _chef_label: Label = %ChefLabel
 @onready var _chef_figure: SpriteView = %ChefFigure
 @onready var _stove: SpriteView = %Stove
@@ -40,7 +42,8 @@ func setup(menu_dishes: Array[DishData], supply: DishSupply) -> void:
 	_supply.changed.connect(_refresh_buttons)
 	for dish: DishData in _dishes:
 		var button: Button = Button.new()
-		button.custom_minimum_size = Vector2(0, 32)
+		button.custom_minimum_size = Vector2(0, 30)
+		button.size_flags_horizontal = Control.SIZE_EXPAND_FILL
 		var dish_icon: Texture2D = SpriteLibrary.get_icon(SpriteKeys.dish(dish.id))
 		button.icon = dish_icon if dish_icon != null else UIUtil.color_icon(dish.color, 10)
 		button.alignment = HORIZONTAL_ALIGNMENT_LEFT
@@ -104,12 +107,8 @@ func _refresh_buttons() -> void:
 		var button: Button = _buttons[dish.id]
 		var remaining: int = _supply.get_remaining(dish.id)
 		button.disabled = not _can_cook(dish)
-		if remaining <= 0:
-			button.text = UIText.COOK_BUTTON_NONE % dish.display_name
-		elif full:
-			button.text = UIText.COOK_BUTTON_FULL % [dish.display_name, remaining]
-		else:
-			button.text = UIText.COOK_BUTTON % [dish.display_name, roundi(dish.cook_time), remaining]
+		button.text = UIText.COOK_BUTTON % [dish.short_name, remaining]
+	_full = full
 
 
 func _refresh_status() -> void:
@@ -120,7 +119,7 @@ func _refresh_status() -> void:
 		_status_label.text = UIText.COOKING % _current.display_name
 		_progress.value = clampf(_elapsed / maxf(_current.cook_time, 0.01), 0.0, 1.0)
 	else:
-		_status_label.text = UIText.COOK_IDLE
+		_status_label.text = UIText.COOK_FULL if _full else UIText.COOK_IDLE
 		_progress.value = 0.0
 	if _queue.is_empty():
 		_queue_label.text = UIText.COOK_QUEUE_EMPTY

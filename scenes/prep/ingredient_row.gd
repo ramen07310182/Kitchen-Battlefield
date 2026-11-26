@@ -5,6 +5,9 @@ extends PanelContainer
 ## 目安より確定した在庫が少ないときは赤く表示し、予定どおり仕入れると足りるかも出す。
 
 signal purchase_changed(ingredient_id: String, delta: int)
+## ボタン以外の所を長押しした（詳細を出す）／指を離した（詳細を閉じる）
+signal detail_requested(ingredient_id: String)
+signal detail_closed
 
 const COLOR_OK := Color.WHITE
 const COLOR_SUB := Color(0.7, 0.7, 0.7)
@@ -25,6 +28,7 @@ var _box_short: StyleBoxFlat
 @onready var _minus_small: Button = %MinusSmallButton
 @onready var _plus_small: Button = %PlusSmallButton
 @onready var _plus_large: Button = %PlusLargeButton
+@onready var _long_press: LongPressDetector = %LongPress
 
 
 func _ready() -> void:
@@ -40,6 +44,8 @@ func _ready() -> void:
 	_minus_small.pressed.connect(func() -> void: purchase_changed.emit(ingredient.id, -cfg.buy_step_small))
 	_plus_small.pressed.connect(func() -> void: purchase_changed.emit(ingredient.id, cfg.buy_step_small))
 	_plus_large.pressed.connect(func() -> void: purchase_changed.emit(ingredient.id, cfg.buy_step_large))
+	_long_press.long_pressed.connect(func() -> void: detail_requested.emit(ingredient.id))
+	_long_press.finished.connect(detail_closed.emit)
 
 
 ## add_child の後に呼ぶ

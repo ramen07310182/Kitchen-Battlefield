@@ -3,6 +3,7 @@
 [ext_resource type="Script" path="res://scenes/prep/menu_row.gd" id="1_row"]
 [ext_resource type="Script" path="res://scripts/ui/hold_repeat_button.gd" id="2_hold"]
 
+[ext_resource type="Script" path="res://scripts/ui/long_press_detector.gd" id="9_long"]
 [node name="MenuRow" type="PanelContainer"]
 script = ExtResource("1_row")
 
@@ -67,3 +68,7 @@ custom_minimum_size = Vector2(32, 32)
 layout_mode = 2
 text = "＋"
 script = ExtResource("2_hold")
+
+[node name="LongPress" type="Node" parent="."]
+unique_name_in_owner = true
+script = ExtResource("9_long")

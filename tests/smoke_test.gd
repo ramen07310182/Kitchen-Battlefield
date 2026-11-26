@@ -260,16 +260,89 @@ func _do_prep_day2(screen: Node, dialog: ConfirmDialog) -> void:
 		GameState.prep_counts == _day1_prep and GameState.shelf_plan == _day1_shelf,
 		"prep=%s shelf=%s" % [GameState.prep_counts, GameState.shelf_plan])
 
-	# 「＋」の長押し: 実際の押す・離す操作を送り、続けて増えることを確かめる
+	# 本物の押す・動かす・離す操作を送って、タップ・長押し・スクロールの区別を確かめる。
+	# 時間で決まる操作なので、この間だけ早送りをやめる（早送りだと1フレームが長すぎて長押しの途中が飛ぶ）
 	_busy = true
-	var plus: Button = (screen.get("_menu_rows") as Array[MenuRow])[1].get("_plus_button")
+	Engine.time_scale = 1.0
+	var rows_ui: Array[MenuRow] = screen.get("_menu_rows")
+	var plus: Button = rows_ui[1].get("_plus_button")
+	var before_tap: int = GameState.get_prep_count("yakizakana")
+	_send_press(plus, true)
+	await _frames(2)
+	_send_press(plus, false)
+	await _frames(2)
+	_check("「＋」をタップすると1つ増える", GameState.get_prep_count("yakizakana") == before_tap + 1,
+		"%d -> %d" % [before_tap, GameState.get_prep_count("yakizakana")])
+
 	var prep_before: int = GameState.get_prep_count("yakizakana")
 	_send_press(plus, true)
 	await get_tree().create_timer(2.0).timeout
 	_send_press(plus, false)
+	await _frames(2)
 	var held_gain: int = GameState.get_prep_count("yakizakana") - prep_before
-	_check("「＋」を長押しすると続けて増える（途中から5ずつ）", held_gain >= 10,
+	var reached_limit: bool = not GameState.can_add_prep(Database.get_dish("yakizakana"))
+	_check("「＋」を長押しすると続けて増える（途中から5ずつ・在庫の上限まで）", held_gain >= 10 or (held_gain >= 3 and reached_limit),
 		"%d -> %d" % [prep_before, GameState.get_prep_count("yakizakana")])
+
+	# 料理の行（ボタン以外）を長押しすると詳細が出て、離すと閉じる
+	var detail: DetailPopup = screen.get("_detail")
+	var name_label: Label = rows_ui[0].get("_name_label")
+	var row_point: Vector2 = name_label.get_global_rect().get_center()
+	_send_press_at(row_point, true)
+	await get_tree().create_timer(Database.config.long_press_time + 0.2).timeout
+	var opened: bool = detail.is_open()
+	var title: String = (detail.get("_title_label") as Label).text
+	_send_press_at(row_point, false)
+	await _frames(2)
+	_check("料理の行を長押しすると詳細が出て、離すと閉じる", opened and title == rows_ui[0].dish.display_name and not detail.is_open(),
+		"opened=%s title=%s" % [opened, title])
+	var ing_rows: Array[IngredientRow] = screen.get("_ingredient_rows")
+	var ing_point: Vector2 = (ing_rows[1].get("_name_label") as Label).get_global_rect().get_center()
+	_send_press_at(ing_point, true)
+	await get_tree().create_timer(Database.config.long_press_time + 0.2).timeout
+	var ing_opened: bool = detail.is_open() and (detail.get("_body_label") as Label).text.contains(UIText.DETAIL_ING_USED_BY)
+	_send_press_at(ing_point, false)
+	await _frames(2)
+	_check("食材の行を長押しすると詳細（使う料理など）が出る", ing_opened)
+
+	# 一覧の上で「＋」を押したまま指を動かすと、スクロールになって数は変わらない
+	# （テストの画面の大きさでは全部の行が入ってしまうので、置き場の欄を一時的に高くして一覧を短くする）
+	var scroll: DragScrollContainer = screen.get_node("%MenuScroll")
+	var shelf_panel: Control = screen.get_node("%ShelfPlanPanel")
+	var old_min: Vector2 = shelf_panel.custom_minimum_size
+	shelf_panel.custom_minimum_size.y = 230.0
+	await _frames(3)
+	var bar: VScrollBar = scroll.get_v_scroll_bar()
+	var can_scroll: bool = bar.max_value > bar.page + 0.5
+	scroll.scroll_vertical = 0
+	await _frames(1)
+	var plus_first: Button = rows_ui[0].get("_plus_button")
+	var first_before: int = GameState.get_prep_count(rows_ui[0].dish.id)
+	var start: Vector2 = plus_first.get_global_rect().get_center()
+	# 上へ12px（しきい値より大きく、ボタンの外には出ない距離）動かしてから離す
+	_send_press_at(start, true)
+	for i: int in 4:
+		await _frames(1)
+		_send_motion_at(start + Vector2(0, -3.0 * (i + 1)))
+	await _frames(1)
+	_send_press_at(start + Vector2(0, -12.0), false)
+	await _frames(2)
+	var first_after: int = GameState.get_prep_count(rows_ui[0].dish.id)
+	_check("指が動いたらボタンの押下を取り消してスクロールにする",
+		can_scroll and first_after == first_before and scroll.scroll_vertical > 0,
+		"can_scroll=%s scroll=%d prep %d -> %d" % [can_scroll, scroll.scroll_vertical, first_before, first_after])
+	# 動かさずに離せば、同じボタンでもふつうに1つ増える（取り消しが残っていないこと）
+	scroll.scroll_vertical = 0
+	await _frames(1)
+	start = plus_first.get_global_rect().get_center()
+	_send_press_at(start, true)
+	await _frames(2)
+	_send_press_at(start, false)
+	await _frames(2)
+	_check("スクロールのあとも、タップはふつうに効く", GameState.get_prep_count(rows_ui[0].dish.id) == first_before + 1)
+	shelf_panel.custom_minimum_size = old_min
+	await _frames(2)
+	Engine.time_scale = 8.0
 	_busy = false
 
 	# 多めに仕込んで、残った分が廃棄になるようにする
@@ -352,12 +425,32 @@ func _do_business(screen: Node) -> void:
 
 ## ボタンの真ん中を押す（pressed = true）・離す（false）操作を、本物の入力として送る
 func _send_press(button: Button, pressed: bool) -> void:
+	_send_press_at(button.get_global_rect().get_center(), pressed)
+
+
+## 画面の point（640×360基準の座標）を押す・離す操作を、本物の入力として送る
+func _send_press_at(point: Vector2, pressed: bool) -> void:
 	var event: InputEventMouseButton = InputEventMouseButton.new()
 	event.button_index = MOUSE_BUTTON_LEFT
 	event.pressed = pressed
-	event.position = button.get_global_rect().get_center()
-	event.global_position = event.position
+	event.button_mask = MOUSE_BUTTON_MASK_LEFT if pressed else 0
+	event.position = point
+	event.global_position = point
 	get_viewport().push_input(event, true)
+
+
+## 左ボタンを押したまま point へ動かす操作を送る
+func _send_motion_at(point: Vector2) -> void:
+	var event: InputEventMouseMotion = InputEventMouseMotion.new()
+	event.button_mask = MOUSE_BUTTON_MASK_LEFT
+	event.position = point
+	event.global_position = point
+	get_viewport().push_input(event, true)
+
+
+func _frames(count: int) -> void:
+	for i: int in count:
+		await get_tree().process_frame
 
 
 func _hold(shelf: ReadyShelf, buttons: Array[Button], slot: int) -> void:

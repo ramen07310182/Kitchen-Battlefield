@@ -2,6 +2,7 @@ class_name ShelfPlanPanel
 extends PanelContainer
 ## 営業準備画面の「開店時の置き場」。営業開始の時点で置き場に並べておく料理を決める（最大6個）。
 ## 下の料理ボタンを押すと空いている枠に並べ、並べた枠を押すと外す。並べた分は仕込み数から使う。
+## 料理ボタンは仕込み数が1以上の料理だけ出し、入りきらなければ折り返す。
 
 signal add_requested(dish_id: String)
 signal remove_requested(index: int)
@@ -16,7 +17,8 @@ var _clear_button: Button
 @onready var _title_label: Label = %TitleLabel
 @onready var _help_label: Label = %HelpLabel
 @onready var _slots: HBoxContainer = %Slots
-@onready var _add_row: HBoxContainer = %AddRow
+@onready var _add_row: HFlowContainer = %AddRow
+@onready var _header: HBoxContainer = %Header
 
 
 func _ready() -> void:
@@ -33,18 +35,16 @@ func _ready() -> void:
 		_slot_buttons.append(slot)
 	for dish: DishData in Database.dishes:
 		var button: Button = Button.new()
-		button.custom_minimum_size = Vector2(0, 30)
-		button.size_flags_horizontal = Control.SIZE_EXPAND_FILL
+		button.custom_minimum_size = Vector2(58, 30)
 		button.text = UIText.PREP_SHELF_ADD % dish.short_name
 		button.pressed.connect(func() -> void: add_requested.emit(dish.id))
 		_add_row.add_child(button)
 		_add_buttons[dish.id] = button
 	_clear_button = Button.new()
-	_clear_button.custom_minimum_size = Vector2(0, 30)
-	_clear_button.size_flags_horizontal = Control.SIZE_EXPAND_FILL
+	_clear_button.custom_minimum_size = Vector2(64, 26)
 	_clear_button.text = UIText.PREP_SHELF_CLEAR
 	_clear_button.pressed.connect(clear_requested.emit)
-	_add_row.add_child(_clear_button)
+	_header.add_child(_clear_button)
 
 
 func refresh() -> void:

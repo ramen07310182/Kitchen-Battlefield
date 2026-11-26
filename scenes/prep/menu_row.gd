@@ -4,6 +4,9 @@ extends PanelContainer
 ## 「－＋」は長押しで続けて増減する（HoldRepeatButton）。
 
 signal prep_changed(dish_id: String, delta: int)
+## ボタン以外の所を長押しした（詳細を出す）／指を離した（詳細を閉じる）
+signal detail_requested(dish_id: String)
+signal detail_closed
 
 var dish: DishData
 
@@ -14,12 +17,15 @@ var dish: DishData
 @onready var _minus_button: HoldRepeatButton = %MinusButton
 @onready var _count_label: Label = %CountLabel
 @onready var _plus_button: HoldRepeatButton = %PlusButton
+@onready var _long_press: LongPressDetector = %LongPress
 
 
 func _ready() -> void:
 	add_theme_stylebox_override("panel", UIUtil.flat_box(Color(0.2, 0.17, 0.15)))
 	_minus_button.step_requested.connect(func(step: int) -> void: prep_changed.emit(dish.id, step))
 	_plus_button.step_requested.connect(func(step: int) -> void: prep_changed.emit(dish.id, step))
+	_long_press.long_pressed.connect(func() -> void: detail_requested.emit(dish.id))
+	_long_press.finished.connect(detail_closed.emit)
 
 
 ## add_child の後に呼ぶ

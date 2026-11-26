@@ -21,6 +21,7 @@ var _pending: Pending = Pending.NONE
 @onready var _menu_title: Label = %MenuTitle
 @onready var _menu_help: Label = %MenuHelp
 @onready var _ingredient_title: Label = %IngredientTitle
+@onready var _ingredient_help: Label = %IngredientHelp
 @onready var _menu_list: VBoxContainer = %MenuList
 @onready var _ingredient_list: VBoxContainer = %IngredientList
 @onready var _prep_total_label: Label = %PrepTotalLabel
@@ -33,12 +34,14 @@ var _pending: Pending = Pending.NONE
 @onready var _purchase_button: Button = %PurchaseButton
 @onready var _start_button: Button = %StartButton
 @onready var _dialog: ConfirmDialog = %ConfirmDialog
+@onready var _detail: DetailPopup = %DetailPopup
 
 
 func _ready() -> void:
 	_menu_title.text = UIText.PREP_MENU_TITLE
 	_menu_help.text = UIText.PREP_MENU_HELP
 	_ingredient_title.text = UIText.PREP_INGREDIENT_TITLE
+	_ingredient_help.text = UIText.PREP_INGREDIENT_HELP
 	_start_button.text = UIText.PREP_START
 	_repeat_button.text = UIText.PREP_REPEAT
 	_purchase_button.text = UIText.PREP_PURCHASE_BUTTON
@@ -48,6 +51,8 @@ func _ready() -> void:
 		_menu_list.add_child(row)
 		row.setup(dish)
 		row.prep_changed.connect(_on_prep_changed)
+		row.detail_requested.connect(_show_dish_detail)
+		row.detail_closed.connect(_detail.close)
 		_menu_rows.append(row)
 
 	for ing: IngredientData in Database.ingredients:
@@ -55,6 +60,8 @@ func _ready() -> void:
 		_ingredient_list.add_child(row)
 		row.setup(ing)
 		row.purchase_changed.connect(_on_purchase_changed)
+		row.detail_requested.connect(_show_ingredient_detail)
+		row.detail_closed.connect(_detail.close)
 		_ingredient_rows.append(row)
 
 	_shelf_plan.add_requested.connect(_on_shelf_add)
@@ -185,3 +192,63 @@ func _on_dialog_answered(ok: bool) -> void:
 			# 仕入れ予定は捨てて営業を始める
 			GameState.clear_purchase_plan()
 			start_requested.emit()
+
+
+# ---------------------------------------------------------------
+# 長押しの詳細
+# ---------------------------------------------------------------
+
+## 料理の詳細（料理の一覧は左側なので、右側に出す）
+func _show_dish_detail(dish_id: String) -> void:
+	var dish: DishData = Database.get_dish(dish_id)
+	if dish == null:
+		return
+	var cost: int = Database.get_dish_cost(dish)
+	var expected: Dictionary = GameState.get_expected_orders()
+	var lines: PackedStringArray = PackedStringArray()
+	lines.append(UIText.DETAIL_DISH_PRICE % [UIText.money(dish.price), UIText.money(cost), UIText.money(dish.price - cost)])
+	lines.append(UIText.DETAIL_DISH_COOK % roundi(dish.cook_time))
+	lines.append(UIText.DETAIL_DISH_INGREDIENTS % _ingredient_list_text(dish))
+	lines.append(UIText.DETAIL_DISH_EXPECTED % ceili(float(expected.get(dish_id, 0.0))))
+	lines.append(UIText.DETAIL_DISH_PREP % [GameState.get_prep_count(dish_id), GameState.get_shelf_plan_count(dish_id)])
+	if GameState.last_sold_counts.is_empty():
+		lines.append(UIText.DETAIL_NO_RECORD)
+	elif GameState.get_last_sold(dish_id) < 0:
+		lines.append(UIText.DETAIL_DISH_LAST_NOT_SERVED)
+	else:
+		lines.append(UIText.DETAIL_DISH_LAST % [int(GameState.last_prep_counts.get(dish_id, 0)),
+			GameState.get_last_sold(dish_id), GameState.get_last_missed(dish_id)])
+	_detail.open(dish.display_name, lines, DetailPopup.Placement.RIGHT)
+
+
+## 食材の詳細（食材の一覧は右側なので、左側に出す）
+func _show_ingredient_detail(ingredient_id: String) -> void:
+	var ing: IngredientData = Database.get_ingredient(ingredient_id)
+	if ing == null:
+		return
+	var stock: int = GameState.get_stock(ingredient_id)
+	var reserved: int = GameState.get_reserved(ingredient_id)
+	var planned: int = GameState.get_planned_purchase(ingredient_id)
+	var lines: PackedStringArray = PackedStringArray()
+	lines.append(UIText.DETAIL_ING_PRICE % UIText.money(ing.price))
+	lines.append(UIText.DETAIL_ING_STOCK % [stock, reserved, stock - reserved])
+	lines.append(UIText.DETAIL_ING_PLAN % [planned, UIText.money(planned * ing.price)])
+	lines.append(UIText.DETAIL_ING_NEED % int(GameState.get_ingredient_needs().get(ingredient_id, 0)))
+	lines.append(UIText.DETAIL_ING_USED_BY)
+	var used: bool = false
+	for dish: DishData in Database.dishes:
+		if dish.ingredients.has(ingredient_id):
+			used = true
+			lines.append(UIText.DETAIL_ING_USED_ROW % [dish.display_name, int(dish.ingredients[ingredient_id]), GameState.get_prep_count(dish.id)])
+	if not used:
+		lines.append(UIText.DETAIL_ING_UNUSED)
+	_detail.open(ing.display_name, lines, DetailPopup.Placement.LEFT)
+
+
+## 「米×1・鶏肉×1・キャベツ×1」（数も必ず出す）
+func _ingredient_list_text(dish: DishData) -> String:
+	var names: PackedStringArray = PackedStringArray()
+	for ing: IngredientData in Database.ingredients:
+		if dish.ingredients.has(ing.id):
+			names.append("%s×%d" % [ing.display_name, int(dish.ingredients[ing.id])])
+	return "・".join(names)
