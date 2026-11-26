@@ -54,7 +54,7 @@ func _rebuild_rows() -> void:
 		var panel: PanelContainer = PanelContainer.new()
 		panel.add_theme_stylebox_override("panel", UIUtil.flat_box(Color(0.15, 0.14, 0.13), Color(0.3, 0.3, 0.3), 1))
 		var label: Label = Label.new()
-		label.text = UIText.PREP_LOCKED % [dish.display_name, Database.config.get_rank_name(dish.unlock_rank)]
+		label.text = PrepMenuStep.locked_text(dish)
 		label.modulate = COLOR_LOCKED
 		panel.add_child(label)
 		_menu_list.add_child(panel)
@@ -103,3 +103,12 @@ func _on_prep_changed(dish_id: String, delta: int) -> void:
 func _on_repeat_pressed() -> void:
 	var complete: bool = GameState.apply_last_prep()
 	notice_requested.emit(UIText.PREP_REPEAT_DONE if complete else UIText.PREP_REPEAT_PARTIAL)
+
+
+## まだ解放していない料理の説明（「人気店で解放」「30日目から解放」「人気店・30日目以降に解放」）
+static func locked_text(dish: DishData) -> String:
+	if dish.unlock_rank > 1 and dish.unlock_day > 0:
+		return UIText.PREP_LOCKED_BOTH % [dish.display_name, Database.get_rank_name(dish.unlock_rank), dish.unlock_day]
+	if dish.unlock_day > 0:
+		return UIText.PREP_LOCKED_DAY % [dish.display_name, dish.unlock_day]
+	return UIText.PREP_LOCKED % [dish.display_name, Database.get_rank_name(dish.unlock_rank)]

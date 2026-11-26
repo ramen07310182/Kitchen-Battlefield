@@ -160,7 +160,7 @@ func _check_rules() -> void:
 	var rep_before: int = GameState.reputation
 	_check("営業中は評判が変わらない（営業結果のときにまとめて反映）", GameState.reputation == rep_before)
 	GameState.finish_business()
-	var expected_gain: int = roundi(10.0 * cfg.reputation_great * cfg.reputation_gain_by_rank[0])
+	var expected_gain: int = roundi(10.0 * cfg.reputation_great * Database.ranks[0].reputation_gain_scale)
 	_check("上手な日は「点数 × ランクの倍率」だけ評判が上がる",
 		GameState.today.reputation_change == expected_gain and GameState.reputation == rep_before + expected_gain,
 		"change=%d expected=%d" % [GameState.today.reputation_change, expected_gain])
@@ -176,9 +176,9 @@ func _check_rules() -> void:
 		"change=%d" % GameState.today.reputation_change)
 
 	# 店舗ランクと料理の解放
-	_check("最初は「無名店」（ランク1）", GameState.rank == 1 and GameState.get_rank_name() == cfg.get_rank_name(1))
+	_check("最初は「無名店」（ランク1）", GameState.rank == 1 and GameState.get_rank_name() == Database.get_rank_name(1))
 	GameState.today = DayStats.new()
-	GameState.add_reputation(cfg.get_rank_threshold(2) - GameState.reputation)
+	GameState.add_reputation(Database.get_rank_threshold(2) - GameState.reputation)
 	GameState.finish_business()
 	_check("評判がしきい値に届くと、営業結果のあとにランクが上がり、そのランクの料理が解放される",
 		GameState.rank == 2 and GameState.today.rank_up == 2 and GameState.is_unlocked("oyakodon")
@@ -245,7 +245,7 @@ func _check_migration() -> void:
 		"inventory": {"rice": 4}, "last_prep": {}, "last_shelf": [], "last_sold": {}, "last_missed": {}})
 	GameState.use_save_path(TEST_SAVE_PATH)
 	_check("セーブ移行 v5 -> 最新（評判を換算し、そのランクで解放する）",
-		GameState.reputation == roundi(70 * cfg.legacy_reputation_scale) and GameState.rank == cfg.get_rank_for_reputation(GameState.reputation)
+		GameState.reputation == roundi(70 * cfg.legacy_reputation_scale) and GameState.rank == Database.get_rank_for_reputation(GameState.reputation)
 		and GameState.is_unlocked("karaage") and GameState.is_unlocked("oyakodon"),
 		"rep=%d rank=%d unlocked=%s" % [GameState.reputation, GameState.rank, GameState.unlocked_dishes])
 	_write_test_save({"version": 6, "money": 9000, "day": 8, "reputation": 20,
@@ -291,7 +291,7 @@ func _do_prep_day1(screen: Node, dialog: ConfirmDialog) -> void:
 	var menu_rows: Array[MenuRow] = menu_step.get("_menu_rows")
 	var locked: Array[Label] = menu_step.get("_locked_labels")
 	_check("①には解放済みの3品と、まだ解放していない料理（評判 ○ で解放）が出る",
-		menu_rows.size() == 3 and locked.size() == 2 and locked[0].text.contains(Database.config.get_rank_name(2) + "で解放"),
+		menu_rows.size() == 3 and locked.size() == 2 and locked[0].text.contains(Database.get_rank_name(2) + "で解放"),
 		"rows=%d locked=%d" % [menu_rows.size(), locked.size()])
 	GameState.change_prep("karaage", 2)
 	GameState.change_prep("yakizakana", 1)

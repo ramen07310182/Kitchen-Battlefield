@@ -221,7 +221,8 @@ func get_locked_dishes() -> Array[DishData]:
 	for dish: DishData in Database.dishes:
 		if not is_unlocked(dish.id):
 			result.append(dish)
-	result.sort_custom(func(a: DishData, b: DishData) -> bool: return a.unlock_rank < b.unlock_rank)
+	result.sort_custom(func(a: DishData, b: DishData) -> bool:
+		return a.unlock_rank < b.unlock_rank or (a.unlock_rank == b.unlock_rank and a.unlock_day < b.unlock_day))
 	return result
 
 
@@ -237,11 +238,13 @@ func get_unlocked_ingredients() -> Array[IngredientData]:
 	return result
 
 
-## 今のランクで解放できる料理を解放する。新しく解放した料理を返す
-func _unlock_by_rank() -> Array[DishData]:
+## 解放の条件（ランクと営業日数）を満たした料理を解放する。新しく解放した料理を返す。
+## for_day: どの営業日について判定するか（省略すると今の日。営業結果のあとは次の営業日で判定する）
+func _unlock_by_rank(for_day: int = -1) -> Array[DishData]:
+	var target_day: int = day if for_day < 0 else for_day
 	var newly: Array[DishData] = []
 	for dish: DishData in Database.dishes:
-		if not is_unlocked(dish.id) and rank >= dish.unlock_rank:
+		if not is_unlocked(dish.id) and rank >= dish.unlock_rank and target_day >= dish.unlock_day:
 			unlocked_dishes.append(dish.id)
 			newly.append(dish)
 	return newly
@@ -252,27 +255,26 @@ func _unlock_by_rank() -> Array[DishData]:
 # ---------------------------------------------------------------
 
 func get_rank_name() -> String:
-	return Database.config.get_rank_name(rank)
+	return Database.get_rank_name(rank)
 
 
 func is_max_rank() -> bool:
-	return rank >= Database.config.get_max_rank()
+	return rank >= Database.get_max_rank()
 
 
 ## 次のランクまでの進み具合（0〜1）。最高ランクなら1
 func get_rank_progress() -> float:
-	var cfg: GameConfig = Database.config
 	if is_max_rank():
 		return 1.0
-	var from: int = cfg.get_rank_threshold(rank)
-	var to: int = cfg.get_rank_threshold(rank + 1)
+	var from: int = Database.get_rank_threshold(rank)
+	var to: int = Database.get_rank_threshold(rank + 1)
 	return clampf(float(reputation - from) / float(maxi(1, to - from)), 0.0, 1.0)
 
 
 ## 評判でランクを上げる（下げない）。上がったら新しいランク、上がらなければ 0 を返す。
 ## ランクが上がったら、そのランクで使える料理も解放する
 func _update_rank() -> int:
-	var by_reputation: int = Database.config.get_rank_for_reputation(reputation)
+	var by_reputation: int = Database.get_rank_for_reputation(reputation)
 	if by_reputation <= rank:
 		return 0
 	rank = by_reputation
@@ -605,12 +607,12 @@ func finish_business() -> void:
 		last_missed_counts[dish_id] = int(today.dish_missed.get(dish_id, 0))
 	# その日の評判をまとめて反映する（点数 × 今のランクの倍率。マイナスの日は少しだけ下がる）
 	var before: int = reputation
-	add_reputation(Database.config.get_reputation_delta(get_day_reputation_points(), rank))
+	add_reputation(Database.get_reputation_delta(get_day_reputation_points(), rank))
 	today.reputation_change = reputation - before
 	# 評判が届いていればランクを上げ、そのランクの料理を解放する
 	today.rank_up = _update_rank()
 	today.new_unlocks.clear()
-	for dish: DishData in _unlock_by_rank():
+	for dish: DishData in _unlock_by_rank(day + 1):
 		today.new_unlocks.append(dish.id)
 
 
@@ -710,8 +712,8 @@ func load_game() -> bool:
 			if Database.get_dish(dish_id) != null and not unlocked_dishes.has(dish_id):
 				unlocked_dishes.append(dish_id)
 	# ランクは下げない。セーブのランクと、今の評判から決まるランクの高いほう
-	rank = clampi(maxi(int(data.get("rank", 1)), Database.config.get_rank_for_reputation(reputation)),
-		1, Database.config.get_max_rank())
+	rank = clampi(maxi(int(data.get("rank", 1)), Database.get_rank_for_reputation(reputation)),
+		1, Database.get_max_rank())
 	_unlock_by_rank()
 	_start_day_accounting()
 	money_changed.emit(money)
@@ -765,7 +767,7 @@ func _migrate(data: Dictionary) -> Dictionary:
 		# 評判を今の範囲に換算し（来店ペースが同じになるように）、その評判でランクを決める。解放済みの料理はそのまま
 		var converted: int = roundi(float(data.get("reputation", 0)) * Database.config.legacy_reputation_scale)
 		data["reputation"] = maxi(0, converted)
-		data["rank"] = Database.config.get_rank_for_reputation(maxi(0, converted))
+		data["rank"] = Database.get_rank_for_reputation(maxi(0, converted))
 		version = 7
 	data["version"] = version
 	return data

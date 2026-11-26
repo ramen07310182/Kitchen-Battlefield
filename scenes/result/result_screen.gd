@@ -53,7 +53,7 @@ func _ready() -> void:
 	# ランクアップ・新メニュー解放・売り切れ
 	_rank_up_label.visible = stats.rank_up > 0
 	if stats.rank_up > 0:
-		_rank_up_label.text = UIText.RESULT_RANK_UP % Database.config.get_rank_name(stats.rank_up)
+		_rank_up_label.text = UIText.RESULT_RANK_UP % Database.get_rank_name(stats.rank_up)
 	var names: PackedStringArray = PackedStringArray()
 	for dish_id: String in stats.new_unlocks:
 		names.append(Database.get_dish(dish_id).display_name)

@@ -16,5 +16,10 @@ extends Resource
 @export var color: Color = Color.WHITE
 ## 一覧に並べる順番（小さいほど上）
 @export var sort_order: int = 0
-## 解放に必要な店舗ランク（1 なら最初から使える）。営業結果のあと、ランクがこの値以上なら解放する
+## 調理の分類（"fry" = 揚げ物、"grill" = 焼き物・炒め物、"simmer" = 煮物・丼）。設備の効果を受けるかどうかに使う
+@export var cook_category: String = ""
+## 解放の条件（両方を満たしたら解放）。営業結果のあと、次の営業日について判定する
+##   unlock_rank: 必要な店舗ランク（1 なら最初から）
+##   unlock_day : この営業日（○日目）以降（0 なら日数の条件なし）
 @export var unlock_rank: int = 1
+@export var unlock_day: int = 0

@@ -12,3 +12,4 @@ ingredients = {"cabbage": 1, "chicken": 1, "rice": 1}
 cook_time = 6.0
 color = Color(0.95, 0.72, 0.3, 1)
 sort_order = 0
+cook_category = "fry"

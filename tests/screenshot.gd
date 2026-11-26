@@ -86,7 +86,7 @@ func _run() -> void:
 	# 営業時間は残り20秒にして、売り切れと廃棄の両方が出やすくする
 	business.set("_time_left", minf(float(business.get("_time_left")), 20.0))
 	# 結果画面の「ランクアップ」「新メニュー解放」も撮るため、評判をランク2のしきい値にしておく（見た目の確認用）
-	GameState.add_reputation(maxi(0, Database.config.get_rank_threshold(2) - GameState.reputation))
+	GameState.add_reputation(maxi(0, Database.get_rank_threshold(2) - GameState.reputation))
 	Engine.time_scale = 20.0
 	while String(_current_screen(main).name) == "Business":
 		_auto_serve(business)

@@ -6,11 +6,17 @@ const CONFIG_PATH := "res://data/game_config.tres"
 const DISH_DIR := "res://data/dishes/"
 const INGREDIENT_DIR := "res://data/ingredients/"
 const CUSTOMER_DIR := "res://data/customers/"
+const RANK_DIR := "res://data/ranks/"
+const EQUIPMENT_DIR := "res://data/equipment/"
 
 var config: GameConfig
 var dishes: Array[DishData] = []
 var ingredients: Array[IngredientData] = []
 var customer_types: Array[CustomerTypeData] = []
+## 店舗ランク（rank の小さい順）
+var ranks: Array[RankData] = []
+## 設備（sort_order の順）
+var equipment: Array[EquipmentData] = []
 
 var _dish_by_id: Dictionary = {}
 var _ingredient_by_id: Dictionary = {}
@@ -32,6 +38,14 @@ func _init() -> void:
 		if res is CustomerTypeData:
 			customer_types.append(res as CustomerTypeData)
 
+	for res: Resource in _load_dir(RANK_DIR):
+		if res is RankData:
+			ranks.append(res as RankData)
+	for res: Resource in _load_dir(EQUIPMENT_DIR):
+		if res is EquipmentData:
+			equipment.append(res as EquipmentData)
+	ranks.sort_custom(func(a: RankData, b: RankData) -> bool: return a.rank < b.rank)
+	equipment.sort_custom(func(a: EquipmentData, b: EquipmentData) -> bool: return a.sort_order < b.sort_order)
 	dishes.sort_custom(func(a: DishData, b: DishData) -> bool: return a.sort_order < b.sort_order)
 	ingredients.sort_custom(func(a: IngredientData, b: IngredientData) -> bool: return a.sort_order < b.sort_order)
 
@@ -84,3 +98,53 @@ func _load_dir(path: String) -> Array[Resource]:
 		else:
 			push_error("データが読み込めません: " + path + clean)
 	return result
+
+
+func get_equipment(id: String) -> EquipmentData:
+	for e: EquipmentData in equipment:
+		if e.id == id:
+			return e
+	return null
+
+
+# ---------------------------------------------------------------
+# 店舗ランク（data/ranks/）
+# ---------------------------------------------------------------
+
+func get_max_rank() -> int:
+	return maxi(1, ranks.size())
+
+
+func _rank_data(rank: int) -> RankData:
+	if ranks.is_empty():
+		return null
+	return ranks[clampi(rank - 1, 0, ranks.size() - 1)]
+
+
+func get_rank_name(rank: int) -> String:
+	var data: RankData = _rank_data(rank)
+	return data.display_name if data != null else ""
+
+
+## そのランクになるのに必要な評判（ランクの範囲外なら -1）
+func get_rank_threshold(rank: int) -> int:
+	if rank < 1 or rank > ranks.size():
+		return -1
+	return ranks[rank - 1].reputation_threshold
+
+
+## 評判から決まるランク（1始まり。評判が下がってもランクは下げないので、GameState.rank も見ること）
+func get_rank_for_reputation(reputation: int) -> int:
+	var result: int = 1
+	for data: RankData in ranks:
+		if reputation >= data.reputation_threshold:
+			result = maxi(result, data.rank)
+	return result
+
+
+## その日の点数を、評判の増減に直す（プラスは今のランクの倍率、マイナスは game_config の倍率）
+func get_reputation_delta(points: float, rank: int) -> int:
+	if points > 0.0:
+		var data: RankData = _rank_data(rank)
+		return roundi(points * (data.reputation_gain_scale if data != null else 0.5))
+	return roundi(points * config.reputation_loss_scale)
