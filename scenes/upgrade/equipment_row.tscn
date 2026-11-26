@@ -1,0 +1,81 @@
+[gd_scene format=3]
+
+[ext_resource type="Script" path="res://scenes/upgrade/equipment_row.gd" id="1_row"]
+[ext_resource type="Script" path="res://scripts/ui/long_press_detector.gd" id="2_long"]
+
+[node name="EquipmentRow" type="PanelContainer"]
+script = ExtResource("1_row")
+
+[node name="HBox" type="HBoxContainer" parent="."]
+layout_mode = 2
+theme_override_constants/separation = 6
+
+[node name="Icon" type="TextureRect" parent="HBox"]
+unique_name_in_owner = true
+custom_minimum_size = Vector2(24, 24)
+layout_mode = 2
+size_flags_vertical = 4
+mouse_filter = 2
+stretch_mode = 3
+
+[node name="Texts" type="VBoxContainer" parent="HBox"]
+layout_mode = 2
+size_flags_horizontal = 3
+theme_override_constants/separation = 0
+
+[node name="NameLabel" type="Label" parent="HBox/Texts"]
+unique_name_in_owner = true
+layout_mode = 2
+text = "設備"
+clip_text = true
+text_overrun_behavior = 3
+
+[node name="DescriptionLabel" type="Label" parent="HBox/Texts"]
+unique_name_in_owner = true
+layout_mode = 2
+theme_type_variation = &"SmallLabel"
+theme_override_colors/font_color = Color(0.75, 0.75, 0.75, 1)
+text = "説明"
+clip_text = true
+text_overrun_behavior = 3
+
+[node name="EffectLabel" type="Label" parent="HBox/Texts"]
+unique_name_in_owner = true
+layout_mode = 2
+theme_type_variation = &"SmallLabel"
+theme_override_colors/font_color = Color(0.6, 0.85, 1, 1)
+text = "効果"
+clip_text = true
+text_overrun_behavior = 3
+
+[node name="PriceTexts" type="VBoxContainer" parent="HBox"]
+custom_minimum_size = Vector2(120, 0)
+layout_mode = 2
+size_flags_vertical = 4
+theme_override_constants/separation = 0
+
+[node name="PriceLabel" type="Label" parent="HBox/PriceTexts"]
+unique_name_in_owner = true
+layout_mode = 2
+text = "¥0"
+horizontal_alignment = 2
+
+[node name="NoteLabel" type="Label" parent="HBox/PriceTexts"]
+unique_name_in_owner = true
+layout_mode = 2
+theme_type_variation = &"SmallLabel"
+text = "必要なランク"
+horizontal_alignment = 2
+clip_text = true
+text_overrun_behavior = 3
+
+[node name="BuyButton" type="Button" parent="HBox"]
+unique_name_in_owner = true
+custom_minimum_size = Vector2(72, 34)
+layout_mode = 2
+size_flags_vertical = 4
+text = "購入"
+
+[node name="LongPress" type="Node" parent="."]
+unique_name_in_owner = true
+script = ExtResource("2_long")

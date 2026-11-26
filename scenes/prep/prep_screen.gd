@@ -337,7 +337,11 @@ func _show_dish_detail(dish_id: String) -> void:
 	var expected: Dictionary = GameState.get_expected_orders()
 	var lines: PackedStringArray = PackedStringArray()
 	lines.append(UIText.DETAIL_DISH_PRICE % [UIText.money(dish.price), UIText.money(cost), UIText.money(dish.price - cost)])
-	lines.append(UIText.DETAIL_DISH_COOK % roundi(dish.cook_time))
+	var scale: float = GameState.get_cook_time_scale(dish)
+	if scale < 0.999:
+		lines.append(UIText.DETAIL_DISH_COOK_EQUIPPED % [GameState.get_cook_time(dish), roundi((1.0 - scale) * 100.0)])
+	else:
+		lines.append(UIText.DETAIL_DISH_COOK % roundi(dish.cook_time))
 	lines.append(UIText.DETAIL_DISH_INGREDIENTS % _ingredient_list_text(dish))
 	lines.append(UIText.DETAIL_DISH_EXPECTED % ceili(float(expected.get(dish_id, 0.0))))
 	lines.append(UIText.DETAIL_DISH_PREP % [GameState.get_prep_count(dish_id), GameState.get_shelf_plan_count(dish_id)])

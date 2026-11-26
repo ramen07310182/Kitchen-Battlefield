@@ -6,7 +6,9 @@ extends PanelContainer
 signal contents_changed
 signal held_changed(dish_id: String)
 
+## 枠が6つまでは3列、それより多ければ4列に並べる
 const COLUMNS := 3
+const COLUMNS_WIDE := 4
 
 var _slots: Array[String] = []
 var _buttons: Array[Button] = []
@@ -21,14 +23,15 @@ var _held_index: int = -1
 func _ready() -> void:
 	add_theme_stylebox_override("panel", UISkin.panel_box(SpriteKeys.PANEL, UIUtil.flat_box(Color(0.22, 0.24, 0.26))))
 	_title_label.text = UIText.SHELF_TITLE
-	_grid.columns = COLUMNS
 
 
 func setup(capacity: int) -> void:
+	_grid.columns = COLUMNS if capacity <= 6 else COLUMNS_WIDE
+	var slot_size: Vector2 = Vector2(46, 32) if capacity <= 6 else Vector2(40, 30)
 	for i: int in capacity:
 		_slots.append("")
 		var button: Button = Button.new()
-		button.custom_minimum_size = Vector2(46, 34)
+		button.custom_minimum_size = slot_size
 		button.add_theme_color_override("font_color", Color(0.1, 0.08, 0.05))
 		button.add_theme_color_override("font_disabled_color", Color(0.1, 0.08, 0.05))
 		button.icon_alignment = HORIZONTAL_ALIGNMENT_CENTER
@@ -99,7 +102,7 @@ func _refresh() -> void:
 
 	var held_dish: DishData = Database.get_dish(get_held_dish()) if _held_index >= 0 else null
 	if held_dish != null:
-		_held_label.text = UIText.HOLDING % held_dish.display_name
+		_held_label.text = UIText.HOLDING % held_dish.short_name
 		_held_panel.add_theme_stylebox_override("panel", UIUtil.flat_box(held_dish.color, Color.WHITE, 2))
 		_held_label.add_theme_color_override("font_color", Color(0.1, 0.08, 0.05))
 	else:

@@ -15,7 +15,7 @@ extends Resource
 ## 来店間隔（秒）。この範囲でランダム
 @export var spawn_interval_min: float = 5.0
 @export var spawn_interval_max: float = 9.0
-## テーブルの数（1人用）
+## テーブルの数（1人用）。設備「テーブル」があれば、そのデータのレベル0の値を使う（これは設備がないときの値）
 @export var table_count: int = 4
 ## お客さんの歩く速さ（px/秒）
 @export var walk_speed: float = 160.0
@@ -23,7 +23,7 @@ extends Resource
 @export var order_delay: float = 1.5
 ## 好きな料理が選ばれる重み（好きでない料理は1）
 @export var favorite_weight: float = 3.0
-## 置き場の枠数（開店時に並べておける数もこれが上限）
+## 置き場の枠数（開店時に並べておける数もこれが上限）。設備「置き場の棚」があれば、そのデータの値を使う
 @export var shelf_capacity: int = 6
 ## 営業終了後の画面に切り替わるまで（秒）
 @export var end_delay: float = 1.5

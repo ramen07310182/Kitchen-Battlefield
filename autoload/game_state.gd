@@ -28,7 +28,7 @@ var purchase_plan: Dictionary = {}
 var today: DayStats = DayStats.new()
 ## 仕込み数 { 料理id: 個数 }
 var prep_counts: Dictionary = {}
-## 開店時に置き場に並べておく料理（並べる順。最大 shelf_capacity 個）
+## 開店時に置き場に並べておく料理（並べる順。最大は置き場の枠の数）
 var shelf_plan: Array[String] = []
 ## 前回の営業の仕込み数と置き場の初期配置（「前回と同じ仕込み」用。セーブする）
 var last_prep_counts: Dictionary = {}
@@ -441,7 +441,7 @@ func get_shelf_plan_count(dish_id: String) -> int:
 
 ## 開店時の置き場にもう1つ並べられるか（枠が空いていて、仕込み数を超えない）
 func can_add_to_shelf_plan(dish_id: String) -> bool:
-	return shelf_plan.size() < Database.config.shelf_capacity \
+	return shelf_plan.size() < get_shelf_capacity() \
 		and get_shelf_plan_count(dish_id) < get_prep_count(dish_id)
 
 
@@ -531,7 +531,7 @@ func begin_business() -> Dictionary:
 	var shelf: Array[String] = []
 	var placed: Dictionary = {}
 	for dish_id: String in shelf_plan:
-		if shelf.size() < Database.config.shelf_capacity and int(placed.get(dish_id, 0)) < int(prep.get(dish_id, 0)):
+		if shelf.size() < get_shelf_capacity() and int(placed.get(dish_id, 0)) < int(prep.get(dish_id, 0)):
 			shelf.append(dish_id)
 			placed[dish_id] = int(placed.get(dish_id, 0)) + 1
 	last_prep_counts = prep.duplicate()
@@ -625,6 +625,80 @@ func finish_business() -> void:
 	for dish: DishData in _unlock_by_rank(day + 1):
 		today.new_unlocks.append(dish.id)
 	_record_history()
+
+
+# ---------------------------------------------------------------
+# 設備（お店の強化）
+# ---------------------------------------------------------------
+
+## 設備を買えない理由
+enum BuyBlock { NONE, MAX_LEVEL, RANK, MONEY }
+
+
+func get_equipment_level(equipment_id: String) -> int:
+	return int(equipment_levels.get(equipment_id, 0))
+
+
+## その効果の設備の今の値（設備のデータがなければ fallback）
+func _equipment_value(effect: EquipmentData.Effect, fallback: float) -> float:
+	for e: EquipmentData in Database.equipment:
+		if e.effect == effect:
+			return e.get_value(get_equipment_level(e.id))
+	return fallback
+
+
+## 客席（テーブル）の数
+func get_table_count() -> int:
+	return int(_equipment_value(EquipmentData.Effect.TABLES, Database.config.table_count))
+
+
+## 置き場の枠の数
+func get_shelf_capacity() -> int:
+	return int(_equipment_value(EquipmentData.Effect.SHELF, Database.config.shelf_capacity))
+
+
+## 設備の効果を入れた、料理1つの調理時間（秒）
+func get_cook_time(dish: DishData) -> float:
+	return dish.cook_time * get_cook_time_scale(dish)
+
+
+## 設備による調理時間の倍率（1.0 = そのまま）
+func get_cook_time_scale(dish: DishData) -> float:
+	var scale: float = 1.0
+	for e: EquipmentData in Database.equipment:
+		if e.affects_dish(dish):
+			scale *= e.get_value(get_equipment_level(e.id))
+	return scale
+
+
+## 設備をあと1レベル上げられるか。上げられなければ理由
+func get_buy_block(equipment_id: String) -> BuyBlock:
+	var e: EquipmentData = Database.get_equipment(equipment_id)
+	if e == null:
+		return BuyBlock.MAX_LEVEL
+	var level: int = get_equipment_level(equipment_id)
+	if level >= e.get_max_level():
+		return BuyBlock.MAX_LEVEL
+	if rank < e.get_required_rank(level):
+		return BuyBlock.RANK
+	if money < e.get_price(level):
+		return BuyBlock.MONEY
+	return BuyBlock.NONE
+
+
+## 設備を1レベル上げる（お金を払う）。買えたら true
+func buy_equipment(equipment_id: String) -> bool:
+	if get_buy_block(equipment_id) != BuyBlock.NONE:
+		return false
+	var e: EquipmentData = Database.get_equipment(equipment_id)
+	var level: int = get_equipment_level(equipment_id)
+	add_money(-e.get_price(level))
+	equipment_levels[equipment_id] = level + 1
+	# 置き場の枠が増えても減っても、開店時の置き場が枠を超えないようにする
+	while shelf_plan.size() > get_shelf_capacity():
+		shelf_plan.remove_at(shelf_plan.size() - 1)
+	inventory_changed.emit()
+	return true
 
 
 # ---------------------------------------------------------------
@@ -754,7 +828,7 @@ func load_game() -> bool:
 	if saved_shelf is Array:
 		for item: Variant in saved_shelf:
 			var dish_id: String = str(item)
-			if Database.get_dish(dish_id) != null and last_shelf_plan.size() < Database.config.shelf_capacity:
+			if Database.get_dish(dish_id) != null and last_shelf_plan.size() < 64:
 				last_shelf_plan.append(dish_id)
 	last_sold_counts.clear()
 	var saved_sold: Variant = data.get("last_sold", {})

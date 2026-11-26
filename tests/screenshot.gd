@@ -97,10 +97,45 @@ func _run() -> void:
 	await _wait_frames(5)
 	await _shot("result")
 
-	# 次の日の準備画面（「前回 ○食売れた」が出る）
-	(_current_screen(main).get("_next_button") as Button).pressed.emit()
+	# お店の強化画面（見た目の確認のため、お金を足しておく）
+	GameState.add_money(20000)
+	(_current_screen(main).get("_upgrade_button") as Button).pressed.emit()
 	await _wait_frames(5)
+	await _shot("upgrade")
+	var upgrade: Node = _current_screen(main)
+	upgrade.call("_show_detail", "tables")
+	await _wait_frames(4)
+	await _shot("upgrade_detail")
+	(upgrade.get("_detail") as DetailPopup).close()
+	(upgrade.get("_next_button") as Button).pressed.emit()
+	await _wait_frames(5)
+
+	# 次の日の準備画面（「前回 ○食売れた」が出る）とカレンダー
 	await _shot("prep_day2")
+	var prep2: Node = _current_screen(main)
+	var calendar: CalendarPopup = prep2.get("_calendar")
+	calendar.open()
+	await _wait_frames(3)
+	calendar.call("_on_cell_pressed", GameCalendar.offset_for_business_day(1))
+	await _wait_frames(3)
+	await _shot("calendar")
+	calendar.hide()
+
+	# テーブル8卓・置き場8枠の営業画面（見た目の確認のため、設備を最大にする）
+	for e: EquipmentData in Database.equipment:
+		GameState.equipment_levels[e.id] = e.get_max_level()
+	for dish: DishData in GameState.get_unlocked_dishes():
+		GameState.change_prep(dish.id, 6)
+	GameState.plan_prep_shortage()
+	GameState.add_money(50000)
+	GameState.confirm_purchase()
+	prep2.call("_on_start_pressed")
+	await _wait_frames(2)
+	Engine.time_scale = 6.0
+	await get_tree().create_timer(BUSINESS_SHOT_TIME, true, false, false).timeout
+	Engine.time_scale = 1.0
+	await _wait_frames(3)
+	await _shot("business8")
 
 	GameState.delete_save()
 	get_tree().quit()

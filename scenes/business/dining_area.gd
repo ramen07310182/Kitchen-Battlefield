@@ -28,17 +28,39 @@ func _notification(what: int) -> void:
 		_layout()
 
 
+## テーブルの並べ方: 4卓までは1列。5卓以上は2列にし、下の列を半分ずらす（上の列のテーブルのあいだに下の列の吹き出しが来るように）
+const ONE_ROW_MAX := 4
+## 壁の高さと、吹き出しのぶん上に空ける高さ
+const WALL_HEIGHT := 24.0
+const BUBBLE_SPACE := 22.0
+
+
 func _layout() -> void:
 	if _tables.is_empty():
 		return
 	var left: float = _entrance.position.x + _entrance.size.x + 12.0
-	var step: float = (size.x - left - 8.0) / float(_tables.size())
-	for i: int in _tables.size():
-		var table: DiningTable = _tables[i]
-		table.position = Vector2(
-			roundf(left + step * (i + 0.5) - table.size.x * 0.5),
-			roundf(size.y * 0.5 - table.size.y * 0.5 + 14.0)
-		)
+	var width: float = size.x - left - 8.0
+	if _tables.size() <= ONE_ROW_MAX:
+		var step: float = width / float(_tables.size())
+		for i: int in _tables.size():
+			var table: DiningTable = _tables[i]
+			table.position = Vector2(
+				roundf(left + step * (i + 0.5) - table.size.x * 0.5),
+				roundf(size.y * 0.5 - table.size.y * 0.5 + 14.0)
+			)
+	else:
+		var per_row: int = ceili(_tables.size() / 2.0)
+		var step2: float = width / (float(per_row) + 0.5)
+		var top_y: float = WALL_HEIGHT + BUBBLE_SPACE
+		for i: int in _tables.size():
+			var table: DiningTable = _tables[i]
+			var row: int = i / per_row
+			var col: int = i % per_row
+			var bottom_y: float = maxf(top_y + table.size.y * 0.55, size.y - table.size.y - 2.0)
+			table.position = Vector2(
+				roundf(left + step2 * (col + 0.5 + 0.5 * row) - table.size.x * 0.5),
+				roundf(top_y if row == 0 else bottom_y)
+			)
 	# 座っているお客さんも新しい位置に合わせる
 	for table: DiningTable in _tables:
 		var c: Customer = table.occupant

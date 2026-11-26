@@ -9,20 +9,26 @@ script = ExtResource("1_shelf")
 layout_mode = 2
 theme_override_constants/separation = 3
 
-[node name="TitleLabel" type="Label" parent="VBox"]
+[node name="TopRow" type="HBoxContainer" parent="VBox"]
+layout_mode = 2
+theme_override_constants/separation = 4
+
+[node name="TitleLabel" type="Label" parent="VBox/TopRow"]
 unique_name_in_owner = true
 layout_mode = 2
 theme_type_variation = &"HeaderLabel"
-text = "完成品置き場"
+text = "置き場"
 
-[node name="HeldPanel" type="PanelContainer" parent="VBox"]
+[node name="HeldPanel" type="PanelContainer" parent="VBox/TopRow"]
 unique_name_in_owner = true
 layout_mode = 2
+size_flags_horizontal = 3
 
-[node name="HeldLabel" type="Label" parent="VBox/HeldPanel"]
+[node name="HeldLabel" type="Label" parent="VBox/TopRow/HeldPanel"]
 unique_name_in_owner = true
+custom_minimum_size = Vector2(80, 0)
 layout_mode = 2
-text = "料理をタップして持つ"
+text = "タップで持つ"
 horizontal_alignment = 1
 clip_text = true
 text_overrun_behavior = 3

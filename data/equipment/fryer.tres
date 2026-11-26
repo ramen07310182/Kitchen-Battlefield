@@ -1,0 +1,15 @@
+[gd_resource type="Resource" script_class="EquipmentData" format=3]
+
+[ext_resource type="Script" path="res://scripts/data/equipment_data.gd" id="1_equip"]
+
+[resource]
+script = ExtResource("1_equip")
+id = "fryer"
+display_name = "フライヤー"
+description = "揚げ物（唐揚げ）の調理時間を短くする"
+effect = 2
+cook_category = "fry"
+level_values = PackedFloat32Array(1.0, 0.85, 0.7)
+level_prices = PackedInt32Array(2500, 7000)
+level_ranks = PackedInt32Array(1, 2)
+sort_order = 3

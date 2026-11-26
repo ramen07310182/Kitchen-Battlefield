@@ -42,7 +42,7 @@ func setup(menu_dishes: Array[DishData], supply: DishSupply) -> void:
 	_supply.changed.connect(_refresh_buttons)
 	for dish: DishData in _dishes:
 		var button: Button = Button.new()
-		button.custom_minimum_size = Vector2(0, 30)
+		button.custom_minimum_size = Vector2(0, 28)
 		button.size_flags_horizontal = Control.SIZE_EXPAND_FILL
 		var dish_icon: Texture2D = SpriteLibrary.get_icon(SpriteKeys.dish(dish.id))
 		button.icon = dish_icon if dish_icon != null else UIUtil.color_icon(dish.color, 10)
@@ -78,7 +78,7 @@ func _process(delta: float) -> void:
 		_elapsed = 0.0
 	if _current != null:
 		_elapsed += delta
-		if _elapsed >= _current.cook_time:
+		if _elapsed >= GameState.get_cook_time(_current):
 			var finished_id: String = _current.id
 			_current = null
 			dish_cooked.emit(finished_id)
@@ -117,7 +117,7 @@ func _refresh_status() -> void:
 	_stove.animation = anim
 	if _current != null:
 		_status_label.text = UIText.COOKING % _current.display_name
-		_progress.value = clampf(_elapsed / maxf(_current.cook_time, 0.01), 0.0, 1.0)
+		_progress.value = clampf(_elapsed / maxf(GameState.get_cook_time(_current), 0.01), 0.0, 1.0)
 	else:
 		_status_label.text = UIText.COOK_FULL if _full else UIText.COOK_IDLE
 		_progress.value = 0.0

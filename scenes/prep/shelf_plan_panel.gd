@@ -24,7 +24,7 @@ var _clear_button: Button
 
 func _ready() -> void:
 	add_theme_stylebox_override("panel", UIUtil.flat_box(Color(0.18, 0.19, 0.2)))
-	for i: int in Database.config.shelf_capacity:
+	for i: int in GameState.get_shelf_capacity():
 		var slot: Button = Button.new()
 		slot.custom_minimum_size = slot_size
 		slot.add_theme_color_override("font_color", Color(0.1, 0.08, 0.05))
@@ -48,9 +48,8 @@ func _ready() -> void:
 
 
 func refresh() -> void:
-	var cfg: GameConfig = Database.config
 	var plan: Array[String] = GameState.shelf_plan
-	_title_label.text = UIText.PREP_SHELF_TITLE % [plan.size(), cfg.shelf_capacity]
+	_title_label.text = UIText.PREP_SHELF_TITLE % [plan.size(), GameState.get_shelf_capacity()]
 	for i: int in _slot_buttons.size():
 		var slot: Button = _slot_buttons[i]
 		var dish: DishData = Database.get_dish(plan[i]) if i < plan.size() else null

@@ -45,8 +45,8 @@ func _ready() -> void:
 		if int(prep.get(dish.id, 0)) > 0:
 			_menu.append(dish)
 
-	_dining.setup(_config.table_count)
-	_shelf.setup(_config.shelf_capacity)
+	_dining.setup(GameState.get_table_count())
+	_shelf.setup(GameState.get_shelf_capacity())
 	for dish_id: String in shelf_items:
 		_shelf.add_dish(dish_id)
 	_kitchen.setup(_menu, _supply)

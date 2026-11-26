@@ -1,10 +1,11 @@
 extends Node
 ## 画面の切り替えだけを担当する。各画面とはシグナルでつながる。
-## 営業準備 → 営業 → 営業結果 → （次の日）営業準備 …
+## 営業準備 → 営業 → 営業結果 →（お店を強化）→（次の日）営業準備 …
 
 const PREP_SCENE: PackedScene = preload("res://scenes/prep/prep_screen.tscn")
 const BUSINESS_SCENE: PackedScene = preload("res://scenes/business/business.tscn")
 const RESULT_SCENE: PackedScene = preload("res://scenes/result/result_screen.tscn")
+const UPGRADE_SCENE: PackedScene = preload("res://scenes/upgrade/upgrade_screen.tscn")
 
 var _current: Node = null
 
@@ -37,6 +38,13 @@ func _show_business() -> void:
 func _on_business_finished() -> void:
 	GameState.finish_business()
 	var screen: Node = _switch_to(RESULT_SCENE)
+	screen.connect("next_day_requested", _on_next_day)
+	screen.connect("upgrade_requested", _show_upgrade)
+
+
+## 営業結果 →（お店を強化）→ 次の日の準備
+func _show_upgrade() -> void:
+	var screen: Node = _switch_to(UPGRADE_SCENE)
 	screen.connect("next_day_requested", _on_next_day)
 
 
