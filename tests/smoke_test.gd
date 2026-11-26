@@ -147,19 +147,24 @@ func _check_rules() -> void:
 	GameState.delete_save()
 
 
-## 古いセーブ（version 1・2）を読み込んで、version 3 に移行できるか確かめる
+## 古いセーブ（version 1〜3）を読み込んで、今の version に移行できるか確かめる
 func _check_migration() -> void:
 	_write_test_save({"version": 1, "money": 4321, "day": 5, "reputation": 12, "inventory": {"rice": 7}})
 	GameState.use_save_path(TEST_SAVE_PATH)
-	_check("セーブ移行 v1 -> v3", GameState.money == 4321 and GameState.day == 5 and GameState.reputation == 12
+	_check("セーブ移行 v1 -> 最新", GameState.money == 4321 and GameState.day == 5 and GameState.reputation == 12
 		and GameState.get_stock("rice") == 7 and not GameState.has_last_prep() and GameState.last_shelf_plan.is_empty())
 	_write_test_save({"version": 2, "money": 5000, "day": 3, "reputation": 5, "inventory": {"rice": 9},
 		"last_prep": {"karaage": 2, "yakizakana": 1}})
 	GameState.use_save_path(TEST_SAVE_PATH)
-	_check("セーブ移行 v2 -> v3（前回の仕込みを仕込み数と置き場の両方に）",
+	_check("セーブ移行 v2 -> 最新（前回の仕込みを仕込み数と置き場の両方に）",
 		GameState.get_stock("rice") == 9 and GameState.last_prep_counts == {"karaage": 2, "yakizakana": 1}
 		and GameState.last_shelf_plan == (["karaage", "karaage", "yakizakana"] as Array[String]),
 		"prep=%s shelf=%s" % [GameState.last_prep_counts, GameState.last_shelf_plan])
+	_write_test_save({"version": 3, "money": 6000, "day": 4, "reputation": 8, "inventory": {"rice": 3},
+		"last_prep": {"karaage": 1}, "last_shelf": ["karaage"]})
+	GameState.use_save_path(TEST_SAVE_PATH)
+	_check("セーブ移行 v3 -> v4（前回売れた数は空）", GameState.money == 6000 and GameState.last_shelf_plan.size() == 1
+		and GameState.last_sold_counts.is_empty() and GameState.get_last_sold("karaage") == -1)
 
 
 func _write_test_save(data: Dictionary) -> void:
@@ -223,6 +228,17 @@ func _do_prep_day2(screen: Node, dialog: ConfirmDialog) -> void:
 	(dialog.get("_ok_button") as Button).pressed.emit()
 	_check("確認して仕入れると所持金が減る", GameState.money == money_before - total and not GameState.has_purchase_plan(),
 		"money %d -> %d (total %d)" % [money_before, GameState.money, total])
+
+	# 準備画面の各料理に「前回 ○食売れた」が出る（1日目は出ない）
+	var menu_rows: Array[MenuRow] = screen.get("_menu_rows")
+	var last_ok: bool = true
+	for row: MenuRow in menu_rows:
+		var label: Label = row.get("_last_label")
+		var sold: int = GameState.get_last_sold(row.dish.id)
+		if not label.visible or (sold >= 0 and not label.text.contains("%d食売れた" % sold)):
+			last_ok = false
+		print("[smoke] %s: %s" % [row.dish.id, label.text])
+	_check("2日目の準備画面に「前回 ○食売れた」が出る", last_ok and not GameState.last_sold_counts.is_empty())
 
 	# 食材を買ったあとなら、前回と同じ仕込みが全部入る
 	(screen.get("_repeat_button") as Button).pressed.emit()
@@ -342,6 +358,7 @@ func _do_result(screen: Node) -> void:
 	print("[smoke] result day=%d sales=%d cost=%d waste=%d(¥%d) other=%d profit=%d visitors=%d completed=%d angry=%d mistakes=%d sold_out=%s time_left=%.1f rep=%d money=%d" % [
 		GameState.day, s.sales, s.ingredient_cost, s.waste_count, s.waste_cost, s.other_expense, s.profit(), s.visitors,
 		s.completed_orders, s.left_angry, s.mistakes, s.sold_out, _last_time_left, GameState.reputation, GameState.money])
+	_check_dish_breakdown(screen, s)
 	if _days_done == 0:
 		var prepared: int = 0
 		for dish_id: String in _day1_prep:
@@ -363,8 +380,28 @@ func _do_result(screen: Node) -> void:
 	if _days_done >= DAYS_TO_RUN:
 		var saved: String = FileAccess.get_file_as_string(GameState.save_path)
 		print("[smoke] save: ", saved.replace("\n", " "))
-		_check("セーブは version 3 で、前回の置き場を含む", saved.contains("\"version\": 3") and saved.contains("last_shelf"))
+		_check("セーブは version 4 で、前回の置き場と売れた数を含む",
+			saved.contains("\"version\": 4") and saved.contains("last_shelf") and saved.contains("last_sold"))
 		_finish()
+
+
+## 料理ごとの内訳: 合計が全体の数字と合うこと、表の行が仕込んだ料理の数だけあること
+func _check_dish_breakdown(screen: Node, s: DayStats) -> void:
+	var sold: int = 0
+	var waste: int = 0
+	var sales: int = 0
+	var prepared: int = 0
+	for dish_id: String in s.get_prepared_dish_ids():
+		prepared += int(s.dish_prepared[dish_id])
+		sold += int(s.dish_sold.get(dish_id, 0))
+		waste += int(s.dish_waste.get(dish_id, 0))
+		sales += int(s.dish_sales.get(dish_id, 0))
+	print("[smoke] breakdown prepared=%s sold=%s waste=%s sales=%s" % [s.dish_prepared, s.dish_sold, s.dish_waste, s.dish_sales])
+	var table: VBoxContainer = screen.get("_dish_table")
+	_check("内訳の合計が全体と合う（売れた・廃棄・売上）",
+		sold == s.completed_orders and waste == s.waste_count and sales == s.sales and sold + waste <= prepared,
+		"sold=%d/%d waste=%d/%d sales=%d/%d" % [sold, s.completed_orders, waste, s.waste_count, sales, s.sales])
+	_check("内訳の表に仕込んだ料理の行が出る", table.get_child_count() == s.get_prepared_dish_ids().size() + 1)
 
 
 func _grid_has_text(grid: GridContainer, text: String) -> bool:

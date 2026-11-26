@@ -19,7 +19,8 @@ mouse_filter = 2
 [node name="Texts" type="VBoxContainer" parent="HBox"]
 layout_mode = 2
 size_flags_horizontal = 3
-theme_override_constants/separation = 0
+size_flags_vertical = 4
+theme_override_constants/separation = -1
 
 [node name="NameLabel" type="Label" parent="HBox/Texts"]
 unique_name_in_owner = true
@@ -33,6 +34,15 @@ unique_name_in_owner = true
 layout_mode = 2
 theme_type_variation = &"SmallLabel"
 text = "食材"
+clip_text = true
+text_overrun_behavior = 3
+
+[node name="LastLabel" type="Label" parent="HBox/Texts"]
+unique_name_in_owner = true
+layout_mode = 2
+theme_type_variation = &"SmallLabel"
+theme_override_colors/font_color = Color(0.6, 0.85, 1, 1)
+text = "前回"
 clip_text = true
 text_overrun_behavior = 3
 

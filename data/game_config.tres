@@ -43,3 +43,4 @@ hold_repeat_interval = 0.08
 hold_fast_after = 1.2
 hold_fast_step = 5
 stock_warning_ratio = 1.0
+waste_warning_ratio = 0.3

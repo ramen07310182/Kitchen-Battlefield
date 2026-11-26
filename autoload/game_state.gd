@@ -14,7 +14,7 @@ signal inventory_changed
 signal reputation_changed(value: int)
 
 const DEFAULT_SAVE_PATH := "user://save.json"
-const SAVE_VERSION := 3
+const SAVE_VERSION := 4
 
 var money: int = 0
 var day: int = 1
@@ -33,6 +33,8 @@ var shelf_plan: Array[String] = []
 ## 前回の営業の仕込み数と置き場の初期配置（「前回と同じ仕込み」用。セーブする）
 var last_prep_counts: Dictionary = {}
 var last_shelf_plan: Array[String] = []
+## 前回の営業で、仕込んだ料理ごとに売れた数 { 料理id: 数 }（準備画面の「前回 ○食売れた」用。セーブする）
+var last_sold_counts: Dictionary = {}
 ## セーブファイルの場所。テストのときだけ別の場所に切り替える
 var save_path: String = DEFAULT_SAVE_PATH
 
@@ -72,6 +74,7 @@ func _new_game() -> void:
 	shelf_plan.clear()
 	last_prep_counts.clear()
 	last_shelf_plan.clear()
+	last_sold_counts.clear()
 
 
 # ---------------------------------------------------------------
@@ -352,6 +355,7 @@ func begin_business() -> Dictionary:
 			inventory[ing_id] = get_stock(ing_id) - int(dish.ingredients[ing_id]) * count
 		today.ingredient_cost += Database.get_dish_cost(dish) * count
 		prep[dish.id] = count
+	today.dish_prepared = prep.duplicate()
 	var shelf: Array[String] = []
 	var placed: Dictionary = {}
 	for dish_id: String in shelf_plan:
@@ -371,13 +375,15 @@ func record_visit() -> void:
 	today.visitors += 1
 
 
-func record_served(level: Satisfaction.Level) -> void:
+func record_served(dish_id: String, level: Satisfaction.Level) -> void:
 	today.completed_orders += 1
+	DayStats.add_to(today.dish_sold, dish_id, 1)
 	_apply_rating(level)
 
 
-func record_payment(amount: int) -> void:
+func record_payment(dish_id: String, amount: int) -> void:
 	today.sales += amount
+	DayStats.add_to(today.dish_sales, dish_id, amount)
 	add_money(amount)
 
 
@@ -403,6 +409,7 @@ func record_waste(leftover: Dictionary) -> void:
 			continue
 		today.waste_count += count
 		today.waste_cost += Database.get_dish_cost(dish) * count
+		DayStats.add_to(today.dish_waste, dish_id, count)
 
 
 func _apply_rating(level: Satisfaction.Level) -> void:
@@ -418,6 +425,15 @@ func _apply_rating(level: Satisfaction.Level) -> void:
 func finish_business() -> void:
 	today.other_expense = Database.config.other_expense
 	add_money(-today.other_expense)
+	# 次の準備画面で「前回 ○食売れた」と出すため、仕込んだ料理ごとに売れた数を覚える（0食も含める）
+	last_sold_counts.clear()
+	for dish_id: String in today.get_prepared_dish_ids():
+		last_sold_counts[dish_id] = int(today.dish_sold.get(dish_id, 0))
+
+
+## 前回の営業で、その料理が何食売れたか。前回仕込んでいない（または前回がない）なら -1
+func get_last_sold(dish_id: String) -> int:
+	return int(last_sold_counts.get(dish_id, -1))
 
 
 ## 「次の日へ」で呼ぶ。日数を進めてセーブする
@@ -439,6 +455,7 @@ func save_game() -> bool:
 		"inventory": inventory.duplicate(),
 		"last_prep": last_prep_counts.duplicate(),
 		"last_shelf": Array(last_shelf_plan),
+		"last_sold": last_sold_counts.duplicate(),
 	}
 	var file: FileAccess = FileAccess.open(save_path, FileAccess.WRITE)
 	if file == null:
@@ -481,6 +498,12 @@ func load_game() -> bool:
 			var dish_id: String = str(item)
 			if Database.get_dish(dish_id) != null and last_shelf_plan.size() < Database.config.shelf_capacity:
 				last_shelf_plan.append(dish_id)
+	last_sold_counts.clear()
+	var saved_sold: Variant = data.get("last_sold", {})
+	if saved_sold is Dictionary:
+		for dish: DishData in Database.dishes:
+			if (saved_sold as Dictionary).has(dish.id):
+				last_sold_counts[dish.id] = maxi(0, int(saved_sold[dish.id]))
 	money_changed.emit(money)
 	reputation_changed.emit(reputation)
 	inventory_changed.emit()
@@ -508,5 +531,9 @@ func _migrate(data: Dictionary) -> Dictionary:
 					shelf.append(dish.id)
 		data["last_shelf"] = shelf
 		version = 3
+	if version == 3:
+		# v4 で「前回売れた数」を追加。v3 のセーブには記録がないので空にする（次の営業から出る）
+		data["last_sold"] = {}
+		version = 4
 	data["version"] = version
 	return data

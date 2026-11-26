@@ -1,6 +1,6 @@
 class_name MenuRow
 extends PanelContainer
-## 営業準備画面の1行: 料理を出す／出さない と、仕込み数（0〜99）。
+## 営業準備画面の1行: 料理を出す／出さない と、仕込み数（0〜99）。前回売れた数も小さく出す。
 ## 「－＋」は長押しで続けて増減する（HoldRepeatButton）。
 
 signal menu_toggled(dish_id: String, on: bool)
@@ -11,6 +11,7 @@ var dish: DishData
 @onready var _swatch: ColorRect = %Swatch
 @onready var _name_label: Label = %NameLabel
 @onready var _info_label: Label = %InfoLabel
+@onready var _last_label: Label = %LastLabel
 @onready var _toggle_button: Button = %ToggleButton
 @onready var _minus_button: HoldRepeatButton = %MinusButton
 @onready var _count_label: Label = %CountLabel
@@ -44,6 +45,21 @@ func refresh(expected_orders: Dictionary) -> void:
 	_toggle_button.modulate = Color.WHITE if on else Color(0.7, 0.7, 0.7)
 	_name_label.modulate = Color.WHITE if on else Color(0.55, 0.55, 0.55)
 	_info_label.modulate = _name_label.modulate
+	_refresh_last_result()
 	_count_label.text = str(count)
 	_minus_button.disabled = not on or count <= 0
 	_plus_button.disabled = not GameState.can_add_prep(dish)
+
+
+## 「前回 ○食売れた」。前回の記録がない（1日目など）ときは出さない
+func _refresh_last_result() -> void:
+	if GameState.last_sold_counts.is_empty():
+		_last_label.hide()
+		return
+	_last_label.show()
+	var sold: int = GameState.get_last_sold(dish.id)
+	if sold < 0:
+		_last_label.text = UIText.PREP_LAST_NOT_SERVED
+	else:
+		var prepared: int = int(GameState.last_prep_counts.get(dish.id, 0))
+		_last_label.text = (UIText.PREP_LAST_SOLD_ALL if sold >= prepared and prepared > 0 else UIText.PREP_LAST_SOLD) % sold

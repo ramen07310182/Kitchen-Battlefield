@@ -128,7 +128,7 @@ func _on_customer_ordered(customer: Customer) -> void:
 
 
 func _on_customer_paid(customer: Customer) -> void:
-	GameState.record_payment(customer.dish.price)
+	GameState.record_payment(customer.dish.id, customer.dish.price)
 
 
 func _on_customer_left_angry(customer: Customer) -> void:
@@ -178,7 +178,7 @@ func _on_table_tapped(table_index: int) -> void:
 		_shelf.remove_held()
 		_supply.serve(held)
 		var level: Satisfaction.Level = customer.serve()
-		GameState.record_served(level)
+		GameState.record_served(held, level)
 		customer.show_popup(UIText.SATISFACTION_NAMES[level], Color(0.6, 1.0, 0.6))
 	else:
 		GameState.record_mistake()

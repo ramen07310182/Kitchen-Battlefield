@@ -15,6 +15,11 @@ var waste_count: int = 0
 var waste_cost: int = 0
 ## 注文できる料理がなくなって、早めに閉店した
 var sold_out: bool = false
+## 料理ごとの内訳 { 料理id: 数 }（仕込み数・売れた数・廃棄数・売上）
+var dish_prepared: Dictionary = {}
+var dish_sold: Dictionary = {}
+var dish_waste: Dictionary = {}
+var dish_sales: Dictionary = {}
 
 var _star_total: float = 0.0
 var _star_count: int = 0
@@ -38,6 +43,19 @@ func average_stars() -> float:
 ## ★1〜5に丸めた評価
 func rounded_stars() -> int:
 	return clampi(roundi(average_stars()), 1, 5)
+
+
+static func add_to(counts: Dictionary, key: String, amount: int) -> void:
+	counts[key] = int(counts.get(key, 0)) + amount
+
+
+## 仕込んだ料理のid（データの並び順）
+func get_prepared_dish_ids() -> Array[String]:
+	var ids: Array[String] = []
+	for dish: DishData in Database.dishes:
+		if int(dish_prepared.get(dish.id, 0)) > 0:
+			ids.append(dish.id)
+	return ids
 
 
 func profit() -> int:

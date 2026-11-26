@@ -66,6 +66,8 @@ extends Resource
 ## 長押しをこの秒数続けると、1回に増減する数を hold_fast_step にする
 @export var hold_fast_after: float = 1.2
 @export var hold_fast_step: int = 5
+## 営業結果の料理ごとの内訳で「廃棄が多い」と色を付ける割合（廃棄数 ÷ 仕込み数 がこれ以上）
+@export var waste_warning_ratio: float = 0.3
 ## 在庫不足の警告: 見積もった必要数にこの倍率をかけた数より在庫が少ないと赤くする
 ## （1.0 = 見積もりどおり、0.8 = 少し甘め、1.2 = 余裕を持たせる）
 @export var stock_warning_ratio: float = 1.0
