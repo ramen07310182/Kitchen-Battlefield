@@ -1,6 +1,10 @@
 extends Node
-## 評判の上がり方を確かめるための自動プレイ。何日分も遊ばせて、日ごとの評判・ランクの推移を表で出す。
+## バランス確認のための自動プレイ。何日分も遊ばせて、日ごとの評判・ランク・所持金・設備・来客数の推移を表で出す。
 ## 実行: Godot --headless --path . res://tests/reputation_sim.tscn -- --skill=good --days=15 --seed=1
+##   --fast         : 画面を出さずに営業を計算する高速モード（FastDayModel の近似。365日分が数十秒）
+##   --csv=<path>   : 日ごとの結果を CSV に書き出す（省略時は user://reputation_sim.csv。--fast では必ず書き出す）
+##   --no-buy       : 設備を買わない
+## ボットは、営業結果のあとに「手元に一定のお金を残して」優先順位に沿って設備を買う（BUY_PRIORITY）。
 ##   --skill=good   : 上手なボット（目安どおりに仕込み、すぐに作って出す。ミスをしない）
 ##   --skill=normal : ふつうのボット（仕込みは目安より少し少なめ、動きは少し遅い、たまに違う料理を出す）
 ##   --skill=sloppy : ミスの多いボット（仕込みが少なめ、動きが遅い、ときどき違う料理を出す）
@@ -9,7 +13,12 @@ extends Node
 const MAIN_SCENE: PackedScene = preload("res://scenes/main/main.tscn")
 const SIM_SAVE_PATH := "user://save_reputation_sim.json"
 
-## ボットの設定（上手／ミスが多い）
+## 設備を買う優先順位（上から順に、買えるものを買う）と、買ったあとに手元に残すお金
+const BUY_PRIORITY: PackedStringArray = ["tables", "fryer", "stove", "shelf", "rice_cooker"]
+const BUY_RESERVE := 10000
+const DEFAULT_CSV := "user://reputation_sim.csv"
+
+## ボットの設定（上手／ふつう／ミスが多い）
 const SKILLS: Dictionary = {
 	"good": { "prep_factor": 1.1, "reaction": 0.4, "wrong_rate": 0.0, "precook": true },
 	"normal": { "prep_factor": 0.9, "reaction": 2.0, "wrong_rate": 0.05, "precook": false },
@@ -25,6 +34,12 @@ var _cooldown: float = 0.0
 var _last_screen: String = ""
 var _prepared_today: bool = false
 var _rows: PackedStringArray = PackedStringArray()
+var _csv_rows: PackedStringArray = PackedStringArray()
+var _csv_path: String = DEFAULT_CSV
+var _fast: bool = false
+var _buy: bool = true
+## その日に買った設備（表に出す）
+var _bought_today: PackedStringArray = PackedStringArray()
 
 
 func _ready() -> void:
@@ -36,20 +51,42 @@ func _ready() -> void:
 			_days_to_run = int(arg.trim_prefix("--days="))
 		elif arg.begins_with("--seed="):
 			seed_value = int(arg.trim_prefix("--seed="))
+		elif arg == "--fast":
+			_fast = true
+		elif arg == "--no-buy":
+			_buy = false
+		elif arg.begins_with("--csv="):
+			_csv_path = arg.trim_prefix("--csv=")
 	_skill = SKILLS.get(_skill_name, SKILLS["good"])
 	seed(seed_value)
 	GameState.use_save_path(SIM_SAVE_PATH)
 	GameState.delete_save()
 	GameState.use_save_path(SIM_SAVE_PATH)
+	_rows.append("| 日 | 日付 | 来客 | 提供 | 怒って帰った | 売り逃し | ★ | 評判の増減 | 評判 | ランク | 利益 | 所持金 | 設備（卓・棚・コ・フ・炊） | 買った設備 |")
+	_rows.append("|---|---|---|---|---|---|---|---|---|---|---|---|---|---|")
+	_csv_rows.append("day,date,reputation,reputation_change,rank,money,profit,visitors,served,angry,missed,stars,tables,shelf,stove,fryer,rice_cooker,unlocked_count,unlocked,bought")
+	if _fast:
+		_run_fast()
+		return
 	Engine.time_scale = 12.0
 	_main = MAIN_SCENE.instantiate()
 	add_child(_main)
-	_rows.append("| 日 | 来客 | 提供 | 怒って帰った | 売り逃し | ★ | 評判の増減 | 評判 | ランク |")
-	_rows.append("|---|---|---|---|---|---|---|---|---|")
+
+
+## 高速モード: 画面を出さずに、準備 → 営業（FastDayModel）→ 結果 → 強化 → 次の日 をくり返す
+func _run_fast() -> void:
+	var model: FastDayModel = FastDayModel.new(_skill)
+	for i: int in _days_to_run:
+		_plan_prep()
+		model.run_day(GameState.begin_business())
+		GameState.finish_business()
+		_record_day()
+		GameState.advance_day()
+	_finish()
 
 
 func _process(delta: float) -> void:
-	if _main.get_child_count() == 0:
+	if _main == null or _main.get_child_count() == 0:
 		return
 	var screen: Node = _main.get_child(_main.get_child_count() - 1)
 	if screen.name != _last_screen:
@@ -76,21 +113,36 @@ func _do_prep(screen: Node) -> void:
 	if _prepared_today:
 		return
 	_prepared_today = true
+	_plan_prep()
+	screen.call("_on_start_pressed")
+
+
+func _plan_prep() -> void:
 	var expected: Dictionary = GameState.get_expected_orders()
 	for dish: DishData in GameState.get_unlocked_dishes():
 		var target: int = maxi(1, ceili(float(expected.get(dish.id, 0.0)) * float(_skill["prep_factor"])))
 		GameState.change_prep(dish.id, -999)
 		GameState.change_prep(dish.id, target)
+	# 仕入れ代が払えない分は、仕込み数をいちばん多い料理から減らして合わせる
 	GameState.plan_prep_shortage()
+	var guard: int = 0
+	while not GameState.can_afford_purchase() and GameState.get_total_prep() > 0 and guard < 500:
+		guard += 1
+		var biggest: String = ""
+		for dish_id: String in GameState.prep_counts:
+			if biggest == "" or GameState.get_prep_count(dish_id) > GameState.get_prep_count(biggest):
+				biggest = dish_id
+		GameState.change_prep(biggest, -1)
+		GameState.clear_purchase_plan()
+		GameState.plan_prep_shortage()
 	if not GameState.confirm_purchase():
 		GameState.clear_purchase_plan()
 	GameState.reduce_prep_to_stock()
 	var dishes: Array[DishData] = GameState.get_menu_dishes()
 	var i: int = 0
-	while dishes.size() > 0 and GameState.shelf_plan.size() < Database.config.shelf_capacity and i < 50:
+	while dishes.size() > 0 and GameState.shelf_plan.size() < GameState.get_shelf_capacity() and i < 50:
 		GameState.add_to_shelf_plan(dishes[i % dishes.size()].id)
 		i += 1
-	screen.call("_on_start_pressed")
 
 
 func _do_business(screen: Node) -> void:
@@ -150,20 +202,71 @@ func _hold(shelf: ReadyShelf, buttons: Array[Button], slot: int) -> void:
 
 
 func _do_result(screen: Node) -> void:
+	_record_day()
+	(screen.get("_next_button") as Button).pressed.emit()
+	_days_done += 1
+	if _days_done >= _days_to_run:
+		_finish()
+
+
+## 結果のあと: 設備を買い、その日の行を表と CSV に足す（GameState.finish_business() のあとに呼ぶ）
+func _record_day() -> void:
+	_bought_today.clear()
+	if _buy:
+		_buy_equipment()
 	var s: DayStats = GameState.today
 	var missed: int = 0
 	for dish_id: String in s.dish_missed:
 		missed += int(s.dish_missed[dish_id])
 	var stars: String = "%.1f" % s.average_stars() if s.has_ratings() else "-"
-	_rows.append("| %d | %d | %d | %d | %d | %s | %s | %d | %d %s%s |" % [
-		GameState.day, s.visitors, s.completed_orders, s.left_angry, missed, stars,
+	var levels: PackedStringArray = PackedStringArray()
+	for id: String in BUY_PRIORITY_ORDER_FOR_TABLE:
+		levels.append(str(GameState.get_equipment_level(id)))
+	var date_text: String = GameCalendar.format_date(GameCalendar.date_for_business_day(GameState.day))
+	_rows.append("| %d | %s | %d | %d | %d | %d | %s | %s | %d | %d %s%s | %s | %s | %s | %s |" % [
+		GameState.day, date_text, s.visitors, s.completed_orders, s.left_angry, missed, stars,
 		UIText.signed(s.reputation_change), GameState.reputation, GameState.rank, GameState.get_rank_name(),
-		"（ランクアップ）" if s.rank_up > 0 else ""])
-	(screen.get("_next_button") as Button).pressed.emit()
-	_days_done += 1
-	if _days_done >= _days_to_run:
-		print("[sim] skill=%s" % _skill_name)
-		for row: String in _rows:
-			print("[sim] ", row)
-		GameState.delete_save()
-		get_tree().quit()
+		"（ランクアップ）" if s.rank_up > 0 else "", UIText.money(s.profit()), UIText.money(GameState.money),
+		"・".join(levels), "・".join(_bought_today) if not _bought_today.is_empty() else "-"])
+	var unlocked: PackedStringArray = PackedStringArray()
+	for dish: DishData in GameState.get_unlocked_dishes():
+		unlocked.append(dish.id)
+	var date: Dictionary = GameCalendar.date_for_business_day(GameState.day)
+	_csv_rows.append("%d,%04d-%02d-%02d,%d,%d,%d,%d,%d,%d,%d,%d,%d,%s,%s,%d,%s,%s" % [
+		GameState.day, int(date["year"]), int(date["month"]), int(date["day"]), GameState.reputation, s.reputation_change,
+		GameState.rank, GameState.money, s.profit(), s.visitors, s.completed_orders, s.left_angry, missed, stars,
+		",".join(levels), unlocked.size(), "|".join(unlocked), "|".join(_bought_today)])
+
+
+## 表の「設備」の列の並び（卓・棚・コンロ・フライヤー・炊飯器）
+const BUY_PRIORITY_ORDER_FOR_TABLE: PackedStringArray = ["tables", "shelf", "stove", "fryer", "rice_cooker"]
+
+
+## 優先順位の上から、手元に BUY_RESERVE を残して買えるものを買う（1日に何個でも）
+func _buy_equipment() -> void:
+	var bought: bool = true
+	while bought:
+		bought = false
+		for id: String in BUY_PRIORITY:
+			var e: EquipmentData = Database.get_equipment(id)
+			if e == null or GameState.get_buy_block(id) != GameState.BuyBlock.NONE:
+				continue
+			if GameState.money - e.get_price(GameState.get_equipment_level(id)) < BUY_RESERVE:
+				continue
+			GameState.buy_equipment(id)
+			_bought_today.append("%s→Lv%d" % [e.display_name, GameState.get_equipment_level(id)])
+			bought = true
+			break
+
+
+func _finish() -> void:
+	print("[sim] skill=%s fast=%s days=%d" % [_skill_name, _fast, _days_to_run])
+	for row: String in _rows:
+		print("[sim] ", row)
+	var file: FileAccess = FileAccess.open(_csv_path, FileAccess.WRITE)
+	if file != null:
+		file.store_string("\n".join(_csv_rows) + "\n")
+		file.close()
+		print("[sim] csv: ", ProjectSettings.globalize_path(_csv_path))
+	GameState.delete_save()
+	get_tree().quit()

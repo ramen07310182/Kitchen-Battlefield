@@ -10,6 +10,6 @@ description = "置き場の枠を増やす。作り置きできる料理が増�
 effect = 1
 cook_category = ""
 level_values = PackedFloat32Array(6.0, 7.0, 8.0)
-level_prices = PackedInt32Array(4000, 9000)
+level_prices = PackedInt32Array(40000, 65000)
 level_ranks = PackedInt32Array(1, 2)
 sort_order = 1

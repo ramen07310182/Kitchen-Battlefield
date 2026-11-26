@@ -19,6 +19,8 @@ var _return_tested: bool = false
 var _busy: bool = false
 ## 2日目の準備を一度だけ行う
 var _day2_prep_started: bool = false
+var _upgrade_done: bool = false
+var _equipment_checked: bool = false
 var _last_screen: String = ""
 var _failures: PackedStringArray = PackedStringArray()
 ## 本物のセーブがテストの前後で変わっていないか確かめるため
@@ -73,6 +75,8 @@ func _process(delta: float) -> void:
 			_do_business(screen)
 		"ResultScreen":
 			_do_result(screen)
+		"UpgradeScreen":
+			_do_upgrade(screen)
 
 
 # ---------------------------------------------------------------
@@ -194,6 +198,89 @@ func _check_rules() -> void:
 		GameState.reputation == 0 and GameState.rank == 2 and GameState.is_unlocked("oyakodon")
 		and GameState.change_prep("oyakodon", 1) == 1,
 		"rep=%d rank=%d unlocked=%s" % [GameState.reputation, GameState.rank, GameState.unlocked_dishes])
+
+	# カレンダー: 1日目は2027/1/1（金）、水曜日は定休日で飛ばす、年またぎ・うるう年
+	var d1: Dictionary = GameCalendar.date_for_business_day(1)
+	var d5: Dictionary = GameCalendar.date_for_business_day(5)
+	var d6: Dictionary = GameCalendar.date_for_business_day(6)
+	_check("1日目は2027/1/1（金）、5日目は1/5（火）、6日目は水曜を飛ばして1/7（木）",
+		GameCalendar.format_date(d1) == "2027/1/1（金）" and GameCalendar.format_date(d5) == "2027/1/5（火）"
+		and GameCalendar.format_date(d6) == "2027/1/7（木）" and GameCalendar.is_holiday_next(5) and not GameCalendar.is_holiday_next(6),
+		"%s %s %s" % [GameCalendar.format_date(d1), GameCalendar.format_date(d5), GameCalendar.format_date(d6)])
+	var round_trip_ok: bool = true
+	var no_wednesday: bool = true
+	for n: int in range(1, 900):
+		var offset: int = GameCalendar.offset_for_business_day(n)
+		if GameCalendar.business_day_for_offset(offset) != n:
+			round_trip_ok = false
+		if int(GameCalendar.date_for_offset(offset)["weekday"]) == GameCalendar.HOLIDAY_WEEKDAY:
+			no_wednesday = false
+	_check("営業日と日付の変換が往復で一致し、営業日に水曜日がない（900日分）", round_trip_ok and no_wednesday)
+	var new_year: int = GameCalendar.business_day_for_offset(GameCalendar.offset_for_date(2028, 1, 1))
+	var leap_offset: int = GameCalendar.offset_for_date(2028, 2, 29)
+	var leap_date: Dictionary = GameCalendar.date_for_offset(leap_offset)
+	_check("年をまたいでも、うるう年（2028/2/29）でも日付が正しく進む",
+		GameCalendar.format_date(GameCalendar.date_for_business_day(new_year)) == "2028/1/1（土）"
+		and int(leap_date["month"]) == 2 and int(leap_date["day"]) == 29
+		and GameCalendar.days_in_month(2028, 2) == 29 and GameCalendar.days_in_month(2027, 2) == 28
+		and int(GameCalendar.date_for_offset(leap_offset + 1)["month"]) == 3,
+		"new_year_day=%d %s" % [new_year, GameCalendar.format_date(GameCalendar.date_for_business_day(new_year))])
+	_check("カレンダーの利益の表示（色・短い書き方）",
+		CalendarPopup.short_profit(12300) == "+12,300" and CalendarPopup.short_profit(-4500) == "-4,500"
+		and CalendarPopup.short_profit(123456) == "+12.3万" and CalendarPopup.short_profit(0) == "0"
+		and CalendarPopup.profit_color(100) == CalendarPopup.COLOR_PLUS and CalendarPopup.profit_color(-1) == CalendarPopup.COLOR_MINUS
+		and CalendarPopup.profit_color(0) == CalendarPopup.COLOR_ZERO
+		and String(CalendarPopup.describe_offset(GameCalendar.offset_for_date(2027, 1, 6))["kind"]) == "holiday")
+
+	# 料理の解放条件に営業日数（○日目以降）
+	var oyako_dish: DishData = Database.get_dish("oyakodon")
+	var old_unlock_day: int = oyako_dish.unlock_day
+	oyako_dish.unlock_day = 30
+	GameState.unlocked_dishes.erase("oyakodon")
+	GameState.call("_unlock_by_rank", 29)
+	var locked_by_day: bool = not GameState.is_unlocked("oyakodon")
+	GameState.call("_unlock_by_rank", 30)
+	_check("料理の解放は「ランク」と「営業日数」の両方で決まる（ランク2でも30日目までは解放しない）",
+		locked_by_day and GameState.is_unlocked("oyakodon") and PrepMenuStep.locked_text(oyako_dish).contains("30日目"))
+	oyako_dish.unlock_day = old_unlock_day
+
+	# 設備: 所持金不足・ランク不足・購入と効果（席数・枠数・調理時間）
+	var money_now: int = GameState.money
+	GameState.add_money(-money_now)
+	_check("所持金が足りない設備は買えない", GameState.get_buy_block("tables") == GameState.BuyBlock.MONEY and not GameState.buy_equipment("tables"))
+	GameState.add_money(1000000)
+	var karaage_dish: DishData = Database.get_dish("karaage")
+	var table_before: int = GameState.get_table_count()
+	var shelf_before: int = GameState.get_shelf_capacity()
+	var cook_before: float = GameState.get_cook_time(karaage_dish)
+	var money_before_buy: int = GameState.money
+	var bought: bool = GameState.buy_equipment("tables") and GameState.buy_equipment("shelf") and GameState.buy_equipment("fryer")
+	_check("設備を買うと、お金が減り、席数・置き場の枠・調理時間に効果が出る",
+		bought and GameState.get_table_count() == table_before + 1 and GameState.get_shelf_capacity() == shelf_before + 1
+		and is_equal_approx(GameState.get_cook_time(karaage_dish), cook_before * Database.get_equipment("fryer").get_value(1))
+		and is_equal_approx(GameState.get_cook_time(Database.get_dish("yakizakana")), Database.get_dish("yakizakana").cook_time)
+		and GameState.money < money_before_buy,
+		"tables %d->%d shelf %d->%d karaage %.2f->%.2f" % [table_before, GameState.get_table_count(), shelf_before,
+			GameState.get_shelf_capacity(), cook_before, GameState.get_cook_time(karaage_dish)])
+	var saved_rank: int = GameState.rank
+	GameState.rank = 1
+	_check("必要なランクに届かない設備は買えない（テーブルの2つ目の追加は知る人ぞ知る店から）",
+		GameState.get_buy_block("tables") == GameState.BuyBlock.RANK and not GameState.buy_equipment("tables"))
+	GameState.rank = saved_rank
+	GameState.equipment_levels.clear()
+
+	# 履歴: 営業結果で1行増え、セーブして読み直しても残る
+	GameState.today = DayStats.new()
+	GameState.record_served("karaage", Satisfaction.Level.GREAT)
+	GameState.record_payment("karaage", 980)
+	GameState.finish_business()
+	var row: PackedInt32Array = GameState.get_history(GameState.day)
+	GameState.save_game()
+	GameState.use_save_path(TEST_SAVE_PATH)
+	var row2: PackedInt32Array = GameState.get_history(GameState.day)
+	_check("日ごとの結果が履歴に残り、セーブして読み直しても同じ",
+		not row.is_empty() and row[GameState.HISTORY_SALES] == 980 and row == row2,
+		"row=%s row2=%s" % [row, row2])
 
 	# 営業中の数の管理（DishSupply）
 	var supply: DishSupply = DishSupply.new({"karaage": 3}, ["karaage"] as Array[String])
@@ -506,6 +593,14 @@ func _do_business(screen: Node) -> void:
 	var shelf_buttons: Array[Button] = shelf.get("_buttons")
 	var tables: Array[DiningTable] = dining.get("_tables")
 
+	# 2日目の最初に1回だけ: 強化画面で買った設備が営業画面に出ている（テーブル5卓・置き場7枠）
+	if _days_done == 1 and not _equipment_checked:
+		_equipment_checked = true
+		_check("買った設備の効果が営業画面に出る（テーブル・置き場の枠）",
+			dining.get_table_count() == GameState.get_table_count() and dining.get_table_count() == 5
+			and slots.size() == GameState.get_shelf_capacity() and slots.size() == 7,
+			"tables=%d slots=%d" % [dining.get_table_count(), slots.size()])
+
 	# 1日目の最初に1回だけ: 置き場の料理を持って「残りに戻す」
 	if _days_done == 0 and not _return_tested:
 		_return_tested = true
@@ -626,12 +721,20 @@ func _do_result(screen: Node) -> void:
 			s.waste_count > 0 and s.waste_cost > 0 and s.ingredient_cost == cost_check,
 			"waste=%d cost=%d prep_cost=%d" % [s.waste_count, s.ingredient_cost, cost_check])
 		_check("結果画面に廃棄の行が出る", _grid_has_text(screen.get("_profit_grid"), "　" + UIText.RESULT_WASTE % s.waste_count))
+	var history_row: PackedInt32Array = GameState.get_history(GameState.day)
+	_check("営業結果で、その日の結果が履歴に入る（利益・来客数）",
+		not history_row.is_empty() and history_row[GameState.HISTORY_PROFIT] == s.profit()
+		and history_row[GameState.HISTORY_VISITORS] == s.visitors)
 	if _days_done == 0:
 		# 2日目は料理5種類で確かめるため、テストのために評判を上げて残りの料理を解放しておく
 		# （解放の判定そのものは _check_rules で確かめている）
 		GameState.add_reputation(200)
 		GameState.call("_update_rank")
 		GameState.call("_unlock_by_rank")
+		# 1日目のあとは「お店を強化」へ進む
+		(screen.get("_upgrade_button") as Button).pressed.emit()
+		_days_done += 1
+		return
 	(screen.get("_next_button") as Button).pressed.emit()
 	_days_done += 1
 	if _days_done >= DAYS_TO_RUN:
@@ -660,6 +763,27 @@ func _check_dish_breakdown(screen: Node, s: DayStats) -> void:
 		sold == s.completed_orders and waste == s.waste_count and sales == s.sales and sold + waste <= prepared,
 		"sold=%d/%d waste=%d/%d sales=%d/%d" % [sold, s.completed_orders, waste, s.waste_count, sales, s.sales])
 	_check("内訳の表に仕込んだ料理の行が出る", table.get_child_count() == s.get_prepared_dish_ids().size() + 1)
+
+
+## 強化画面: 画面のボタンで設備を買う（確認ダイアログを通す）→「次の日へ」
+func _do_upgrade(screen: Node) -> void:
+	if _upgrade_done:
+		return
+	_upgrade_done = true
+	GameState.add_money(200000)
+	var dialog: ConfirmDialog = screen.get("_dialog")
+	var rows: Array[EquipmentRow] = screen.get("_rows")
+	_check("強化画面に設備が5種類出る", rows.size() == Database.equipment.size() and rows.size() == 5)
+	for row: EquipmentRow in rows:
+		if row.equipment.id in ["tables", "shelf", "fryer"]:
+			var money_before: int = GameState.money
+			var price: int = row.equipment.get_price(GameState.get_equipment_level(row.equipment.id))
+			(row.get("_buy_button") as Button).pressed.emit()
+			var asked: bool = dialog.is_open()
+			(dialog.get("_ok_button") as Button).pressed.emit()
+			_check("「購入」で確認が出て、買うと所持金が価格の分だけ減る（%s）" % row.equipment.display_name,
+				asked and GameState.money == money_before - price and GameState.get_equipment_level(row.equipment.id) == 1)
+	(screen.get("_next_button") as Button).pressed.emit()
 
 
 func _grid_has_text(grid: GridContainer, text: String) -> bool:

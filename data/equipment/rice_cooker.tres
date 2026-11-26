@@ -10,6 +10,6 @@ description = "すべての定食の調理時間を少し短くする"
 effect = 2
 cook_category = "all"
 level_values = PackedFloat32Array(1.0, 0.95, 0.9)
-level_prices = PackedInt32Array(3500, 8000)
+level_prices = PackedInt32Array(45000, 80000)
 level_ranks = PackedInt32Array(1, 3)
 sort_order = 4
