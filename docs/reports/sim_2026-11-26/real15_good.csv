@@ -1,0 +1,16 @@
+day,date,reputation,reputation_change,rank,money,profit,visitors,served,angry,missed,stars,tables,shelf,stove,fryer,rice_cooker,unlocked_count,unlocked,bought
+1,2027-01-01,9,9,1,21300,8550,18,18,0,0,5.0,0,0,0,0,0,3,karaage|yakizakana|shogayaki,
+2,2027-01-02,17,8,1,28420,7120,17,17,0,2,5.0,0,0,0,0,0,3,karaage|yakizakana|shogayaki,
+3,2027-01-03,27,10,1,37100,8680,19,19,0,0,5.0,0,0,0,0,0,3,karaage|yakizakana|shogayaki,
+4,2027-01-04,37,10,2,11020,8920,19,19,0,0,5.0,1,0,0,0,0,4,karaage|yakizakana|shogayaki|oyakodon,テーブル→Lv1
+5,2027-01-05,44,7,2,20760,9530,21,21,0,2,4.9,1,0,0,0,0,4,karaage|yakizakana|shogayaki|oyakodon,
+6,2027-01-07,52,8,2,30380,9620,22,22,0,0,4.9,1,0,0,0,0,4,karaage|yakizakana|shogayaki|oyakodon,
+7,2027-01-08,60,8,3,10300,9920,22,22,0,0,4.9,1,0,0,1,0,5,karaage|yakizakana|shogayaki|oyakodon|yasaiitame,フライヤー→Lv1
+8,2027-01-09,67,7,3,18350,8050,22,22,0,1,5.0,1,0,0,1,0,5,karaage|yakizakana|shogayaki|oyakodon|yasaiitame,
+9,2027-01-10,74,7,3,26660,8310,23,23,0,1,4.9,1,0,0,1,0,5,karaage|yakizakana|shogayaki|oyakodon|yasaiitame,
+10,2027-01-11,80,6,3,37630,10970,25,25,0,6,4.8,1,0,0,1,0,5,karaage|yakizakana|shogayaki|oyakodon|yasaiitame,
+11,2027-01-12,89,9,3,18450,10820,26,26,0,1,5.0,1,0,1,1,0,5,karaage|yakizakana|shogayaki|oyakodon|yasaiitame,コンロ→Lv1
+12,2027-01-14,98,9,3,31550,13100,30,30,0,4,4.8,1,0,1,1,0,5,karaage|yakizakana|shogayaki|oyakodon|yasaiitame,
+13,2027-01-15,107,9,3,44030,12480,29,29,0,3,4.9,1,0,1,1,0,5,karaage|yakizakana|shogayaki|oyakodon|yasaiitame,
+14,2027-01-16,115,8,4,17330,13300,31,31,0,2,4.6,1,1,1,1,0,5,karaage|yakizakana|shogayaki|oyakodon|yasaiitame,置き場の棚→Lv1
+15,2027-01-17,123,8,4,30400,13070,31,31,0,1,4.7,1,1,1,1,0,5,karaage|yakizakana|shogayaki|oyakodon|yasaiitame,
