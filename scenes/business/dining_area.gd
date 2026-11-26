@@ -8,7 +8,7 @@ const TABLE_SCENE: PackedScene = preload("res://scenes/business/dining_table.tsc
 
 var _tables: Array[DiningTable] = []
 
-@onready var _entrance: ColorRect = %Entrance
+@onready var _entrance: Control = %Entrance
 @onready var _tables_layer: Control = %Tables
 @onready var _customers_layer: Control = %Customers
 

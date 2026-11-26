@@ -19,7 +19,7 @@ var _held_index: int = -1
 
 
 func _ready() -> void:
-	add_theme_stylebox_override("panel", UIUtil.flat_box(Color(0.22, 0.24, 0.26)))
+	add_theme_stylebox_override("panel", UISkin.panel_box(SpriteKeys.PANEL, UIUtil.flat_box(Color(0.22, 0.24, 0.26))))
 	_title_label.text = UIText.SHELF_TITLE
 	_grid.columns = COLUMNS
 
@@ -31,6 +31,8 @@ func setup(capacity: int) -> void:
 		button.custom_minimum_size = Vector2(46, 34)
 		button.add_theme_color_override("font_color", Color(0.1, 0.08, 0.05))
 		button.add_theme_color_override("font_disabled_color", Color(0.1, 0.08, 0.05))
+		button.icon_alignment = HORIZONTAL_ALIGNMENT_CENTER
+		button.texture_filter = CanvasItem.TEXTURE_FILTER_NEAREST
 		button.pressed.connect(_on_slot_pressed.bind(i))
 		_grid.add_child(button)
 		_buttons.append(button)
@@ -82,10 +84,14 @@ func _refresh() -> void:
 		var dish: DishData = Database.get_dish(_slots[i]) if _slots[i] != "" else null
 		if dish == null:
 			button.text = ""
+			button.icon = null
 			button.disabled = true
 			UIUtil.apply_button_style(button, UIUtil.flat_box(Color(0.15, 0.16, 0.17), Color(0.35, 0.35, 0.35), 1))
 		else:
-			button.text = dish.short_name
+			# 料理の絵があれば絵、なければ短い名前を出す
+			var dish_icon: Texture2D = SpriteLibrary.get_icon(SpriteKeys.dish(dish.id))
+			button.icon = dish_icon
+			button.text = "" if dish_icon != null else dish.short_name
 			button.disabled = false
 			var held: bool = i == _held_index
 			var box: StyleBoxFlat = UIUtil.flat_box(dish.color, Color(1, 1, 1) if held else dish.color.darkened(0.4), 3 if held else 1)

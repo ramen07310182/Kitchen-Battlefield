@@ -10,6 +10,8 @@ var _current: Node = null
 
 
 func _ready() -> void:
+	# UIの絵（ボタン・枠）があればテーマに入れる
+	UISkin.apply_to_project_theme()
 	_show_prep()
 
 

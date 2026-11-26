@@ -11,7 +11,7 @@ extends PanelContainer
 
 
 func _ready() -> void:
-	add_theme_stylebox_override("panel", UIUtil.flat_box(Color(0.12, 0.1, 0.1, 0.9), Color.TRANSPARENT, 0, 2))
+	add_theme_stylebox_override("panel", UISkin.panel_box(SpriteKeys.PANEL, UIUtil.flat_box(Color(0.12, 0.1, 0.1, 0.9), Color.TRANSPARENT, 0, 2)))
 	_time_label.visible = show_time
 	GameState.money_changed.connect(_on_money_changed)
 	GameState.reputation_changed.connect(_on_reputation_changed)

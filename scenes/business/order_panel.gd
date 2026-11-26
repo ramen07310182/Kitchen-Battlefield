@@ -13,7 +13,7 @@ var _blink_time: float = 0.0
 
 
 func _ready() -> void:
-	add_theme_stylebox_override("panel", UIUtil.flat_box(Color(0.12, 0.12, 0.14, 0.95)))
+	add_theme_stylebox_override("panel", UISkin.panel_box(SpriteKeys.PANEL, UIUtil.flat_box(Color(0.12, 0.12, 0.14, 0.95))))
 	_title_label.text = UIText.ORDER_TITLE
 	_empty_label.text = UIText.ORDER_EMPTY
 

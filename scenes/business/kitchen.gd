@@ -14,13 +14,15 @@ var _free_slots: int = 0
 
 @onready var _buttons_box: VBoxContainer = %CookButtons
 @onready var _chef_label: Label = %ChefLabel
+@onready var _chef_figure: SpriteView = %ChefFigure
+@onready var _stove: SpriteView = %Stove
 @onready var _status_label: Label = %StatusLabel
 @onready var _progress: ProgressBar = %CookProgress
 @onready var _queue_label: Label = %QueueLabel
 
 
 func _ready() -> void:
-	add_theme_stylebox_override("panel", UIUtil.flat_box(Color(0.22, 0.24, 0.26)))
+	add_theme_stylebox_override("panel", UISkin.panel_box(SpriteKeys.KITCHEN_BACK, UIUtil.flat_box(Color(0.22, 0.24, 0.26))))
 	_chef_label.text = UIText.CHEF
 	GameState.inventory_changed.connect(_refresh_buttons)
 
@@ -30,7 +32,8 @@ func setup(menu_dishes: Array[DishData]) -> void:
 	for dish: DishData in _dishes:
 		var button: Button = Button.new()
 		button.custom_minimum_size = Vector2(0, 32)
-		button.icon = UIUtil.color_icon(dish.color, 10)
+		var dish_icon: Texture2D = SpriteLibrary.get_icon(SpriteKeys.dish(dish.id))
+		button.icon = dish_icon if dish_icon != null else UIUtil.color_icon(dish.color, 10)
 		button.alignment = HORIZONTAL_ALIGNMENT_LEFT
 		button.pressed.connect(_on_cook_pressed.bind(dish))
 		_buttons_box.add_child(button)
@@ -90,6 +93,9 @@ func _refresh_buttons() -> void:
 
 
 func _refresh_status() -> void:
+	var anim: String = SpriteKeys.ANIM_COOK if _current != null else SpriteKeys.ANIM_IDLE
+	_chef_figure.animation = anim
+	_stove.animation = anim
 	if _current != null:
 		_status_label.text = UIText.COOKING % _current.display_name
 		_progress.value = clampf(_elapsed / maxf(_current.cook_time, 0.01), 0.0, 1.0)

@@ -28,10 +28,12 @@ var _config: GameConfig
 var _state_time: float = 0.0
 var _exit_position: Vector2 = Vector2.ZERO
 
+@onready var _figure: SpriteView = %Figure
 @onready var _body: ColorRect = %Body
 @onready var _face_label: Label = %FaceLabel
 @onready var _bubble: ColorRect = %Bubble
 @onready var _bubble_label: Label = %BubbleLabel
+@onready var _dish_icon: SpriteView = %DishIcon
 @onready var _gauge_bg: ColorRect = %GaugeBg
 @onready var _gauge_fill: ColorRect = %GaugeFill
 @onready var _popup_label: Label = %PopupLabel
@@ -44,9 +46,17 @@ func setup(customer_type: CustomerTypeData, ordered_dish: DishData, table: int, 
 	table_index = table
 	_config = config
 	_body.color = type_data.color
+	_figure.set_sprite(SpriteKeys.customer(type_data.id), SpriteKeys.ANIM_WALK)
 	_bubble.color = dish.color
 	_bubble_label.text = dish.short_name
-	_bubble.hide()
+	_dish_icon.sprite_key = SpriteKeys.dish(dish.id)
+	if _dish_icon.has_sprite():
+		# 料理の絵があれば、吹き出しは白い背景にして絵を見せる
+		_bubble.color = Color(1, 1, 1, 0.9)
+		_bubble.position = _dish_icon.position
+		_bubble.size = _dish_icon.size
+		_bubble_label.hide()
+	_set_bubble_visible(false)
 	_gauge_bg.hide()
 	_popup_label.hide()
 	_face_label.text = ""
@@ -57,6 +67,7 @@ func start(entrance: Vector2, seat: Vector2) -> void:
 	position = entrance
 	_exit_position = entrance
 	state = State.WALKING_IN
+	_face_towards(seat)
 	var tween: Tween = create_tween()
 	tween.tween_property(self, "position", seat, _walk_duration(entrance, seat))
 	tween.finished.connect(_on_arrived_at_seat)
@@ -78,6 +89,7 @@ func serve() -> Satisfaction.Level:
 	_state_time = 0.0
 	_gauge_bg.hide()
 	_bubble_label.text = UIText.EATING
+	_figure.animation = SpriteKeys.ANIM_EAT
 	_face_label.text = UIText.SATISFACTION_MARKS[level]
 	return level
 
@@ -114,13 +126,15 @@ func _process(delta: float) -> void:
 
 func _on_arrived_at_seat() -> void:
 	state = State.ORDERING
+	_figure.animation = SpriteKeys.ANIM_SIT
+	_figure.flip_h = false
 	_state_time = 0.0
 
 
 func _place_order() -> void:
 	state = State.WAITING_FOOD
 	wait_elapsed = 0.0
-	_bubble.show()
+	_set_bubble_visible(true)
 	_gauge_bg.show()
 	_update_gauge()
 	order_placed.emit(self)
@@ -146,8 +160,10 @@ func _leave_angry() -> void:
 
 func _leave() -> void:
 	state = State.LEAVING
-	_bubble.hide()
+	_set_bubble_visible(false)
 	_gauge_bg.hide()
+	_figure.animation = SpriteKeys.ANIM_WALK
+	_face_towards(_exit_position)
 	seat_released.emit(self)
 	var tween: Tween = create_tween()
 	tween.tween_property(self, "position", _exit_position, _walk_duration(position, _exit_position))
@@ -157,6 +173,16 @@ func _leave() -> void:
 func _on_exited() -> void:
 	exited.emit(self)
 	queue_free()
+
+
+func _set_bubble_visible(on: bool) -> void:
+	_bubble.visible = on
+	_dish_icon.visible = on
+
+
+## 絵は右向きで描くので、左へ歩くときは左右反転する
+func _face_towards(target: Vector2) -> void:
+	_figure.flip_h = target.x < position.x
 
 
 func _walk_duration(from: Vector2, to: Vector2) -> float:

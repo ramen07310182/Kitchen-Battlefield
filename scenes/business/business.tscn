@@ -8,6 +8,7 @@
 [ext_resource type="PackedScene" path="res://scenes/business/ready_shelf.tscn" id="6_shelf"]
 [ext_resource type="PackedScene" path="res://scenes/business/order_panel.tscn" id="7_orders"]
 [ext_resource type="Script" path="res://scenes/business/customer_spawner.gd" id="8_spawner"]
+[ext_resource type="Script" path="res://scripts/sprites/sprite_view.gd" id="9_sprite"]
 
 [node name="Business" type="Control"]
 layout_mode = 3
@@ -63,7 +64,19 @@ size_flags_vertical = 3
 mouse_filter = 2
 script = ExtResource("4_dining")
 
-[node name="Floor" type="ColorRect" parent="SafeArea/VBox/Main/LeftColumn/Dining"]
+[node name="Floor" type="Control" parent="SafeArea/VBox/Main/LeftColumn/Dining"]
+layout_mode = 1
+anchors_preset = 15
+anchor_right = 1.0
+anchor_bottom = 1.0
+grow_horizontal = 2
+grow_vertical = 2
+mouse_filter = 2
+script = ExtResource("9_sprite")
+sprite_key = "shop/floor"
+mode = 1
+
+[node name="FloorShape" type="ColorRect" parent="SafeArea/VBox/Main/LeftColumn/Dining/Floor"]
 layout_mode = 1
 anchors_preset = 15
 anchor_right = 1.0
@@ -73,29 +86,52 @@ grow_vertical = 2
 mouse_filter = 2
 color = Color(0.42, 0.36, 0.3, 1)
 
-[node name="Wall" type="ColorRect" parent="SafeArea/VBox/Main/LeftColumn/Dining"]
+[node name="Wall" type="Control" parent="SafeArea/VBox/Main/LeftColumn/Dining"]
 layout_mode = 1
 anchors_preset = 10
 anchor_right = 1.0
-offset_bottom = 18.0
+offset_bottom = 24.0
 grow_horizontal = 2
+mouse_filter = 2
+script = ExtResource("9_sprite")
+sprite_key = "shop/wall"
+mode = 1
+
+[node name="WallShape" type="ColorRect" parent="SafeArea/VBox/Main/LeftColumn/Dining/Wall"]
+layout_mode = 1
+anchors_preset = 15
+anchor_right = 1.0
+anchor_bottom = 1.0
+grow_horizontal = 2
+grow_vertical = 2
 mouse_filter = 2
 color = Color(0.55, 0.45, 0.35, 1)
 
-[node name="Entrance" type="ColorRect" parent="SafeArea/VBox/Main/LeftColumn/Dining"]
+[node name="Entrance" type="Control" parent="SafeArea/VBox/Main/LeftColumn/Dining"]
 unique_name_in_owner = true
 layout_mode = 1
 anchors_preset = 9
 anchor_bottom = 1.0
 offset_left = 4.0
-offset_top = 24.0
+offset_top = 28.0
 offset_right = 38.0
 offset_bottom = -8.0
 grow_vertical = 2
 mouse_filter = 2
+script = ExtResource("9_sprite")
+sprite_key = "shop/entrance"
+
+[node name="EntranceShape" type="ColorRect" parent="SafeArea/VBox/Main/LeftColumn/Dining/Entrance"]
+layout_mode = 1
+anchors_preset = 15
+anchor_right = 1.0
+anchor_bottom = 1.0
+grow_horizontal = 2
+grow_vertical = 2
+mouse_filter = 2
 color = Color(0.25, 0.2, 0.18, 1)
 
-[node name="EntranceLabel" type="Label" parent="SafeArea/VBox/Main/LeftColumn/Dining/Entrance"]
+[node name="EntranceLabel" type="Label" parent="SafeArea/VBox/Main/LeftColumn/Dining/Entrance/EntranceShape"]
 layout_mode = 1
 anchors_preset = 10
 anchor_right = 1.0

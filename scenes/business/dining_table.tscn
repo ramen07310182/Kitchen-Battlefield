@@ -1,6 +1,7 @@
 [gd_scene format=3]
 
 [ext_resource type="Script" path="res://scenes/business/dining_table.gd" id="1_table"]
+[ext_resource type="Script" path="res://scripts/sprites/sprite_view.gd" id="2_sprite"]
 
 [node name="DiningTable" type="Control"]
 layout_mode = 3
@@ -12,6 +13,7 @@ script = ExtResource("1_table")
 
 [node name="Highlight" type="Panel" parent="."]
 unique_name_in_owner = true
+z_index = 2
 layout_mode = 0
 offset_left = -2.0
 offset_top = -32.0
@@ -19,35 +21,56 @@ offset_right = 82.0
 offset_bottom = 78.0
 mouse_filter = 2
 
-[node name="Chair" type="ColorRect" parent="."]
+[node name="Chair" type="Control" parent="."]
 layout_mode = 0
 offset_left = 24.0
 offset_top = 18.0
 offset_right = 56.0
 offset_bottom = 46.0
 mouse_filter = 2
+script = ExtResource("2_sprite")
+sprite_key = "furniture/chair"
+
+[node name="ChairShape" type="ColorRect" parent="Chair"]
+layout_mode = 1
+anchors_preset = 15
+anchor_right = 1.0
+anchor_bottom = 1.0
+grow_horizontal = 2
+grow_vertical = 2
+mouse_filter = 2
 color = Color(0.45, 0.3, 0.2, 1)
 
-[node name="TableTop" type="ColorRect" parent="."]
+[node name="Table" type="Control" parent="."]
+z_index = 1
 layout_mode = 0
 offset_left = 6.0
 offset_top = 42.0
 offset_right = 74.0
-offset_bottom = 66.0
+offset_bottom = 72.0
+mouse_filter = 2
+script = ExtResource("2_sprite")
+sprite_key = "furniture/table"
+
+[node name="TableTop" type="ColorRect" parent="Table"]
+layout_mode = 0
+offset_right = 68.0
+offset_bottom = 24.0
 mouse_filter = 2
 color = Color(0.7, 0.5, 0.3, 1)
 
-[node name="TableLegs" type="ColorRect" parent="."]
+[node name="TableLegs" type="ColorRect" parent="Table"]
 layout_mode = 0
-offset_left = 12.0
-offset_top = 66.0
-offset_right = 68.0
-offset_bottom = 72.0
+offset_left = 6.0
+offset_top = 24.0
+offset_right = 62.0
+offset_bottom = 30.0
 mouse_filter = 2
 color = Color(0.5, 0.35, 0.22, 1)
 
 [node name="NumberLabel" type="Label" parent="."]
 unique_name_in_owner = true
+z_index = 1
 layout_mode = 0
 offset_left = 6.0
 offset_top = 46.0
