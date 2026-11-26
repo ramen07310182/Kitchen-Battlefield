@@ -215,7 +215,8 @@ func _check_rules() -> void:
 func _check_migration() -> void:
 	_write_test_save({"version": 1, "money": 4321, "day": 5, "reputation": 12, "inventory": {"rice": 7}})
 	GameState.use_save_path(TEST_SAVE_PATH)
-	_check("セーブ移行 v1 -> 最新", GameState.money == 4321 and GameState.day == 5 and GameState.reputation == 12
+	_check("セーブ移行 v1 -> 最新（評判は今の範囲に換算）", GameState.money == 4321 and GameState.day == 5
+		and GameState.reputation == roundi(12 * Database.config.legacy_reputation_scale)
 		and GameState.get_stock("rice") == 7 and not GameState.has_last_prep() and GameState.last_shelf_plan.is_empty())
 	_write_test_save({"version": 2, "money": 5000, "day": 3, "reputation": 5, "inventory": {"rice": 9},
 		"last_prep": {"karaage": 2, "yakizakana": 1}})

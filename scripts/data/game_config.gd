@@ -29,8 +29,8 @@ extends Resource
 @export var end_delay: float = 1.5
 
 @export_group("評判と来店")
-## 評判1ポイントごとに、来店間隔をどれだけ縮めるか（0.0039 = 0.39%。評判128前後＝有名店で下限に届く）
-@export var interval_reduction_per_reputation: float = 0.0039
+## 評判1ポイントごとに、来店間隔をどれだけ縮めるか（0.0045 = 0.45%。評判111＝有名店になるころに下限に届く）
+@export var interval_reduction_per_reputation: float = 0.0045
 ## 来店間隔の倍率の下限（0.5 = どれだけ評判が高くても間隔は半分まで）
 @export var min_interval_scale: float = 0.5
 
@@ -38,7 +38,7 @@ extends Resource
 ## ランクの名前（ランク1から順に）
 @export var rank_names: PackedStringArray = PackedStringArray(["無名店", "知る人ぞ知る店", "人気店", "有名店"])
 ## そのランクになるのに必要な評判（ランク1から順に。ランク1は0）
-@export var rank_thresholds: PackedInt32Array = PackedInt32Array([0, 30, 70, 130])
+@export var rank_thresholds: PackedInt32Array = PackedInt32Array([0, 30, 60, 110])
 
 @export_group("評判の増減")
 ## 客1人ごとの評判の点数（その日の分を足して、営業結果のときにまとめて評判に反映する）
@@ -47,13 +47,15 @@ extends Resource
 @export var reputation_bad: float = -0.5
 @export var reputation_angry: float = -2.0
 ## 売り逃し1人ごとの点数（頼みたかったのに頼めなかった客）
-@export var reputation_missed: float = -0.3
+@export var reputation_missed: float = -0.8
+## 違う料理を出した（ミス）1回ごとの点数
+@export var reputation_mistake: float = -0.5
 ## その日の点数がプラスのとき、評判に反映する倍率（今のランクごと。ランクが高いほど上がりにくい）
 @export var reputation_gain_by_rank: PackedFloat32Array = PackedFloat32Array([0.5, 0.4, 0.35, 0.3])
 ## その日の点数がマイナスのとき、評判に反映する倍率
 @export var reputation_loss_scale: float = 0.5
-## version 6 以前のセーブの評判を、今の範囲に換算する倍率（来店ペースが同じになるように）
-@export var legacy_reputation_scale: float = 1.03
+## version 6 以前のセーブの評判を、今の範囲に換算する倍率（来店ペースが同じになるように: 0.004 ÷ 0.0045）
+@export var legacy_reputation_scale: float = 0.89
 
 @export_group("経費")
 ## その他経費（1日あたり固定）

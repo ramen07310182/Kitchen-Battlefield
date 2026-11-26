@@ -585,12 +585,12 @@ func _apply_rating(level: Satisfaction.Level) -> void:
 	today.add_rating(Satisfaction.stars(level, cfg))
 
 
-## その日の評判の点数（客ごとの点数＋売り逃しの点数）
+## その日の評判の点数（客ごとの点数＋売り逃し・ミスの点数）
 func get_day_reputation_points() -> float:
 	var missed: int = 0
 	for dish_id: String in today.dish_missed:
 		missed += int(today.dish_missed[dish_id])
-	return today.reputation_points + float(missed) * Database.config.reputation_missed
+	return today.reputation_points + float(missed) * Database.config.reputation_missed 		+ float(today.mistakes) * Database.config.reputation_mistake
 
 
 ## 営業終了時に1回だけ呼ぶ。その他経費を払う
