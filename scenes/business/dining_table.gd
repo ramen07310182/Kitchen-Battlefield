@@ -4,8 +4,8 @@ extends Control
 
 signal tapped(table_index: int)
 
-## お客さんが座る位置（テーブルの左上からの位置）
-const SEAT_OFFSET := Vector2(28, 10)
+## お客さんが座る位置（テーブルの左上からの位置）。足元の6pxは机に隠れる
+const SEAT_OFFSET := Vector2(28, 16)
 
 var table_index: int = 0
 ## 座っている（または向かっている）お客さん
