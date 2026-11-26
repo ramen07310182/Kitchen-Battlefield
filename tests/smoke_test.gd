@@ -1,19 +1,27 @@
 extends Node
 ## 動作確認用のボット。準備 → 営業 → 結果 → 次の日 を自動で2日分まわす。
 ## 実行: Godot --headless --path . res://tests/smoke_test.tscn
-## 注意: user://save.json を書き換える。
+## 本物のセーブ（user://save.json）は読み書きしない。テスト用のファイルに保存し、終わったら消す。
 
 const MAIN_SCENE: PackedScene = preload("res://scenes/main/main.tscn")
 const DAYS_TO_RUN := 2
+const TEST_SAVE_PATH := "user://save_smoke_test.json"
 
 var _main: Node
 var _days_done: int = 0
 var _cooldown: float = 0.0
 var _made_mistake: bool = false
 var _last_screen: String = ""
+## 本物のセーブがテストの前後で変わっていないか確かめるため
+var _real_save_before: String = ""
 
 
 func _ready() -> void:
+	_real_save_before = _read_real_save()
+	# 前回のテストが途中で止まって残ったファイルがあれば消してから始める
+	GameState.use_save_path(TEST_SAVE_PATH)
+	GameState.delete_save()
+	GameState.use_save_path(TEST_SAVE_PATH)
 	Engine.time_scale = 8.0
 	_main = MAIN_SCENE.instantiate()
 	add_child(_main)
@@ -106,6 +114,21 @@ func _do_result(screen: Node) -> void:
 	(screen.get("_next_button") as Button).pressed.emit()
 	_days_done += 1
 	if _days_done >= DAYS_TO_RUN:
-		print("[smoke] save: ", FileAccess.get_file_as_string(GameState.SAVE_PATH).replace("\n", " "))
-		print("[smoke] done")
-		get_tree().quit()
+		print("[smoke] save: ", FileAccess.get_file_as_string(GameState.save_path).replace("\n", " "))
+		_finish()
+
+
+func _finish() -> void:
+	GameState.delete_save()
+	var test_file_left: bool = FileAccess.file_exists(TEST_SAVE_PATH)
+	var real_unchanged: bool = _read_real_save() == _real_save_before
+	print("[smoke] test save removed=%s, real save unchanged=%s" % [not test_file_left, real_unchanged])
+	var ok: bool = real_unchanged and not test_file_left
+	print("[smoke] done" if ok else "[smoke] FAILED")
+	get_tree().quit(0 if ok else 1)
+
+
+func _read_real_save() -> String:
+	if not FileAccess.file_exists(GameState.DEFAULT_SAVE_PATH):
+		return "<なし>"
+	return FileAccess.get_file_as_string(GameState.DEFAULT_SAVE_PATH)

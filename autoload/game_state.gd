@@ -6,7 +6,7 @@ signal money_changed(value: int)
 signal inventory_changed
 signal reputation_changed(value: int)
 
-const SAVE_PATH := "user://save.json"
+const DEFAULT_SAVE_PATH := "user://save.json"
 const SAVE_VERSION := 1
 
 var money: int = 0
@@ -19,11 +19,27 @@ var today: DayStats = DayStats.new()
 var today_menu: Array[String] = []
 ## 営業開始時に作っておく個数 { 料理id: 個数 }
 var prep_counts: Dictionary = {}
+## セーブファイルの場所。テストのときだけ別の場所に切り替える
+var save_path: String = DEFAULT_SAVE_PATH
 
 
 func _ready() -> void:
 	_new_game()
 	load_game()
+
+
+## セーブの場所を切り替え、その場所のデータで状態を作り直す（テスト用）。
+## 切り替えた後は、元のセーブを読み書きしない
+func use_save_path(path: String) -> void:
+	save_path = path
+	_new_game()
+	load_game()
+
+
+## 今のセーブの場所にあるファイルを消す
+func delete_save() -> void:
+	if FileAccess.file_exists(save_path):
+		DirAccess.remove_absolute(ProjectSettings.globalize_path(save_path))
 
 
 func _new_game() -> void:
@@ -233,9 +249,9 @@ func save_game() -> bool:
 		"reputation": reputation,
 		"inventory": inventory.duplicate(),
 	}
-	var file: FileAccess = FileAccess.open(SAVE_PATH, FileAccess.WRITE)
+	var file: FileAccess = FileAccess.open(save_path, FileAccess.WRITE)
 	if file == null:
-		push_error("セーブできません: %s (%d)" % [SAVE_PATH, FileAccess.get_open_error()])
+		push_error("セーブできません: %s (%d)" % [save_path, FileAccess.get_open_error()])
 		return false
 	file.store_string(JSON.stringify(data, "\t"))
 	file.close()
@@ -243,9 +259,9 @@ func save_game() -> bool:
 
 
 func load_game() -> bool:
-	if not FileAccess.file_exists(SAVE_PATH):
+	if not FileAccess.file_exists(save_path):
 		return false
-	var parsed: Variant = JSON.parse_string(FileAccess.get_file_as_string(SAVE_PATH))
+	var parsed: Variant = JSON.parse_string(FileAccess.get_file_as_string(save_path))
 	if not (parsed is Dictionary):
 		push_warning("セーブデータが壊れているため読み込みません")
 		return false
