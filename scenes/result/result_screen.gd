@@ -1,11 +1,14 @@
 extends Control
 ## 営業結果画面。今日の集計と料理ごとの内訳を表示し、「次の日へ」で次の営業準備に進む。
-## 内訳では、全部売れた料理（売り切れ）と、廃棄が多かった料理に色を付ける。
+## 内訳では、売り切れて売り逃しが出た料理（黄）と、廃棄が多かった料理（赤）に色を付ける。
 
 signal next_day_requested
 
-## 内訳の表の列の幅（仕込み数・売れた数・廃棄数・売上）
-const COLUMN_WIDTHS: Array[int] = [52, 52, 52, 72]
+## 内訳の表の列の幅（仕込み数・売れた数・売り逃し・廃棄数・売上）
+const COLUMN_WIDTHS: Array[int] = [46, 46, 56, 40, 68]
+const COLUMN_SOLD := 1
+const COLUMN_MISSED := 2
+const COLUMN_WASTE := 3
 const COLOR_ROW := Color(0.2, 0.17, 0.15)
 const COLOR_SOLD_OUT := Color(1.0, 0.82, 0.35)
 const COLOR_SOLD_OUT_BG := Color(0.33, 0.27, 0.1)
@@ -78,7 +81,7 @@ func _build_dish_table(stats: DayStats) -> void:
 	_dish_legend.text = UIText.RESULT_DISH_LEGEND % roundi(Database.config.waste_warning_ratio * 100.0)
 	var header: PanelContainer = _make_table_row(
 		UIText.RESULT_DISH_NAME, "",
-		[UIText.RESULT_DISH_PREPARED, UIText.RESULT_DISH_SOLD, UIText.RESULT_DISH_WASTE, UIText.RESULT_DISH_SALES],
+		[UIText.RESULT_DISH_PREPARED, UIText.RESULT_DISH_SOLD, UIText.RESULT_DISH_MISSED, UIText.RESULT_DISH_WASTE, UIText.RESULT_DISH_SALES],
 		StyleBoxEmpty.new(), COLOR_SUB, true)
 	_dish_table.add_child(header)
 
@@ -95,12 +98,13 @@ func _build_dish_table(stats: DayStats) -> void:
 		var sold: int = int(stats.dish_sold.get(dish_id, 0))
 		var waste: int = int(stats.dish_waste.get(dish_id, 0))
 		var sales: int = int(stats.dish_sales.get(dish_id, 0))
+		var missed: int = int(stats.dish_missed.get(dish_id, 0))
 		var tag: String = ""
 		var bg: Color = COLOR_ROW
 		var accent: Color = Color.TRANSPARENT
 		var text_color: Color = Color.WHITE
-		if waste == 0:
-			# 仕込んだ分が全部売れた
+		if waste == 0 and missed > 0:
+			# 仕込んだ分が全部売れて、まだ頼みたい客がいた
 			tag = UIText.RESULT_DISH_SOLD_OUT
 			bg = COLOR_SOLD_OUT_BG
 			accent = COLOR_SOLD_OUT
@@ -116,12 +120,12 @@ func _build_dish_table(stats: DayStats) -> void:
 		box.border_color = dish.color if accent.a <= 0.0 else accent
 		var row: PanelContainer = _make_table_row(
 			dish.display_name, tag,
-			[str(prepared), str(sold), str(waste), UIText.money(sales)],
+			[str(prepared), str(sold), str(missed), str(waste), UIText.money(sales)],
 			box, text_color, false)
 		_dish_table.add_child(row)
 
 
-## 表の1行。values は 仕込み数・売れた数・廃棄数・売上 の順
+## 表の1行。values は 仕込み数・売れた数・売り逃し・廃棄数・売上 の順
 func _make_table_row(name_text: String, tag: String, values: Array, box: StyleBox, tag_color: Color,
 		is_header: bool) -> PanelContainer:
 	var row: PanelContainer = PanelContainer.new()
@@ -156,9 +160,9 @@ func _make_table_row(name_text: String, tag: String, values: Array, box: StyleBo
 		if is_header:
 			value_label.theme_type_variation = &"SmallLabel"
 			value_label.modulate = COLOR_SUB
-		elif i == 2 and tag_color == COLOR_WASTE:
+		elif i == COLUMN_WASTE and tag_color == COLOR_WASTE:
 			value_label.add_theme_color_override("font_color", COLOR_WASTE)
-		elif i == 1 and tag_color == COLOR_SOLD_OUT:
+		elif (i == COLUMN_SOLD or i == COLUMN_MISSED) and tag_color == COLOR_SOLD_OUT:
 			value_label.add_theme_color_override("font_color", COLOR_SOLD_OUT)
 		hbox.add_child(value_label)
 	return row

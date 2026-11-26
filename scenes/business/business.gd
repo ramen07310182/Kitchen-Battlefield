@@ -91,6 +91,10 @@ func _close() -> void:
 func _close_sold_out() -> void:
 	_sold_out = true
 	GameState.record_sold_out()
+	# 閉店しなければ営業時間の残りに来たはずの客を、売り逃しとして数える
+	var missed: Dictionary = _spawner.simulate_missed(_time_left)
+	for dish_id: String in missed:
+		GameState.record_missed(dish_id, int(missed[dish_id]))
 	_close()
 	_sold_out_label.show()
 	_sold_out_label.modulate = Color.WHITE
@@ -100,7 +104,7 @@ func _close_sold_out() -> void:
 	tween.tween_callback(_sold_out_label.hide)
 
 
-func _on_spawn_requested(customer_type: CustomerTypeData, dish: DishData) -> void:
+func _on_spawn_requested(customer_type: CustomerTypeData, dish: DishData, missed_dish_id: String) -> void:
 	if not _is_open:
 		return
 	var table_index: int = _dining.find_free_table()
@@ -109,6 +113,9 @@ func _on_spawn_requested(customer_type: CustomerTypeData, dish: DishData) -> voi
 	# 注文が入った時点で料理を1個確保する（作れない料理の注文を出さないため）
 	if not _supply.reserve(dish.id):
 		return
+	# 頼みたかった料理が売り切れていて、別の料理を頼んだ
+	if missed_dish_id != "":
+		GameState.record_missed(missed_dish_id, 1)
 	var customer: Customer = CUSTOMER_SCENE.instantiate() as Customer
 	_dining.add_customer(customer, table_index)
 	customer.setup(customer_type, dish, table_index, _config)

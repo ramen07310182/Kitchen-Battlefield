@@ -47,7 +47,6 @@ func _ready() -> void:
 		var row: MenuRow = MENU_ROW_SCENE.instantiate() as MenuRow
 		_menu_list.add_child(row)
 		row.setup(dish)
-		row.menu_toggled.connect(_on_menu_toggled)
 		row.prep_changed.connect(_on_prep_changed)
 		_menu_rows.append(row)
 
@@ -86,12 +85,9 @@ func _refresh() -> void:
 	_repeat_button.disabled = not GameState.has_last_prep()
 	_refresh_purchase()
 
-	var has_menu: bool = not GameState.today_menu.is_empty()
 	var has_prep: bool = GameState.get_total_prep() > 0
-	_start_button.disabled = not has_menu or not has_prep
-	if not has_menu:
-		_set_message(UIText.PREP_NEED_MENU, COLOR_WARNING)
-	elif _notice != "":
+	_start_button.disabled = not has_prep
+	if _notice != "":
 		_set_message(_notice, COLOR_MESSAGE)
 	elif not has_prep:
 		_set_message(UIText.PREP_NEED_PREP, COLOR_WARNING)
@@ -122,11 +118,6 @@ func _refresh_purchase() -> void:
 func _set_message(text: String, color: Color) -> void:
 	_message_label.text = text
 	_message_label.add_theme_color_override("font_color", color)
-
-
-func _on_menu_toggled(dish_id: String, on: bool) -> void:
-	_notice = ""
-	GameState.set_on_menu(dish_id, on)
 
 
 func _on_prep_changed(dish_id: String, delta: int) -> void:
@@ -169,7 +160,7 @@ func _on_purchase_pressed() -> void:
 
 
 func _on_start_pressed() -> void:
-	if GameState.today_menu.is_empty() or GameState.get_total_prep() <= 0:
+	if GameState.get_total_prep() <= 0:
 		return
 	if GameState.has_purchase_plan():
 		_pending = Pending.START

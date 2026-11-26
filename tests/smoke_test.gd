@@ -163,8 +163,19 @@ func _check_migration() -> void:
 	_write_test_save({"version": 3, "money": 6000, "day": 4, "reputation": 8, "inventory": {"rice": 3},
 		"last_prep": {"karaage": 1}, "last_shelf": ["karaage"]})
 	GameState.use_save_path(TEST_SAVE_PATH)
-	_check("セーブ移行 v3 -> v4（前回売れた数は空）", GameState.money == 6000 and GameState.last_shelf_plan.size() == 1
+	_check("セーブ移行 v3 -> 最新（前回売れた数は空）", GameState.money == 6000 and GameState.last_shelf_plan.size() == 1
 		and GameState.last_sold_counts.is_empty() and GameState.get_last_sold("karaage") == -1)
+	_write_test_save({"version": 4, "money": 7000, "day": 6, "reputation": 9,
+		"inventory": {"rice": 4, "chicken": 2, "fish": 1, "pork": 0, "cabbage": 5},
+		"last_prep": {"karaage": 1}, "last_shelf": [], "last_sold": {"karaage": 1}})
+	GameState.use_save_path(TEST_SAVE_PATH)
+	var cfg: GameConfig = Database.config
+	_check("セーブ移行 v4 -> v5（新しい食材に初期在庫が入り、既存の在庫はそのまま）",
+		GameState.get_stock("egg") == int(cfg.start_inventory.get("egg", 0)) and GameState.get_stock("egg") > 0
+		and GameState.get_stock("onion") == int(cfg.start_inventory.get("onion", 0))
+		and GameState.get_stock("pork") == 0 and GameState.get_stock("rice") == 4
+		and GameState.get_last_sold("karaage") == 1 and GameState.last_missed_counts.is_empty(),
+		"egg=%d onion=%d" % [GameState.get_stock("egg"), GameState.get_stock("onion")])
 
 
 func _write_test_save(data: Dictionary) -> void:
@@ -216,9 +227,12 @@ func _do_prep_day2(screen: Node, dialog: ConfirmDialog) -> void:
 	var money_before: int = GameState.money
 	var rows: Array[IngredientRow] = screen.get("_ingredient_rows")
 	for row: IngredientRow in rows:
-		for i: int in 3:
+		for i: int in 2:
 			(row.get("_plus_large") as Button).pressed.emit()
 	(rows[0].get("_minus_small") as Button).pressed.emit()
+	# 米は全部の料理に使うので多めに（料理5種類を全部仕込めるように）
+	for i: int in 4:
+		(rows[0].get("_plus_large") as Button).pressed.emit()
 	var total: int = GameState.get_purchase_total()
 	_check("確定前の仕入れでは所持金が減らない", GameState.money == money_before and total > 0,
 		"money=%d plan_total=%d" % [GameState.money, total])
@@ -260,8 +274,10 @@ func _do_prep_day2(screen: Node, dialog: ConfirmDialog) -> void:
 
 	# 多めに仕込んで、残った分が廃棄になるようにする
 	for dish: DishData in Database.dishes:
-		GameState.change_prep(dish.id, 10)
+		GameState.change_prep(dish.id, 4)
 	print("[smoke] day2 prep=%s shelf=%s shortage=%s" % [GameState.prep_counts, GameState.shelf_plan, _shortages()])
+	_check("2日目は料理%d種類をすべて仕込める（食材%d種類）" % [Database.dishes.size(), Database.ingredients.size()],
+		GameState.prep_counts.size() == Database.dishes.size() and Database.dishes.size() == 5 and Database.ingredients.size() == 7)
 
 	# 仕入れ予定を残したまま営業開始 → 確認 →「仕入れずに開始」（予定は捨てる。お金は減らない）
 	GameState.change_purchase("rice", 1)
@@ -367,6 +383,10 @@ func _do_result(screen: Node) -> void:
 			s.sold_out and _last_time_left > 0.0 and s.completed_orders + s.left_angry >= prepared - s.waste_count,
 			"time_left=%.1f" % _last_time_left)
 		_check("注文は仕込み数を超えない", s.completed_orders <= prepared)
+		var missed: int = 0
+		for dish_id: String in s.dish_missed:
+			missed += int(s.dish_missed[dish_id])
+		_check("売り切れで閉店したあとの客を売り逃しとして数える", missed > 0, "missed=%s" % [s.dish_missed])
 	else:
 		var cost_check: int = 0
 		for dish_id: String in GameState.last_prep_counts:
@@ -380,8 +400,9 @@ func _do_result(screen: Node) -> void:
 	if _days_done >= DAYS_TO_RUN:
 		var saved: String = FileAccess.get_file_as_string(GameState.save_path)
 		print("[smoke] save: ", saved.replace("\n", " "))
-		_check("セーブは version 4 で、前回の置き場と売れた数を含む",
-			saved.contains("\"version\": 4") and saved.contains("last_shelf") and saved.contains("last_sold"))
+		_check("セーブは version 5 で、前回の置き場・売れた数・売り逃しを含む",
+			saved.contains("\"version\": 5") and saved.contains("last_shelf") and saved.contains("last_sold")
+			and saved.contains("last_missed"))
 		_finish()
 
 

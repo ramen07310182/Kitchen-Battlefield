@@ -20,6 +20,9 @@ var dish_prepared: Dictionary = {}
 var dish_sold: Dictionary = {}
 var dish_waste: Dictionary = {}
 var dish_sales: Dictionary = {}
+## 料理ごとの売り逃し: その料理を頼みたかったのに頼めなかった人数
+## （売り切れのあとに来店しようとした客・その料理が売り切れていて別の料理を頼んだ客）
+var dish_missed: Dictionary = {}
 
 var _star_total: float = 0.0
 var _star_count: int = 0

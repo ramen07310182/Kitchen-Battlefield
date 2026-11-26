@@ -1,9 +1,8 @@
 class_name MenuRow
 extends PanelContainer
-## 営業準備画面の1行: 料理を出す／出さない と、仕込み数（0〜99）。前回売れた数も小さく出す。
+## 営業準備画面の1行: 料理の仕込み数（0〜99）。仕込み数が1以上なら今日出す料理になる。前回売れた数も小さく出す。
 ## 「－＋」は長押しで続けて増減する（HoldRepeatButton）。
 
-signal menu_toggled(dish_id: String, on: bool)
 signal prep_changed(dish_id: String, delta: int)
 
 var dish: DishData
@@ -12,7 +11,6 @@ var dish: DishData
 @onready var _name_label: Label = %NameLabel
 @onready var _info_label: Label = %InfoLabel
 @onready var _last_label: Label = %LastLabel
-@onready var _toggle_button: Button = %ToggleButton
 @onready var _minus_button: HoldRepeatButton = %MinusButton
 @onready var _count_label: Label = %CountLabel
 @onready var _plus_button: HoldRepeatButton = %PlusButton
@@ -20,7 +18,6 @@ var dish: DishData
 
 func _ready() -> void:
 	add_theme_stylebox_override("panel", UIUtil.flat_box(Color(0.2, 0.17, 0.15)))
-	_toggle_button.pressed.connect(func() -> void: menu_toggled.emit(dish.id, not GameState.is_on_menu(dish.id)))
 	_minus_button.step_requested.connect(func(step: int) -> void: prep_changed.emit(dish.id, step))
 	_plus_button.step_requested.connect(func(step: int) -> void: prep_changed.emit(dish.id, step))
 
@@ -41,13 +38,12 @@ func refresh(expected_orders: Dictionary) -> void:
 		ceili(float(expected_orders.get(dish.id, 0.0))),
 		Database.get_ingredient_names(dish),
 	]
-	_toggle_button.text = UIText.PREP_ON if on else UIText.PREP_OFF
-	_toggle_button.modulate = Color.WHITE if on else Color(0.7, 0.7, 0.7)
-	_name_label.modulate = Color.WHITE if on else Color(0.55, 0.55, 0.55)
+	# 仕込み数が0の料理（今日は出さない）は少し暗くする
+	_name_label.modulate = Color.WHITE if on else Color(0.7, 0.7, 0.7)
 	_info_label.modulate = _name_label.modulate
 	_refresh_last_result()
 	_count_label.text = str(count)
-	_minus_button.disabled = not on or count <= 0
+	_minus_button.disabled = count <= 0
 	_plus_button.disabled = not GameState.can_add_prep(dish)
 
 
@@ -62,4 +58,10 @@ func _refresh_last_result() -> void:
 		_last_label.text = UIText.PREP_LAST_NOT_SERVED
 	else:
 		var prepared: int = int(GameState.last_prep_counts.get(dish.id, 0))
-		_last_label.text = (UIText.PREP_LAST_SOLD_ALL if sold >= prepared and prepared > 0 else UIText.PREP_LAST_SOLD) % sold
+		var missed: int = GameState.get_last_missed(dish.id)
+		if missed > 0:
+			_last_label.text = UIText.PREP_LAST_SOLD_MORE % [sold, missed]
+		elif sold >= prepared and prepared > 0:
+			_last_label.text = UIText.PREP_LAST_SOLD_ALL % sold
+		else:
+			_last_label.text = UIText.PREP_LAST_SOLD % sold

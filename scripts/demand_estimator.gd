@@ -1,6 +1,7 @@
 class_name DemandEstimator
 extends RefCounted
-## 今日のメニュー・仕込み数・評判から、料理の注文数と食材の必要数（目安）を見積もる。
+## 評判・客層の好みから料理ごとの注文数の目安を出し、仕込み数と合わせて食材の必要数（目安）を見積もる。
+## 注文数の目安は「すべての料理を出したとき」で出す（仕込み数を変えても目安が動かないように）。
 ## 来店数 = 営業時間 ÷ 平均の来店間隔（評判込み）。席が埋まって来店できない分は考えない（多めの目安）。
 ## 仕込み数の食材は営業開始のときにまとめて在庫から引くので、
 ## 「注文の目安どおりに仕込むには、食材がいくつ要るか」を出す。
@@ -29,10 +30,9 @@ static func expected_orders(menu: Array[DishData], customer_types: Array[Custome
 	return result
 
 
-## { 食材id: 必要な数の目安 }。料理ごとに「注文の目安」と「仕込み数」の多いほうで数える
-## （目安より多く仕込むなら、その分の食材も要る）
-static func ingredient_needs(menu: Array[DishData], prep_counts: Dictionary, customer_types: Array[CustomerTypeData], config: GameConfig, reputation: int) -> Dictionary:
-	var orders: Dictionary = expected_orders(menu, customer_types, config, reputation)
+## { 食材id: 必要な数の目安 }。仕込み数が1以上の料理（menu）について、
+## 料理ごとに「注文の目安（orders）」と「仕込み数」の多いほうで数える（目安より多く仕込むなら、その分の食材も要る）
+static func ingredient_needs(menu: Array[DishData], prep_counts: Dictionary, orders: Dictionary, config: GameConfig) -> Dictionary:
 	var needs: Dictionary = {}
 	for d: DishData in menu:
 		var count: float = maxf(float(orders.get(d.id, 0.0)), float(prep_counts.get(d.id, 0)))

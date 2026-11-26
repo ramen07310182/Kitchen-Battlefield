@@ -10,7 +10,9 @@ start_inventory = {
 "chicken": 3,
 "fish": 3,
 "pork": 3,
-"rice": 10
+"rice": 10,
+"egg": 3,
+"onion": 3
 }
 business_duration = 120.0
 first_spawn_delay = 2.0
