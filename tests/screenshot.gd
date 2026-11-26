@@ -32,33 +32,41 @@ func _run() -> void:
 	add_child(main)
 	await _wait_frames(3)
 
-	# 準備画面: 仕込み数・開店時の置き場・仕入れ予定を入れ、食材不足の赤い表示も見える状態にする
+	# 準備画面 ①仕込み: 在庫より多く仕込んで、食材が足りない表示も見える状態にする
 	var prep: Node = _current_screen(main)
-	# すべての料理を仕込む（在庫で作れる分まで）
-	for dish: DishData in Database.dishes:
-		GameState.change_prep(dish.id, 2)
-	GameState.add_to_shelf_plan(Database.dishes[0].id)
-	GameState.add_to_shelf_plan(Database.dishes[1].id)
-	GameState.change_purchase(Database.ingredients[0].id, 10)
-	GameState.change_purchase(Database.ingredients[1].id, 5)
+	GameState.change_prep("karaage", 5)
+	GameState.change_prep("yakizakana", 2)
+	GameState.change_prep("shogayaki", 2)
 	await _wait_frames(3)
-	await _shot("prep")
-	# 長押しの詳細（料理と食材）
-	prep.call("_show_dish_detail", Database.dishes[3].id)
+	await _shot("prep1")
+	prep.call("_show_dish_detail", "karaage")
 	await _wait_frames(4)
-	await _shot("prep_detail_dish")
-	prep.call("_show_ingredient_detail", Database.ingredients[1].id)
-	await _wait_frames(4)
-	await _shot("prep_detail_ingredient")
+	await _shot("prep1_detail")
 	(prep.get("_detail") as DetailPopup).close()
+	# ②仕入れ: 不足分を予定に入れた状態と、食材不足で③へ進めないときの確認
+	(prep.get("_next_button") as Button).pressed.emit()
 	await _wait_frames(2)
-	# 仕入れの確認ダイアログ
+	GameState.plan_prep_shortage()
+	GameState.change_purchase("cabbage", 5)
+	await _wait_frames(3)
+	await _shot("prep2")
+	(prep.get("_next_button") as Button).pressed.emit()
+	await _wait_frames(3)
+	await _shot("prep2_shortage_dialog")
+	var dialog: ConfirmDialog = prep.get("_dialog")
+	(dialog.get("_cancel_button") as Button).pressed.emit()
+	# 仕入れの確認ダイアログ →「仕入れる」
 	(prep.get("_purchase_button") as Button).pressed.emit()
 	await _wait_frames(3)
-	await _shot("prep_dialog")
-	var dialog: ConfirmDialog = prep.get("_dialog")
+	await _shot("prep2_purchase_dialog")
 	(dialog.get("_ok_button") as Button).pressed.emit()
 	await _wait_frames(2)
+	# ③置き場
+	(prep.get("_next_button") as Button).pressed.emit()
+	GameState.add_to_shelf_plan("karaage")
+	GameState.add_to_shelf_plan("yakizakana")
+	await _wait_frames(3)
+	await _shot("prep3")
 
 	(prep.get("_start_button") as Button).pressed.emit()
 	await _wait_frames(2)
@@ -77,6 +85,8 @@ func _run() -> void:
 	# 残りの営業は、簡単な自動配膳をしながら早送りして結果画面へ（内訳の表に数字が入るように）。
 	# 営業時間は残り20秒にして、売り切れと廃棄の両方が出やすくする
 	business.set("_time_left", minf(float(business.get("_time_left")), 20.0))
+	# 結果画面の「新メニュー解放」も撮るため、評判を親子丼の解放に届く値にしておく（見た目の確認用）
+	GameState.add_reputation(maxi(0, Database.get_dish("oyakodon").unlock_reputation - GameState.reputation))
 	Engine.time_scale = 20.0
 	while String(_current_screen(main).name) == "Business":
 		_auto_serve(business)

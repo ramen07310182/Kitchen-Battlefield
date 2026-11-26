@@ -178,7 +178,9 @@ func _refresh_message() -> void:
 			else:
 				_set_message(UIText.PREP_MENU_HINT, COLOR_MESSAGE)
 		Step.PURCHASE:
-			if short:
+			if short and _plan_covers_shortage():
+				_set_message(UIText.PREP_PURCHASE_CONFIRM_NEEDED, COLOR_WARNING)
+			elif short:
 				_set_message(UIText.PREP_PURCHASE_SHORT, COLOR_WARNING)
 			elif _purchase_step.has_estimate_shortage():
 				_set_message(UIText.PREP_SHORTAGE_WARNING, COLOR_WARNING)
@@ -189,6 +191,15 @@ func _refresh_message() -> void:
 				_set_message(UIText.PREP_NEED_PREP, COLOR_WARNING)
 			else:
 				_set_message(UIText.PREP_HINT, COLOR_MESSAGE)
+
+
+## 仕込みに足りない分が、すべて仕入れ予定に入っているか
+func _plan_covers_shortage() -> bool:
+	var shortage: Dictionary = GameState.get_prep_shortage()
+	for ing_id: String in shortage:
+		if GameState.get_planned_purchase(ing_id) < int(shortage[ing_id]):
+			return false
+	return true
 
 
 func _set_message(text: String, color: Color) -> void:
