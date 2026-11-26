@@ -5,7 +5,8 @@ extends Node
 ##
 ## 用語:
 ##   仕込み数: その日に出せる料理の数（料理ごとに 0〜99）。食材は営業開始のときにまとめて在庫から引く
-##             仕込み数が1以上の料理が「今日出す料理」（今日のメニュー）
+##             仕込み数が1以上の料理が「今日出す料理」（今日のメニュー）。解放済みの料理だけ仕込める
+##             仕込み数は在庫に関係なく決められる。足りない食材は仕入れの手順で補う（足りないままでは置き場の手順へ進めない）
 ##   残り:     仕込み数のうち、まだ店主が作っていない数（営業中）
 ##   置き場:   完成した料理を置く場所（6枠）。開店時に並べておく分も仕込み数から使う
 
@@ -15,7 +16,7 @@ signal inventory_changed
 signal reputation_changed(value: int)
 
 const DEFAULT_SAVE_PATH := "user://save.json"
-const SAVE_VERSION := 5
+const SAVE_VERSION := 6
 
 var money: int = 0
 var day: int = 1
@@ -36,6 +37,11 @@ var last_shelf_plan: Array[String] = []
 var last_sold_counts: Dictionary = {}
 ## 前回の営業の、料理ごとの売り逃し（頼みたかったのに頼めなかった人数）{ 料理id: 人数 }（セーブする）
 var last_missed_counts: Dictionary = {}
+## 解放済みの料理のid（評判で解放する。一度解放したら評判が下がっても使える。セーブする）
+var unlocked_dishes: Array[String] = []
+## その日の準備を始めた時点の所持金と、その日に仕入れに使ったお金（結果画面の「所持金の増減」用。保存しない）
+var day_start_money: int = 0
+var day_purchase_cost: int = 0
 ## セーブファイルの場所。テストのときだけ別の場所に切り替える
 var save_path: String = DEFAULT_SAVE_PATH
 
@@ -74,6 +80,15 @@ func _new_game() -> void:
 	last_shelf_plan.clear()
 	last_sold_counts.clear()
 	last_missed_counts.clear()
+	unlocked_dishes.clear()
+	_unlock_by_reputation()
+	_start_day_accounting()
+
+
+## その日のお金の記録を始める（準備画面を始める時点）
+func _start_day_accounting() -> void:
+	day_start_money = money
+	day_purchase_cost = 0
 
 
 # ---------------------------------------------------------------
@@ -138,6 +153,7 @@ func confirm_purchase() -> bool:
 	if not has_purchase_plan() or not can_afford_purchase():
 		return false
 	var total: int = get_purchase_total()
+	day_purchase_cost += total
 	for ing_id: String in purchase_plan:
 		inventory[ing_id] = get_stock(ing_id) + int(purchase_plan[ing_id])
 	purchase_plan.clear()
@@ -169,6 +185,62 @@ func get_menu_dishes() -> Array[DishData]:
 	return result
 
 
+# ---------------------------------------------------------------
+# 料理の解放（評判）
+# ---------------------------------------------------------------
+
+func is_unlocked(dish_id: String) -> bool:
+	return unlocked_dishes.has(dish_id)
+
+
+## 解放済みの料理（データの並び順）
+func get_unlocked_dishes() -> Array[DishData]:
+	var result: Array[DishData] = []
+	for dish: DishData in Database.dishes:
+		if is_unlocked(dish.id):
+			result.append(dish)
+	return result
+
+
+## まだ解放していない料理（解放に必要な評判が低い順）
+func get_locked_dishes() -> Array[DishData]:
+	var result: Array[DishData] = []
+	for dish: DishData in Database.dishes:
+		if not is_unlocked(dish.id):
+			result.append(dish)
+	result.sort_custom(func(a: DishData, b: DishData) -> bool: return a.unlock_reputation < b.unlock_reputation)
+	return result
+
+
+## 解放済みの料理で使う食材（データの並び順）
+func get_unlocked_ingredients() -> Array[IngredientData]:
+	var result: Array[IngredientData] = []
+	var dishes: Array[DishData] = get_unlocked_dishes()
+	for ing: IngredientData in Database.ingredients:
+		for dish: DishData in dishes:
+			if dish.ingredients.has(ing.id):
+				result.append(ing)
+				break
+	return result
+
+
+## 今の評判で解放できる料理を解放する。新しく解放した料理を返す
+func _unlock_by_reputation() -> Array[DishData]:
+	var newly: Array[DishData] = []
+	for dish: DishData in Database.dishes:
+		if not is_unlocked(dish.id) and reputation >= dish.unlock_reputation:
+			unlocked_dishes.append(dish.id)
+			newly.append(dish)
+	return newly
+
+
+## 最初から使える料理（必要な評判が0以下）を解放済みに入れる
+func _unlock_starting_dishes() -> void:
+	for dish: DishData in Database.dishes:
+		if dish.unlock_reputation <= 0 and not is_unlocked(dish.id):
+			unlocked_dishes.append(dish.id)
+
+
 func get_prep_count(dish_id: String) -> int:
 	return int(prep_counts.get(dish_id, 0))
 
@@ -190,17 +262,81 @@ func get_reserved(ingredient_id: String) -> int:
 	return total
 
 
-## 仕込み数をあと1増やせるか（上限 99、確定した在庫で判定）
+## 仕込み数をあと1増やせるか（解放済みで、上限 99 未満。在庫は関係ない）
 func can_add_prep(dish: DishData) -> bool:
-	if get_prep_count(dish.id) >= Database.config.max_prep_per_dish:
-		return false
+	return is_unlocked(dish.id) and get_prep_count(dish.id) < Database.config.max_prep_per_dish
+
+
+## 仕込み数に対して、確定した在庫で足りない食材 { 食材id: 足りない数 }（仕入れ予定は含めない）
+func get_prep_shortage() -> Dictionary:
+	var result: Dictionary = {}
+	for ing: IngredientData in Database.ingredients:
+		var lack: int = get_reserved(ing.id) - get_stock(ing.id)
+		if lack > 0:
+			result[ing.id] = lack
+	return result
+
+
+func has_prep_shortage() -> bool:
+	return not get_prep_shortage().is_empty()
+
+
+## その料理で使う食材のうち、仕込み数の合計に対して足りないもの { 食材id: 足りない数 }
+func get_dish_shortage(dish: DishData) -> Dictionary:
+	var shortage: Dictionary = get_prep_shortage()
+	var result: Dictionary = {}
 	for ing_id: String in dish.ingredients:
-		if get_stock(ing_id) - get_reserved(ing_id) < int(dish.ingredients[ing_id]):
-			return false
-	return true
+		if shortage.has(ing_id):
+			result[ing_id] = shortage[ing_id]
+	return result
 
 
-## 仕込み数を増減する。増やすときは作れる分だけ増やす。実際に変わった数を返す
+## 仕込み数に足りない分を、仕入れ予定にまとめて入れる（予定がすでに足りていれば変えない）。入れたら true
+func plan_prep_shortage() -> bool:
+	var changed: bool = false
+	var shortage: Dictionary = get_prep_shortage()
+	for ing_id: String in shortage:
+		if get_planned_purchase(ing_id) < int(shortage[ing_id]):
+			purchase_plan[ing_id] = int(shortage[ing_id])
+			changed = true
+	if changed:
+		inventory_changed.emit()
+	return changed
+
+
+## 確定した在庫で作れるように、仕込み数を減らす（一覧の下の料理から1つずつ減らす）
+func reduce_prep_to_stock() -> void:
+	var dishes: Array[DishData] = get_menu_dishes()
+	dishes.reverse()
+	var guard: int = 0
+	while has_prep_shortage() and guard < 10000:
+		guard += 1
+		var shortage: Dictionary = get_prep_shortage()
+		var reduced: bool = false
+		for dish: DishData in dishes:
+			if get_prep_count(dish.id) <= 0:
+				continue
+			for ing_id: String in dish.ingredients:
+				if shortage.has(ing_id):
+					_set_prep(dish.id, get_prep_count(dish.id) - 1)
+					reduced = true
+					break
+			if reduced:
+				break
+		if not reduced:
+			break
+	inventory_changed.emit()
+
+
+func _set_prep(dish_id: String, count: int) -> void:
+	if count <= 0:
+		prep_counts.erase(dish_id)
+	else:
+		prep_counts[dish_id] = count
+	_trim_shelf_plan(dish_id)
+
+
+## 仕込み数を増減する（0〜99。解放済みの料理だけ）。実際に変わった数を返す
 func change_prep(dish_id: String, delta: int) -> int:
 	var dish: DishData = Database.get_dish(dish_id)
 	if dish == null or delta == 0:
@@ -230,9 +366,9 @@ func get_ingredient_needs() -> Dictionary:
 	return DemandEstimator.ingredient_needs(get_menu_dishes(), prep_counts, get_expected_orders(), Database.config)
 
 
-## 料理ごとの注文数の目安 { 料理id: 数 }。すべての料理を出したときの目安（仕込み数で変わらない）
+## 料理ごとの注文数の目安 { 料理id: 数 }。解放済みの料理をすべて出したときの目安（仕込み数で変わらない）
 func get_expected_orders() -> Dictionary:
-	return DemandEstimator.expected_orders(Database.dishes, Database.customer_types, Database.config, reputation)
+	return DemandEstimator.expected_orders(get_unlocked_dishes(), Database.customer_types, Database.config, reputation)
 
 
 ## 目安に対して、確定した在庫で足りない数（足りていれば0）
@@ -294,8 +430,8 @@ func has_last_prep() -> bool:
 	return not last_prep_counts.is_empty()
 
 
-## 仕込み数と置き場の初期配置を前回と同じにする。
-## 食材が足りない分は入れられない。全部入れられたら true
+## 仕込み数と置き場の初期配置を前回と同じにする。食材が足りなくても仕込み数はそのまま入れる
+## （足りない食材は仕入れの手順で補う）。解放されていない料理があれば false
 func apply_last_prep() -> bool:
 	prep_counts.clear()
 	shelf_plan.clear()
@@ -304,11 +440,10 @@ func apply_last_prep() -> bool:
 		var target: int = int(last_prep_counts.get(dish.id, 0))
 		if target <= 0:
 			continue
-		for i: int in target:
-			if not can_add_prep(dish):
-				complete = false
-				break
-			prep_counts[dish.id] = get_prep_count(dish.id) + 1
+		if not is_unlocked(dish.id):
+			complete = false
+			continue
+		prep_counts[dish.id] = mini(target, Database.config.max_prep_per_dish)
 	for dish_id: String in last_shelf_plan:
 		if can_add_to_shelf_plan(dish_id):
 			shelf_plan.append(dish_id)
@@ -330,7 +465,7 @@ func begin_business() -> Dictionary:
 	var prep: Dictionary = {}
 	for dish: DishData in get_menu_dishes():
 		var count: int = get_prep_count(dish.id)
-		# 念のため、在庫で作れる分に収める（ふつうは準備画面で上限を守っている）
+		# 念のため、在庫で作れる分に収める（ふつうは準備画面で、足りないままでは先へ進めない）
 		for ing_id: String in dish.ingredients:
 			count = mini(count, get_stock(ing_id) / maxi(1, int(dish.ingredients[ing_id])))
 		if count <= 0:
@@ -340,6 +475,8 @@ func begin_business() -> Dictionary:
 		today.ingredient_cost += Database.get_dish_cost(dish) * count
 		prep[dish.id] = count
 	today.dish_prepared = prep.duplicate()
+	today.day_start_money = day_start_money
+	today.purchase_cost = day_purchase_cost
 	var shelf: Array[String] = []
 	var placed: Dictionary = {}
 	for dish_id: String in shelf_plan:
@@ -421,6 +558,10 @@ func finish_business() -> void:
 	for dish_id: String in today.get_prepared_dish_ids():
 		last_sold_counts[dish_id] = int(today.dish_sold.get(dish_id, 0))
 		last_missed_counts[dish_id] = int(today.dish_missed.get(dish_id, 0))
+	# 営業結果のあとに、評判で新しい料理を解放する
+	today.new_unlocks.clear()
+	for dish: DishData in _unlock_by_reputation():
+		today.new_unlocks.append(dish.id)
 
 
 ## 前回の営業で、その料理が何食売れたか。前回仕込んでいない（または前回がない）なら -1
@@ -437,6 +578,7 @@ func get_last_missed(dish_id: String) -> int:
 func advance_day() -> void:
 	day += 1
 	save_game()
+	_start_day_accounting()
 
 
 # ---------------------------------------------------------------
@@ -454,6 +596,7 @@ func save_game() -> bool:
 		"last_shelf": Array(last_shelf_plan),
 		"last_sold": last_sold_counts.duplicate(),
 		"last_missed": last_missed_counts.duplicate(),
+		"unlocked": Array(unlocked_dishes),
 	}
 	var file: FileAccess = FileAccess.open(save_path, FileAccess.WRITE)
 	if file == null:
@@ -508,6 +651,15 @@ func load_game() -> bool:
 		for dish: DishData in Database.dishes:
 			if (saved_missed as Dictionary).has(dish.id):
 				last_missed_counts[dish.id] = maxi(0, int(saved_missed[dish.id]))
+	unlocked_dishes.clear()
+	var saved_unlocked: Variant = data.get("unlocked", [])
+	if saved_unlocked is Array:
+		for item: Variant in saved_unlocked:
+			var dish_id: String = str(item)
+			if Database.get_dish(dish_id) != null and not unlocked_dishes.has(dish_id):
+				unlocked_dishes.append(dish_id)
+	_unlock_starting_dishes()
+	_start_day_accounting()
 	money_changed.emit(money)
 	reputation_changed.emit(reputation)
 	inventory_changed.emit()
@@ -550,5 +702,14 @@ func _migrate(data: Dictionary) -> Dictionary:
 		data["inventory"] = inv
 		data["last_missed"] = {}
 		version = 5
+	if version == 5:
+		# v6 で料理の解放を追加。読み込んだ時点の評判で、解放済みの料理を決める
+		var unlocked: Array = []
+		var saved_reputation: int = int(data.get("reputation", 0))
+		for dish: DishData in Database.dishes:
+			if saved_reputation >= dish.unlock_reputation:
+				unlocked.append(dish.id)
+		data["unlocked"] = unlocked
+		version = 6
 	data["version"] = version
 	return data

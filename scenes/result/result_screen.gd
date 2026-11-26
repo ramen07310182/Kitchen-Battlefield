@@ -21,6 +21,7 @@ const COLOR_SUB := Color(0.7, 0.7, 0.7)
 @onready var _service_grid: GridContainer = %ServiceGrid
 @onready var _rating_label: Label = %RatingLabel
 @onready var _note_label: Label = %NoteLabel
+@onready var _unlock_label: Label = %UnlockLabel
 @onready var _dish_title: Label = %DishTitle
 @onready var _dish_legend: Label = %DishLegend
 @onready var _dish_table: VBoxContainer = %DishTable
@@ -48,6 +49,11 @@ func _ready() -> void:
 	_add_row(_service_grid, UIText.RESULT_MISTAKES, UIText.RESULT_TIMES % stats.mistakes)
 	_add_row(_service_grid, UIText.RESULT_REPUTATION,
 		"%d（%s）" % [GameState.reputation, UIText.signed(stats.reputation_change)])
+	# 所持金の動き: 仕入れ代は仕入れた時点で、売上と経費は営業で所持金に入っている
+	_add_row(_service_grid, UIText.RESULT_PURCHASE, UIText.money(-stats.purchase_cost))
+	var change: int = GameState.money - stats.day_start_money
+	_add_row(_service_grid, UIText.RESULT_MONEY_CHANGE, ("+" if change > 0 else "") + UIText.money(change),
+		Color(0.6, 1.0, 0.6) if change >= 0 else Color(1.0, 0.5, 0.45))
 
 	if stats.has_ratings():
 		_rating_label.text = "%s  %s" % [UIText.RESULT_RATING, UIText.stars(stats.rounded_stars())]
@@ -55,6 +61,11 @@ func _ready() -> void:
 		_rating_label.text = "%s  %s" % [UIText.RESULT_RATING, UIText.RESULT_NO_RATING]
 	_note_label.text = UIText.RESULT_SOLD_OUT if stats.sold_out else ""
 	_note_label.visible = stats.sold_out
+	var names: PackedStringArray = PackedStringArray()
+	for dish_id: String in stats.new_unlocks:
+		names.append(Database.get_dish(dish_id).display_name)
+	_unlock_label.text = UIText.RESULT_UNLOCK % "・".join(names)
+	_unlock_label.visible = not names.is_empty()
 
 	_build_dish_table(stats)
 	_next_button.pressed.connect(_on_next_pressed)

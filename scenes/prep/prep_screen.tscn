@@ -3,10 +3,11 @@
 [ext_resource type="Script" path="res://scenes/prep/prep_screen.gd" id="1_prep"]
 [ext_resource type="Script" path="res://scripts/ui/safe_area_container.gd" id="2_safe"]
 [ext_resource type="PackedScene" path="res://scenes/common/top_bar.tscn" id="3_top"]
-[ext_resource type="PackedScene" path="res://scenes/prep/shelf_plan_panel.tscn" id="4_shelf"]
-[ext_resource type="PackedScene" path="res://scenes/common/confirm_dialog.tscn" id="5_dialog"]
-[ext_resource type="Script" path="res://scripts/ui/drag_scroll_container.gd" id="6_scroll"]
-[ext_resource type="PackedScene" path="res://scenes/common/detail_popup.tscn" id="7_detail"]
+[ext_resource type="PackedScene" path="res://scenes/prep/prep_menu_step.tscn" id="4_menu"]
+[ext_resource type="PackedScene" path="res://scenes/prep/prep_purchase_step.tscn" id="5_purchase"]
+[ext_resource type="PackedScene" path="res://scenes/prep/prep_shelf_step.tscn" id="6_shelf"]
+[ext_resource type="PackedScene" path="res://scenes/common/confirm_dialog.tscn" id="7_dialog"]
+[ext_resource type="PackedScene" path="res://scenes/common/detail_popup.tscn" id="8_detail"]
 
 [node name="PrepScreen" type="Control"]
 layout_mode = 3
@@ -44,96 +45,25 @@ theme_override_constants/separation = 4
 layout_mode = 2
 show_time = false
 
-[node name="Body" type="HBoxContainer" parent="SafeArea/VBox"]
-layout_mode = 2
-size_flags_vertical = 3
-theme_override_constants/separation = 6
-
-[node name="MenuPanel" type="VBoxContainer" parent="SafeArea/VBox/Body"]
-layout_mode = 2
-size_flags_horizontal = 3
-theme_override_constants/separation = 3
-
-[node name="MenuTitle" type="Label" parent="SafeArea/VBox/Body/MenuPanel"]
+[node name="StepBar" type="HBoxContainer" parent="SafeArea/VBox"]
 unique_name_in_owner = true
 layout_mode = 2
-theme_type_variation = &"HeaderLabel"
-text = "今日のメニュー（仕込み数）"
+theme_override_constants/separation = 4
+alignment = 1
 
-[node name="MenuHelp" type="Label" parent="SafeArea/VBox/Body/MenuPanel"]
-unique_name_in_owner = true
-layout_mode = 2
-theme_type_variation = &"SmallLabel"
-theme_override_colors/font_color = Color(0.7, 0.7, 0.7, 1)
-text = "説明"
-clip_text = true
-text_overrun_behavior = 3
-
-[node name="MenuScroll" type="ScrollContainer" parent="SafeArea/VBox/Body/MenuPanel"]
-unique_name_in_owner = true
-layout_mode = 2
-size_flags_vertical = 3
-script = ExtResource("6_scroll")
-
-[node name="MenuList" type="VBoxContainer" parent="SafeArea/VBox/Body/MenuPanel/MenuScroll"]
-unique_name_in_owner = true
-layout_mode = 2
-size_flags_horizontal = 3
-theme_override_constants/separation = 3
-
-[node name="PrepFooter" type="HBoxContainer" parent="SafeArea/VBox/Body/MenuPanel"]
-layout_mode = 2
-theme_override_constants/separation = 6
-
-[node name="PrepTotalLabel" type="Label" parent="SafeArea/VBox/Body/MenuPanel/PrepFooter"]
-unique_name_in_owner = true
-layout_mode = 2
-size_flags_horizontal = 3
-text = "仕込み数 合計"
-
-[node name="RepeatPrepButton" type="Button" parent="SafeArea/VBox/Body/MenuPanel/PrepFooter"]
-unique_name_in_owner = true
-custom_minimum_size = Vector2(130, 26)
-layout_mode = 2
-text = "前回と同じ仕込み"
-
-[node name="ShelfPlanPanel" parent="SafeArea/VBox/Body/MenuPanel" instance=ExtResource("4_shelf")]
+[node name="MenuStep" parent="SafeArea/VBox" instance=ExtResource("4_menu")]
 unique_name_in_owner = true
 layout_mode = 2
 
-[node name="IngredientPanel" type="VBoxContainer" parent="SafeArea/VBox/Body"]
-layout_mode = 2
-size_flags_horizontal = 3
-theme_override_constants/separation = 3
-
-[node name="IngredientTitle" type="Label" parent="SafeArea/VBox/Body/IngredientPanel"]
+[node name="PurchaseStep" parent="SafeArea/VBox" instance=ExtResource("5_purchase")]
 unique_name_in_owner = true
+visible = false
 layout_mode = 2
-theme_type_variation = &"HeaderLabel"
-text = "食材の仕入れ"
-clip_text = true
-text_overrun_behavior = 3
 
-[node name="IngredientHelp" type="Label" parent="SafeArea/VBox/Body/IngredientPanel"]
+[node name="ShelfStep" parent="SafeArea/VBox" instance=ExtResource("6_shelf")]
 unique_name_in_owner = true
+visible = false
 layout_mode = 2
-theme_type_variation = &"SmallLabel"
-theme_override_colors/font_color = Color(0.7, 0.7, 0.7, 1)
-text = "説明"
-clip_text = true
-text_overrun_behavior = 3
-
-[node name="IngredientScroll" type="ScrollContainer" parent="SafeArea/VBox/Body/IngredientPanel"]
-unique_name_in_owner = true
-layout_mode = 2
-size_flags_vertical = 3
-script = ExtResource("6_scroll")
-
-[node name="IngredientList" type="VBoxContainer" parent="SafeArea/VBox/Body/IngredientPanel/IngredientScroll"]
-unique_name_in_owner = true
-layout_mode = 2
-size_flags_horizontal = 3
-theme_override_constants/separation = 3
 
 [node name="Footer" type="HBoxContainer" parent="SafeArea/VBox"]
 layout_mode = 2
@@ -162,6 +92,7 @@ clip_text = true
 text_overrun_behavior = 3
 
 [node name="PurchaseTexts" type="VBoxContainer" parent="SafeArea/VBox/Footer"]
+unique_name_in_owner = true
 layout_mode = 2
 size_flags_vertical = 4
 theme_override_constants/separation = 0
@@ -182,20 +113,32 @@ horizontal_alignment = 2
 
 [node name="PurchaseButton" type="Button" parent="SafeArea/VBox/Footer"]
 unique_name_in_owner = true
-custom_minimum_size = Vector2(84, 36)
+custom_minimum_size = Vector2(80, 36)
 layout_mode = 2
 text = "仕入れる"
 
+[node name="BackButton" type="Button" parent="SafeArea/VBox/Footer"]
+unique_name_in_owner = true
+custom_minimum_size = Vector2(64, 36)
+layout_mode = 2
+text = "戻る"
+
+[node name="NextButton" type="Button" parent="SafeArea/VBox/Footer"]
+unique_name_in_owner = true
+custom_minimum_size = Vector2(80, 36)
+layout_mode = 2
+text = "次へ"
+
 [node name="StartButton" type="Button" parent="SafeArea/VBox/Footer"]
 unique_name_in_owner = true
-custom_minimum_size = Vector2(100, 36)
+custom_minimum_size = Vector2(96, 36)
 layout_mode = 2
 text = "営業開始"
 
-[node name="ConfirmDialog" parent="." instance=ExtResource("5_dialog")]
+[node name="ConfirmDialog" parent="." instance=ExtResource("7_dialog")]
 unique_name_in_owner = true
 layout_mode = 1
 
-[node name="DetailPopup" parent="." instance=ExtResource("7_detail")]
+[node name="DetailPopup" parent="." instance=ExtResource("8_detail")]
 unique_name_in_owner = true
 layout_mode = 1

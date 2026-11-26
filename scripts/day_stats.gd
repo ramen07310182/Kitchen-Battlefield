@@ -23,6 +23,11 @@ var dish_sales: Dictionary = {}
 ## 料理ごとの売り逃し: その料理を頼みたかったのに頼めなかった人数
 ## （売り切れのあとに来店しようとした客・その料理が売り切れていて別の料理を頼んだ客）
 var dish_missed: Dictionary = {}
+## この営業のあとに新しく解放した料理のid
+var new_unlocks: Array[String] = []
+## その日の準備を始めた時点の所持金と、その日の仕入れ代（所持金の増減の説明用）
+var day_start_money: int = 0
+var purchase_cost: int = 0
 
 var _star_total: float = 0.0
 var _star_count: int = 0

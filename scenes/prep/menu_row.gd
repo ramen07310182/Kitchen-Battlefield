@@ -14,6 +14,7 @@ var dish: DishData
 @onready var _name_label: Label = %NameLabel
 @onready var _info_label: Label = %InfoLabel
 @onready var _last_label: Label = %LastLabel
+@onready var _warn_label: Label = %WarnLabel
 @onready var _minus_button: HoldRepeatButton = %MinusButton
 @onready var _count_label: Label = %CountLabel
 @onready var _plus_button: HoldRepeatButton = %PlusButton
@@ -48,6 +49,7 @@ func refresh(expected_orders: Dictionary) -> void:
 	_name_label.modulate = Color.WHITE if on else Color(0.7, 0.7, 0.7)
 	_info_label.modulate = _name_label.modulate
 	_refresh_last_result()
+	_refresh_shortage(on)
 	_count_label.text = str(count)
 	_minus_button.disabled = count <= 0
 	_plus_button.disabled = not GameState.can_add_prep(dish)
@@ -71,3 +73,16 @@ func _refresh_last_result() -> void:
 			_last_label.text = UIText.PREP_LAST_SOLD_ALL % sold
 		else:
 			_last_label.text = UIText.PREP_LAST_SOLD % sold
+
+
+## 仕込み数に対して食材が足りなければ「食材が足りません（鶏肉 2不足）」と出す
+func _refresh_shortage(on: bool) -> void:
+	var shortage: Dictionary = GameState.get_dish_shortage(dish) if on else {}
+	_warn_label.visible = not shortage.is_empty()
+	if shortage.is_empty():
+		return
+	var parts: PackedStringArray = PackedStringArray()
+	for ing: IngredientData in Database.ingredients:
+		if shortage.has(ing.id):
+			parts.append(UIText.PREP_DISH_SHORT_ITEM % [ing.display_name, int(shortage[ing.id])])
+	_warn_label.text = UIText.PREP_DISH_SHORT % "・".join(parts)

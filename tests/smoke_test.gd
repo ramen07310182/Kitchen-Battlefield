@@ -3,8 +3,8 @@ extends Node
 ## 実行: Godot --headless --path . res://tests/smoke_test.tscn
 ## 本物のセーブ（user://save.json）は読み書きしない。テスト用のファイルに保存し、終わったら消す。
 ## 確かめる項目は [check] で始まる行に出し、1つでも失敗したら終了コード1で終わる。
-##   1日目: 仕込みを少なくして、売り切れで早く閉店すること・置き場から外した料理が残りに戻ること
-##   2日目: 確定前の仕入れでは所持金が減らないこと・「前回と同じ仕込み」・仕入れ予定が残ったままの営業開始・廃棄
+##   1日目: 手順の行き来・食材不足で③に進めない・少なく仕込んで売り切れで早く閉店・置き場から外した料理が残りに戻る
+##   2日目（5品を解放）: 「前回と同じ仕込み」・不足分を予定に入れる・確定式の仕入れ・仕入れ予定が残ったままの営業開始・廃棄
 
 const MAIN_SCENE: PackedScene = preload("res://scenes/main/main.tscn")
 const DAYS_TO_RUN := 2
@@ -96,30 +96,44 @@ func _check_rules() -> void:
 	_check("「仕入れる」で合計金額が引かれ在庫が増える",
 		GameState.money == money_before - total and GameState.get_stock("rice") == rice_before + 5
 		and not GameState.has_purchase_plan(), "total=%d money=%d" % [total, GameState.money])
-	# 所持金が足りない仕入れはできない
 	GameState.change_purchase("fish", 1000)
 	_check("所持金が足りない仕入れは確定できない",
 		not GameState.can_afford_purchase() and not GameState.confirm_purchase())
 	GameState.clear_purchase_plan()
 
-	# 仕込み数の上限は「99」と「確定した在庫で作れる数」の小さいほう
+	# 仕込み数の上限は99だけ（在庫では止まらない）。足りない食材は料理ごとにわかる
 	var karaage: DishData = Database.get_dish("karaage")
-	GameState.change_purchase("chicken", 200)
-	GameState.change_purchase("rice", 200)
-	GameState.change_purchase("cabbage", 200)
-	var limit_by_stock: int = mini(GameState.get_stock("chicken"), mini(GameState.get_stock("rice"), GameState.get_stock("cabbage")))
 	GameState.change_prep("karaage", 150)
-	_check("仕込み数は確定した在庫までしか増やせない（予定は含めない）",
-		GameState.get_prep_count("karaage") == limit_by_stock, "prep=%d stock_limit=%d" % [GameState.get_prep_count("karaage"), limit_by_stock])
-	GameState.change_purchase("fish", 200)
+	_check("仕込み数の上限は99だけ（在庫では止まらない）",
+		GameState.get_prep_count("karaage") == cfg.max_prep_per_dish and not GameState.can_add_prep(karaage)
+		and GameState.get_dish_shortage(karaage).has("chicken"),
+		"prep=%d shortage=%s" % [GameState.get_prep_count("karaage"), GameState.get_dish_shortage(karaage)])
+	# 不足分を予定に入れる → 確定すると足りる
+	GameState.plan_prep_shortage()
+	var covered: bool = true
+	var shortage: Dictionary = GameState.get_prep_shortage()
+	for ing_id: String in shortage:
+		if GameState.get_planned_purchase(ing_id) < int(shortage[ing_id]):
+			covered = false
+	_check("「不足分を予定に入れる」で、足りない分が仕入れ予定に入る", covered and not shortage.is_empty(),
+		"shortage=%s plan=%s" % [shortage, GameState.purchase_plan])
 	GameState.add_money(100000)
 	GameState.confirm_purchase()
-	GameState.change_prep("karaage", 150)
-	_check("仕込み数の上限は99", GameState.get_prep_count("karaage") == cfg.max_prep_per_dish and not GameState.can_add_prep(karaage),
-		"prep=%d" % GameState.get_prep_count("karaage"))
+	_check("予定どおり仕入れると不足がなくなる", not GameState.has_prep_shortage())
+	# 在庫に合わせて減らす
+	GameState.change_prep("yakizakana", 50)
+	var fish_stock: int = GameState.get_stock("fish")
+	GameState.reduce_prep_to_stock()
+	# 一覧の下の料理から減らす（米も足りないので、焼き魚から先に減る）
+	_check("「在庫に合わせて減らす」で、作れる数まで仕込み数が減る（一覧の下の料理から）",
+		not GameState.has_prep_shortage() and GameState.get_prep_count("yakizakana") <= fish_stock
+		and GameState.get_prep_count("karaage") == cfg.max_prep_per_dish,
+		"yakizakana=%d fish=%d" % [GameState.get_prep_count("yakizakana"), fish_stock])
 
 	# 開店時の置き場は合計6個まで、仕込み数を超えない
-	GameState.change_prep("karaage", -97)
+	GameState.change_prep("karaage", -999)
+	GameState.change_prep("yakizakana", -999)
+	GameState.change_prep("karaage", 2)
 	for i: int in 4:
 		GameState.add_to_shelf_plan("karaage")
 	GameState.change_prep("yakizakana", 10)
@@ -130,6 +144,28 @@ func _check_rules() -> void:
 		"plan=%s" % [GameState.shelf_plan])
 	GameState.change_prep("yakizakana", -9)
 	_check("仕込み数を減らすと置き場の初期配置も減る", GameState.get_shelf_plan_count("yakizakana") == 1, "plan=%s" % [GameState.shelf_plan])
+
+	# 料理の解放
+	var unlocked_ings: Array[IngredientData] = GameState.get_unlocked_ingredients()
+	var has_egg: bool = false
+	for ing: IngredientData in unlocked_ings:
+		if ing.id == "egg":
+			has_egg = true
+	_check("最初は3品だけ解放され、親子丼は仕込めず、卵は仕入れ画面に出ない",
+		GameState.get_unlocked_dishes().size() == 3 and GameState.change_prep("oyakodon", 1) == 0 and not has_egg)
+	var oyako: DishData = Database.get_dish("oyakodon")
+	GameState.add_reputation(oyako.unlock_reputation - GameState.reputation)
+	GameState.finish_business()
+	_check("評判が必要な値に届くと、営業結果のあとに解放される",
+		GameState.is_unlocked("oyakodon") and GameState.today.new_unlocks.has("oyakodon") and not GameState.is_unlocked("yasaiitame"),
+		"unlocked=%s new=%s" % [GameState.unlocked_dishes, GameState.today.new_unlocks])
+	GameState.add_reputation(-1000)
+	GameState.finish_business()
+	GameState.save_game()
+	GameState.use_save_path(TEST_SAVE_PATH)
+	_check("評判が下がっても、解放済みの料理は使えたまま（セーブにも残る）",
+		GameState.reputation == 0 and GameState.is_unlocked("oyakodon") and GameState.change_prep("oyakodon", 1) == 1,
+		"rep=%d unlocked=%s" % [GameState.reputation, GameState.unlocked_dishes])
 
 	# 営業中の数の管理（DishSupply）
 	var supply: DishSupply = DishSupply.new({"karaage": 3}, ["karaage"] as Array[String])
@@ -143,11 +179,11 @@ func _check_rules() -> void:
 	supply.serve("karaage")
 	supply.release("karaage")
 	_check("出した分は出せる数から引かれ、帰った客の確保は戻る", supply.get_units("karaage") == 2 and supply.get_orderable("karaage") == 1)
-	# 状態を作り直す（テスト用のセーブはまだないので、新しいゲームになる）
+	# 状態を作り直す（テスト用のセーブを消してから、新しいゲームにする）
 	GameState.delete_save()
 
 
-## 古いセーブ（version 1〜3）を読み込んで、今の version に移行できるか確かめる
+## 古いセーブ（version 1〜5）を読み込んで、今の version に移行できるか確かめる
 func _check_migration() -> void:
 	_write_test_save({"version": 1, "money": 4321, "day": 5, "reputation": 12, "inventory": {"rice": 7}})
 	GameState.use_save_path(TEST_SAVE_PATH)
@@ -170,12 +206,18 @@ func _check_migration() -> void:
 		"last_prep": {"karaage": 1}, "last_shelf": [], "last_sold": {"karaage": 1}})
 	GameState.use_save_path(TEST_SAVE_PATH)
 	var cfg: GameConfig = Database.config
-	_check("セーブ移行 v4 -> v5（新しい食材に初期在庫が入り、既存の在庫はそのまま）",
+	_check("セーブ移行 v4 -> 最新（新しい食材に初期在庫が入り、既存の在庫はそのまま）",
 		GameState.get_stock("egg") == int(cfg.start_inventory.get("egg", 0)) and GameState.get_stock("egg") > 0
 		and GameState.get_stock("onion") == int(cfg.start_inventory.get("onion", 0))
 		and GameState.get_stock("pork") == 0 and GameState.get_stock("rice") == 4
 		and GameState.get_last_sold("karaage") == 1 and GameState.last_missed_counts.is_empty(),
 		"egg=%d onion=%d" % [GameState.get_stock("egg"), GameState.get_stock("onion")])
+	_write_test_save({"version": 5, "money": 8000, "day": 7, "reputation": 70,
+		"inventory": {"rice": 4}, "last_prep": {}, "last_shelf": [], "last_sold": {}, "last_missed": {}})
+	GameState.use_save_path(TEST_SAVE_PATH)
+	_check("セーブ移行 v5 -> v6（読み込んだ時点の評判で解放済みの料理を決める）",
+		GameState.is_unlocked("karaage") and GameState.is_unlocked("oyakodon") and not GameState.is_unlocked("yasaiitame"),
+		"unlocked=%s" % [GameState.unlocked_dishes])
 
 
 func _write_test_save(data: Dictionary) -> void:
@@ -185,7 +227,7 @@ func _write_test_save(data: Dictionary) -> void:
 
 
 # ---------------------------------------------------------------
-# 準備画面
+# 準備画面（①仕込み → ②仕入れ → ③置き場）
 # ---------------------------------------------------------------
 
 func _do_prep(screen: Node) -> void:
@@ -193,18 +235,61 @@ func _do_prep(screen: Node) -> void:
 	if dialog.is_open() or _busy:
 		return
 	if _days_done == 0:
-		_do_prep_day1(screen)
+		_do_prep_day1(screen, dialog)
 	else:
 		_do_prep_day2(screen, dialog)
 
 
-## 1日目: 少なめに仕込んで、売り切れで早く閉店させる
-func _do_prep_day1(screen: Node) -> void:
-	var repeat_button: Button = screen.get("_repeat_button")
-	_check("1日目は「前回と同じ仕込み」を押せない", repeat_button.disabled)
+func _step_of(screen: Node) -> int:
+	return int(screen.call("get_step"))
+
+
+## 1日目: 手順の行き来・食材不足で③に進めないこと・在庫に合わせて減らす。少なめに仕込んで売り切れで早く閉店させる
+func _do_prep_day1(screen: Node, dialog: ConfirmDialog) -> void:
+	var menu_step: PrepMenuStep = screen.get("_menu_step")
+	var purchase_step: PrepPurchaseStep = screen.get("_purchase_step")
+	_check("準備画面は①仕込みから始まる", _step_of(screen) == 0)
+	_check("1日目は「前回と同じ仕込み」を押せない", (menu_step.get("_repeat_button") as Button).disabled)
+	var menu_rows: Array[MenuRow] = menu_step.get("_menu_rows")
+	var locked: Array[Label] = menu_step.get("_locked_labels")
+	_check("①には解放済みの3品と、まだ解放していない料理（評判 ○ で解放）が出る",
+		menu_rows.size() == 3 and locked.size() == 2 and locked[0].text.contains("評判"),
+		"rows=%d locked=%d" % [menu_rows.size(), locked.size()])
 	GameState.change_prep("karaage", 2)
 	GameState.change_prep("yakizakana", 1)
 	GameState.change_prep("shogayaki", 1)
+
+	# 手順を行き来しても入力が消えない
+	(screen.get("_next_button") as Button).pressed.emit()
+	var at_purchase: bool = _step_of(screen) == 1
+	var ing_rows: Array[IngredientRow] = purchase_step.get("_ingredient_rows")
+	(ing_rows[0].get("_plus_small") as Button).pressed.emit()
+	var prep_snapshot: Dictionary = GameState.prep_counts.duplicate()
+	var plan_snapshot: Dictionary = GameState.purchase_plan.duplicate()
+	(screen.get("_back_button") as Button).pressed.emit()
+	var back_ok: bool = _step_of(screen) == 0
+	var step_buttons: Array[Button] = screen.get("_step_buttons")
+	step_buttons[1].pressed.emit()
+	_check("「次へ」「戻る」「手順の表示」で行き来しても、仕込み数と仕入れ予定が消えない",
+		at_purchase and back_ok and _step_of(screen) == 1 and GameState.prep_counts == prep_snapshot
+		and GameState.purchase_plan == plan_snapshot and not plan_snapshot.is_empty())
+	_check("②には解放済みの料理で使う食材だけが出る（卵・玉ねぎは出ない）",
+		ing_rows.size() == GameState.get_unlocked_ingredients().size() and ing_rows.size() == 5)
+	GameState.clear_purchase_plan()
+
+	# 食材が足りないと③へ進めない →「在庫に合わせて減らす」で進む
+	GameState.change_prep("karaage", 3)
+	var row_warn: Label = menu_rows[0].get("_warn_label")
+	menu_step.refresh()
+	_check("①の料理の行に「食材が足りません（○○ ○不足）」が出る", row_warn.visible and row_warn.text.contains("鶏肉"),
+		row_warn.text)
+	(screen.get("_next_button") as Button).pressed.emit()
+	_check("食材が足りないと③へ進めず、確認が出る", _step_of(screen) == 1 and dialog.is_open())
+	(dialog.get("_alt_button") as Button).pressed.emit()
+	_check("「在庫に合わせて減らす」で仕込み数が減り、③へ進む",
+		not GameState.has_prep_shortage() and _step_of(screen) == 2 and GameState.get_prep_count("karaage") == GameState.get_stock("chicken"),
+		"karaage=%d chicken=%d step=%d" % [GameState.get_prep_count("karaage"), GameState.get_stock("chicken"), _step_of(screen)])
+
 	GameState.add_to_shelf_plan("karaage")
 	GameState.add_to_shelf_plan("yakizakana")
 	_day1_prep = GameState.prep_counts.duplicate()
@@ -218,33 +303,17 @@ func _do_prep_day1(screen: Node) -> void:
 		"rice %d -> %d" % [int(stock_before["rice"]), GameState.get_stock("rice")])
 
 
-## 2日目: 画面のボタンで仕入れ予定 → 確定 →「前回と同じ仕込み」→ 多めに仕込む → 予定を残して営業開始
+## 2日目（5品すべて解放した状態）: 前回の表示・前回と同じ仕込み・本物の入力の操作・不足分を予定に入れる・確定式の仕入れ
 func _do_prep_day2(screen: Node, dialog: ConfirmDialog) -> void:
 	if _day2_prep_started:
 		return
 	_day2_prep_started = true
-	# 画面の「+5」を押して仕入れ予定を作る（まだお金は減らない）
-	var money_before: int = GameState.money
-	var rows: Array[IngredientRow] = screen.get("_ingredient_rows")
-	for row: IngredientRow in rows:
-		for i: int in 2:
-			(row.get("_plus_large") as Button).pressed.emit()
-	(rows[0].get("_minus_small") as Button).pressed.emit()
-	# 米は全部の料理に使うので多めに（料理5種類を全部仕込めるように）
-	for i: int in 4:
-		(rows[0].get("_plus_large") as Button).pressed.emit()
-	var total: int = GameState.get_purchase_total()
-	_check("確定前の仕入れでは所持金が減らない", GameState.money == money_before and total > 0,
-		"money=%d plan_total=%d" % [GameState.money, total])
-	# 「仕入れる」→ 確認ダイアログ →「仕入れる」
-	(screen.get("_purchase_button") as Button).pressed.emit()
-	_check("「仕入れる」で確認が出る", dialog.is_open())
-	(dialog.get("_ok_button") as Button).pressed.emit()
-	_check("確認して仕入れると所持金が減る", GameState.money == money_before - total and not GameState.has_purchase_plan(),
-		"money %d -> %d (total %d)" % [money_before, GameState.money, total])
+	var menu_step: PrepMenuStep = screen.get("_menu_step")
+	var purchase_step: PrepPurchaseStep = screen.get("_purchase_step")
+	var menu_rows: Array[MenuRow] = menu_step.get("_menu_rows")
+	_check("解放した料理が①に出る（5品）", menu_rows.size() == 5, "rows=%d" % menu_rows.size())
 
 	# 準備画面の各料理に「前回 ○食売れた」が出る（1日目は出ない）
-	var menu_rows: Array[MenuRow] = screen.get("_menu_rows")
 	var last_ok: bool = true
 	for row: MenuRow in menu_rows:
 		var label: Label = row.get("_last_label")
@@ -254,8 +323,7 @@ func _do_prep_day2(screen: Node, dialog: ConfirmDialog) -> void:
 		print("[smoke] %s: %s" % [row.dish.id, label.text])
 	_check("2日目の準備画面に「前回 ○食売れた」が出る", last_ok and not GameState.last_sold_counts.is_empty())
 
-	# 食材を買ったあとなら、前回と同じ仕込みが全部入る
-	(screen.get("_repeat_button") as Button).pressed.emit()
+	(menu_step.get("_repeat_button") as Button).pressed.emit()
 	_check("「前回と同じ仕込み」で仕込み数と置き場が前回と同じになる",
 		GameState.prep_counts == _day1_prep and GameState.shelf_plan == _day1_shelf,
 		"prep=%s shelf=%s" % [GameState.prep_counts, GameState.shelf_plan])
@@ -264,8 +332,7 @@ func _do_prep_day2(screen: Node, dialog: ConfirmDialog) -> void:
 	# 時間で決まる操作なので、この間だけ早送りをやめる（早送りだと1フレームが長すぎて長押しの途中が飛ぶ）
 	_busy = true
 	Engine.time_scale = 1.0
-	var rows_ui: Array[MenuRow] = screen.get("_menu_rows")
-	var plus: Button = rows_ui[1].get("_plus_button")
+	var plus: Button = menu_rows[1].get("_plus_button")
 	var before_tap: int = GameState.get_prep_count("yakizakana")
 	_send_press(plus, true)
 	await _frames(2)
@@ -280,46 +347,36 @@ func _do_prep_day2(screen: Node, dialog: ConfirmDialog) -> void:
 	_send_press(plus, false)
 	await _frames(2)
 	var held_gain: int = GameState.get_prep_count("yakizakana") - prep_before
-	var reached_limit: bool = not GameState.can_add_prep(Database.get_dish("yakizakana"))
-	_check("「＋」を長押しすると続けて増える（途中から5ずつ・在庫の上限まで）", held_gain >= 10 or (held_gain >= 3 and reached_limit),
+	_check("「＋」を長押しすると続けて増える（途中から5ずつ）", held_gain >= 10,
 		"%d -> %d" % [prep_before, GameState.get_prep_count("yakizakana")])
+	GameState.change_prep("yakizakana", -held_gain - 1)
 
 	# 料理の行（ボタン以外）を長押しすると詳細が出て、離すと閉じる
 	var detail: DetailPopup = screen.get("_detail")
-	var name_label: Label = rows_ui[0].get("_name_label")
-	var row_point: Vector2 = name_label.get_global_rect().get_center()
+	var row_point: Vector2 = (menu_rows[0].get("_name_label") as Label).get_global_rect().get_center()
 	_send_press_at(row_point, true)
 	await get_tree().create_timer(Database.config.long_press_time + 0.2).timeout
 	var opened: bool = detail.is_open()
 	var title: String = (detail.get("_title_label") as Label).text
 	_send_press_at(row_point, false)
 	await _frames(2)
-	_check("料理の行を長押しすると詳細が出て、離すと閉じる", opened and title == rows_ui[0].dish.display_name and not detail.is_open(),
+	_check("料理の行を長押しすると詳細が出て、離すと閉じる", opened and title == menu_rows[0].dish.display_name and not detail.is_open(),
 		"opened=%s title=%s" % [opened, title])
-	var ing_rows: Array[IngredientRow] = screen.get("_ingredient_rows")
-	var ing_point: Vector2 = (ing_rows[1].get("_name_label") as Label).get_global_rect().get_center()
-	_send_press_at(ing_point, true)
-	await get_tree().create_timer(Database.config.long_press_time + 0.2).timeout
-	var ing_opened: bool = detail.is_open() and (detail.get("_body_label") as Label).text.contains(UIText.DETAIL_ING_USED_BY)
-	_send_press_at(ing_point, false)
-	await _frames(2)
-	_check("食材の行を長押しすると詳細（使う料理など）が出る", ing_opened)
 
 	# 一覧の上で「＋」を押したまま指を動かすと、スクロールになって数は変わらない
-	# （テストの画面の大きさでは全部の行が入ってしまうので、置き場の欄を一時的に高くして一覧を短くする）
-	var scroll: DragScrollContainer = screen.get_node("%MenuScroll")
-	var shelf_panel: Control = screen.get_node("%ShelfPlanPanel")
-	var old_min: Vector2 = shelf_panel.custom_minimum_size
-	shelf_panel.custom_minimum_size.y = 230.0
+	# （テストの画面では全部の行が入ることがあるので、説明の行を一時的に高くして一覧を短くする）
+	var scroll: DragScrollContainer = menu_step.get_node("%MenuScroll")
+	var help: Control = menu_step.get_node("%HelpLabel")
+	var old_min: Vector2 = help.custom_minimum_size
+	help.custom_minimum_size.y = 200.0
 	await _frames(3)
 	var bar: VScrollBar = scroll.get_v_scroll_bar()
 	var can_scroll: bool = bar.max_value > bar.page + 0.5
 	scroll.scroll_vertical = 0
 	await _frames(1)
-	var plus_first: Button = rows_ui[0].get("_plus_button")
-	var first_before: int = GameState.get_prep_count(rows_ui[0].dish.id)
+	var plus_first: Button = menu_rows[0].get("_plus_button")
+	var first_before: int = GameState.get_prep_count(menu_rows[0].dish.id)
 	var start: Vector2 = plus_first.get_global_rect().get_center()
-	# 上へ12px（しきい値より大きく、ボタンの外には出ない距離）動かしてから離す
 	_send_press_at(start, true)
 	for i: int in 4:
 		await _frames(1)
@@ -327,11 +384,10 @@ func _do_prep_day2(screen: Node, dialog: ConfirmDialog) -> void:
 	await _frames(1)
 	_send_press_at(start + Vector2(0, -12.0), false)
 	await _frames(2)
-	var first_after: int = GameState.get_prep_count(rows_ui[0].dish.id)
+	var first_after: int = GameState.get_prep_count(menu_rows[0].dish.id)
 	_check("指が動いたらボタンの押下を取り消してスクロールにする",
 		can_scroll and first_after == first_before and scroll.scroll_vertical > 0,
 		"can_scroll=%s scroll=%d prep %d -> %d" % [can_scroll, scroll.scroll_vertical, first_before, first_after])
-	# 動かさずに離せば、同じボタンでもふつうに1つ増える（取り消しが残っていないこと）
 	scroll.scroll_vertical = 0
 	await _frames(1)
 	start = plus_first.get_global_rect().get_center()
@@ -339,18 +395,54 @@ func _do_prep_day2(screen: Node, dialog: ConfirmDialog) -> void:
 	await _frames(2)
 	_send_press_at(start, false)
 	await _frames(2)
-	_check("スクロールのあとも、タップはふつうに効く", GameState.get_prep_count(rows_ui[0].dish.id) == first_before + 1)
-	shelf_panel.custom_minimum_size = old_min
+	_check("スクロールのあとも、タップはふつうに効く", GameState.get_prep_count(menu_rows[0].dish.id) == first_before + 1)
+	help.custom_minimum_size = old_min
 	await _frames(2)
+
+	# 多めに仕込んで（すべての料理）、残った分が廃棄になるようにする
+	for dish: DishData in GameState.get_unlocked_dishes():
+		GameState.change_prep(dish.id, 5)
+	print("[smoke] day2 prep=%s shelf=%s prep_shortage=%s" % [GameState.prep_counts, GameState.shelf_plan, GameState.get_prep_shortage()])
+	_check("2日目は料理%d種類をすべて仕込める（食材%d種類）" % [Database.dishes.size(), Database.ingredients.size()],
+		GameState.prep_counts.size() == Database.dishes.size() and Database.dishes.size() == 5 and Database.ingredients.size() == 7)
+
+	# ②仕入れ: 画面のボタンで予定を作る（まだお金は減らない）→ 不足分を予定に入れる → 確認して確定
+	(screen.get("_next_button") as Button).pressed.emit()
+	await _frames(3)
+	var ing_rows: Array[IngredientRow] = purchase_step.get("_ingredient_rows")
+	_check("②には解放した料理の食材（卵・玉ねぎも）が出る", ing_rows.size() == 7, "rows=%d" % ing_rows.size())
+	var money_before: int = GameState.money
+	(ing_rows[0].get("_plus_large") as Button).pressed.emit()
+	_check("確定前の仕入れでは所持金が減らない", GameState.money == money_before and GameState.get_purchase_total() > 0)
+	(purchase_step.get("_plan_button") as Button).pressed.emit()
+	var shortage: Dictionary = GameState.get_prep_shortage()
+	var covered: bool = true
+	for ing_id: String in shortage:
+		if GameState.get_planned_purchase(ing_id) < int(shortage[ing_id]):
+			covered = false
+	_check("「不足分を予定に入れる」ボタンで、①の仕込みに足りない分が予定に入る", covered and not shortage.is_empty(),
+		"shortage=%s plan=%s" % [shortage, GameState.purchase_plan])
+	# 食材の行を長押しすると詳細が出る
+	_busy = true
+	var ing_point: Vector2 = (ing_rows[1].get("_name_label") as Label).get_global_rect().get_center()
+	_send_press_at(ing_point, true)
+	await get_tree().create_timer(Database.config.long_press_time + 0.2).timeout
+	var ing_opened: bool = detail.is_open() and (detail.get("_body_label") as Label).text.contains(UIText.DETAIL_ING_USED_BY)
+	_send_press_at(ing_point, false)
+	await _frames(2)
+	_check("食材の行を長押しすると詳細（使う料理など）が出る", ing_opened)
 	Engine.time_scale = 8.0
 	_busy = false
 
-	# 多めに仕込んで、残った分が廃棄になるようにする
-	for dish: DishData in Database.dishes:
-		GameState.change_prep(dish.id, 4)
-	print("[smoke] day2 prep=%s shelf=%s shortage=%s" % [GameState.prep_counts, GameState.shelf_plan, _shortages()])
-	_check("2日目は料理%d種類をすべて仕込める（食材%d種類）" % [Database.dishes.size(), Database.ingredients.size()],
-		GameState.prep_counts.size() == Database.dishes.size() and Database.dishes.size() == 5 and Database.ingredients.size() == 7)
+	var total: int = GameState.get_purchase_total()
+	(screen.get("_purchase_button") as Button).pressed.emit()
+	_check("「仕入れる」で確認が出る", dialog.is_open())
+	(dialog.get("_ok_button") as Button).pressed.emit()
+	_check("確認して仕入れると所持金が減り、不足がなくなる",
+		GameState.money == money_before - total and not GameState.has_purchase_plan() and not GameState.has_prep_shortage(),
+		"money %d -> %d (total %d)" % [money_before, GameState.money, total])
+	(screen.get("_next_button") as Button).pressed.emit()
+	_check("食材が足りていれば③へ進める", _step_of(screen) == 2 and not dialog.is_open())
 
 	# 仕入れ予定を残したまま営業開始 → 確認 →「仕入れずに開始」（予定は捨てる。お金は減らない）
 	GameState.change_purchase("rice", 1)
@@ -468,6 +560,11 @@ func _do_result(screen: Node) -> void:
 		GameState.day, s.sales, s.ingredient_cost, s.waste_count, s.waste_cost, s.other_expense, s.profit(), s.visitors,
 		s.completed_orders, s.left_angry, s.mistakes, s.sold_out, _last_time_left, GameState.reputation, GameState.money])
 	_check_dish_breakdown(screen, s)
+	# 所持金の増減 ＝ 売上 − その日の仕入れ代 − その他経費（食材原価は二重に引いていない）
+	var change: int = GameState.money - s.day_start_money
+	_check("所持金の増減は「売上 − 仕入れ代 − その他経費」（食材原価を二重に引いていない）",
+		change == s.sales - s.purchase_cost - s.other_expense,
+		"change=%d sales=%d purchase=%d other=%d profit=%d" % [change, s.sales, s.purchase_cost, s.other_expense, s.profit()])
 	if _days_done == 0:
 		var prepared: int = 0
 		for dish_id: String in _day1_prep:
@@ -488,14 +585,19 @@ func _do_result(screen: Node) -> void:
 			s.waste_count > 0 and s.waste_cost > 0 and s.ingredient_cost == cost_check,
 			"waste=%d cost=%d prep_cost=%d" % [s.waste_count, s.ingredient_cost, cost_check])
 		_check("結果画面に廃棄の行が出る", _grid_has_text(screen.get("_money_grid"), UIText.RESULT_WASTE % s.waste_count))
+	if _days_done == 0:
+		# 2日目は料理5種類で確かめるため、テストのために評判を上げて残りの料理を解放しておく
+		# （解放の判定そのものは _check_rules で確かめている）
+		GameState.add_reputation(200)
+		GameState.call("_unlock_by_reputation")
 	(screen.get("_next_button") as Button).pressed.emit()
 	_days_done += 1
 	if _days_done >= DAYS_TO_RUN:
 		var saved: String = FileAccess.get_file_as_string(GameState.save_path)
 		print("[smoke] save: ", saved.replace("\n", " "))
-		_check("セーブは version 5 で、前回の置き場・売れた数・売り逃しを含む",
-			saved.contains("\"version\": 5") and saved.contains("last_shelf") and saved.contains("last_sold")
-			and saved.contains("last_missed"))
+		_check("セーブは version 6 で、前回の置き場・売れた数・売り逃し・解放済みの料理を含む",
+			saved.contains("\"version\": 6") and saved.contains("last_shelf") and saved.contains("last_sold")
+			and saved.contains("last_missed") and saved.contains("\"unlocked\""))
 		_finish()
 
 

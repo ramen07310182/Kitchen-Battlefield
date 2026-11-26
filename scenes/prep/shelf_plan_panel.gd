@@ -8,7 +8,9 @@ signal add_requested(dish_id: String)
 signal remove_requested(index: int)
 signal clear_requested
 
-const SLOT_SIZE := Vector2(40, 28)
+## 置き場の枠の大きさと、料理ボタンの大きさ
+@export var slot_size: Vector2 = Vector2(40, 28)
+@export var add_button_size: Vector2 = Vector2(56, 28)
 
 var _slot_buttons: Array[Button] = []
 var _add_buttons: Dictionary = {}  # 料理id -> Button
@@ -24,7 +26,7 @@ func _ready() -> void:
 	add_theme_stylebox_override("panel", UIUtil.flat_box(Color(0.18, 0.19, 0.2)))
 	for i: int in Database.config.shelf_capacity:
 		var slot: Button = Button.new()
-		slot.custom_minimum_size = SLOT_SIZE
+		slot.custom_minimum_size = slot_size
 		slot.add_theme_color_override("font_color", Color(0.1, 0.08, 0.05))
 		slot.add_theme_color_override("font_disabled_color", Color(0.1, 0.08, 0.05))
 		slot.icon_alignment = HORIZONTAL_ALIGNMENT_CENTER
@@ -33,7 +35,7 @@ func _ready() -> void:
 		_slot_buttons.append(slot)
 	for dish: DishData in Database.dishes:
 		var button: Button = Button.new()
-		button.custom_minimum_size = Vector2(56, 28)
+		button.custom_minimum_size = add_button_size
 		button.text = UIText.PREP_SHELF_ADD % dish.short_name
 		button.pressed.connect(func() -> void: add_requested.emit(dish.id))
 		_add_row.add_child(button)
