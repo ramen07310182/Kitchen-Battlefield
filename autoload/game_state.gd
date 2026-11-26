@@ -7,7 +7,7 @@ signal inventory_changed
 signal reputation_changed(value: int)
 
 const DEFAULT_SAVE_PATH := "user://save.json"
-const SAVE_VERSION := 1
+const SAVE_VERSION := 2
 
 var money: int = 0
 var day: int = 1
@@ -19,6 +19,8 @@ var today: DayStats = DayStats.new()
 var today_menu: Array[String] = []
 ## 営業開始時に作っておく個数 { 料理id: 個数 }
 var prep_counts: Dictionary = {}
+## 前回の営業で実際に仕込んだ個数 { 料理id: 個数 }（「前回と同じ仕込み」用。セーブする）
+var last_prep_counts: Dictionary = {}
 ## セーブファイルの場所。テストのときだけ別の場所に切り替える
 var save_path: String = DEFAULT_SAVE_PATH
 
@@ -54,6 +56,7 @@ func _new_game() -> void:
 	for dish: DishData in Database.dishes:
 		today_menu.append(dish.id)
 	prep_counts.clear()
+	last_prep_counts.clear()
 
 
 # ---------------------------------------------------------------
@@ -175,6 +178,41 @@ func change_prep(dish_id: String, delta: int) -> void:
 	inventory_changed.emit()
 
 
+## 今日のメニュー・仕込み・評判から見た、食材ごとの必要数の目安 { 食材id: 個数 }
+func get_ingredient_needs() -> Dictionary:
+	return DemandEstimator.ingredient_needs(
+		get_menu_dishes(), prep_counts, Database.customer_types, Database.config, reputation)
+
+
+## 目安に対して足りない数（足りていれば0）
+func get_shortage(ingredient_id: String, needs: Dictionary) -> int:
+	return maxi(0, int(needs.get(ingredient_id, 0)) - get_stock(ingredient_id))
+
+
+func has_last_prep() -> bool:
+	return not last_prep_counts.is_empty()
+
+
+## 前回と同じ仕込みにする。前回仕込んだ料理はメニューに入れる。
+## 食材や枠が足りない分は入れられない。全部入れられたら true
+func apply_last_prep() -> bool:
+	prep_counts.clear()
+	var complete: bool = true
+	for dish: DishData in Database.dishes:
+		var target: int = int(last_prep_counts.get(dish.id, 0))
+		if target <= 0:
+			continue
+		if not today_menu.has(dish.id):
+			today_menu.append(dish.id)
+		for i: int in target:
+			if not can_add_prep(dish):
+				complete = false
+				break
+			prep_counts[dish.id] = get_prep_count(dish.id) + 1
+	inventory_changed.emit()
+	return complete
+
+
 # ---------------------------------------------------------------
 # 営業の開始・集計・終了
 # ---------------------------------------------------------------
@@ -189,6 +227,9 @@ func begin_business() -> Array[String]:
 				break
 			consume_ingredients(dish)
 			prepared.append(dish.id)
+	last_prep_counts.clear()
+	for dish_id: String in prepared:
+		last_prep_counts[dish_id] = int(last_prep_counts.get(dish_id, 0)) + 1
 	prep_counts.clear()
 	return prepared
 
@@ -248,6 +289,7 @@ func save_game() -> bool:
 		"day": day,
 		"reputation": reputation,
 		"inventory": inventory.duplicate(),
+		"last_prep": last_prep_counts.duplicate(),
 	}
 	var file: FileAccess = FileAccess.open(save_path, FileAccess.WRITE)
 	if file == null:
@@ -276,6 +318,13 @@ func load_game() -> bool:
 		for ing: IngredientData in Database.ingredients:
 			if (saved_inventory as Dictionary).has(ing.id):
 				inventory[ing.id] = maxi(0, int(saved_inventory[ing.id]))
+	last_prep_counts.clear()
+	var saved_prep: Variant = data.get("last_prep", {})
+	if saved_prep is Dictionary:
+		for dish: DishData in Database.dishes:
+			var count: int = int((saved_prep as Dictionary).get(dish.id, 0))
+			if count > 0:
+				last_prep_counts[dish.id] = count
 	money_changed.emit(money)
 	reputation_changed.emit(reputation)
 	inventory_changed.emit()
@@ -288,6 +337,9 @@ func _migrate(data: Dictionary) -> Dictionary:
 	if version <= 0 or version > SAVE_VERSION:
 		push_warning("対応していないセーブデータのバージョンです: %d" % version)
 		return {}
-	# 例: if version == 1: （v1 → v2 の変換）; version = 2
+	if version == 1:
+		# v2 で「前回の仕込み」を追加。v1 のセーブには無いので空にする
+		data["last_prep"] = {}
+		version = 2
 	data["version"] = version
 	return data

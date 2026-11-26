@@ -57,29 +57,6 @@ func _pick_customer_type() -> CustomerTypeData:
 	return types[types.size() - 1]
 
 
-## 今日のメニューから、予算内で好みに合わせて選ぶ。予算内がなければいちばん安いもの
+## 今日のメニューから、予算内で好みに合わせて選ぶ（確率は OrderChooser にまとめてある）
 func choose_dish(customer_type: CustomerTypeData) -> DishData:
-	if _menu.is_empty():
-		return null
-	var candidates: Array[DishData] = []
-	for d: DishData in _menu:
-		if d.price <= customer_type.budget:
-			candidates.append(d)
-	if candidates.is_empty():
-		var cheapest: DishData = _menu[0]
-		for d: DishData in _menu:
-			if d.price < cheapest.price:
-				cheapest = d
-		return cheapest
-	var total: float = 0.0
-	var weights: Array[float] = []
-	for d: DishData in candidates:
-		var w: float = _config.favorite_weight if customer_type.favorite_dishes.has(d.id) else 1.0
-		weights.append(w)
-		total += w
-	var roll: float = randf() * total
-	for i: int in candidates.size():
-		roll -= weights[i]
-		if roll <= 0.0:
-			return candidates[i]
-	return candidates[candidates.size() - 1]
+	return OrderChooser.choose(customer_type, _menu, _config)

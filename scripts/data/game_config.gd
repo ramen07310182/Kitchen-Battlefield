@@ -58,6 +58,9 @@ extends Resource
 ## 仕入れボタン1回で買う個数（小・大）
 @export var buy_step_small: int = 1
 @export var buy_step_large: int = 5
+## 在庫不足の警告: 見積もった必要数にこの倍率をかけた数より在庫が少ないと赤くする
+## （1.0 = 見積もりどおり、0.8 = 少し甘め、1.2 = 余裕を持たせる）
+@export var stock_warning_ratio: float = 1.0
 
 
 ## 評判に応じた来店間隔の倍率（1.0 = 基本のまま、小さいほどよく来る）

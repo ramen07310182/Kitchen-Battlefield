@@ -14,12 +14,10 @@ var dish: DishData
 @onready var _minus_button: Button = %MinusButton
 @onready var _count_label: Label = %CountLabel
 @onready var _plus_button: Button = %PlusButton
-@onready var _prep_label: Label = %PrepLabel
 
 
 func _ready() -> void:
 	add_theme_stylebox_override("panel", UIUtil.flat_box(Color(0.2, 0.17, 0.15)))
-	_prep_label.text = UIText.PREP_LABEL
 	_toggle_button.pressed.connect(func() -> void: menu_toggled.emit(dish.id, not GameState.is_on_menu(dish.id)))
 	_minus_button.pressed.connect(func() -> void: prep_changed.emit(dish.id, -1))
 	_plus_button.pressed.connect(func() -> void: prep_changed.emit(dish.id, 1))

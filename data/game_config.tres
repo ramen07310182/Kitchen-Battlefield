@@ -37,3 +37,4 @@ stars_bad = 2.0
 stars_angry = 1.0
 buy_step_small = 1
 buy_step_large = 5
+stock_warning_ratio = 1.0

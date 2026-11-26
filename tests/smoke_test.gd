@@ -21,6 +21,8 @@ func _ready() -> void:
 	# 前回のテストが途中で止まって残ったファイルがあれば消してから始める
 	GameState.use_save_path(TEST_SAVE_PATH)
 	GameState.delete_save()
+	_check_migration_v1()
+	GameState.delete_save()
 	GameState.use_save_path(TEST_SAVE_PATH)
 	Engine.time_scale = 8.0
 	_main = MAIN_SCENE.instantiate()
@@ -50,13 +52,33 @@ func _process(delta: float) -> void:
 
 
 func _do_prep(screen: Node) -> void:
+	var repeat_button: Button = screen.get("_repeat_button")
+	if _days_done == 0:
+		print("[smoke] repeat button disabled on day1=%s" % repeat_button.disabled)
+		for dish: DishData in Database.dishes:
+			GameState.change_prep(dish.id, 1)
+	else:
+		# 食材が足りないうちに押すと一部だけ入る → 買ってから押すと全部入る
+		var last: Dictionary = GameState.last_prep_counts.duplicate()
+		repeat_button.pressed.emit()
+		print("[smoke] repeat prep (before buying): now=%s notice=%s" % [GameState.prep_counts, screen.get("_notice")])
+		for ing: IngredientData in Database.ingredients:
+			GameState.buy_ingredient(ing.id, 3)
+		repeat_button.pressed.emit()
+		print("[smoke] repeat prep (after buying): last=%s now=%s same=%s notice=%s" % [
+			last, GameState.prep_counts, last == GameState.prep_counts, screen.get("_notice")])
+	print("[smoke] shortage before buying: %s" % _shortages())
+	# 足りない食材を目安まで買う
+	var needs: Dictionary = GameState.get_ingredient_needs()
 	for ing: IngredientData in Database.ingredients:
-		GameState.buy_ingredient(ing.id, 5)
-	for dish: DishData in Database.dishes:
-		GameState.change_prep(dish.id, 1)
-	print("[smoke] prep: money=%d prep_total=%d rep=%d interval_scale=%.3f" % [
+		var lack: int = GameState.get_shortage(ing.id, needs)
+		if lack > 0:
+			GameState.buy_ingredient(ing.id, lack)
+	print("[smoke] shortage after buying: %s" % _shortages())
+	print("[smoke] prep: money=%d prep_total=%d rep=%d interval_scale=%.3f expected_visitors=%.1f" % [
 		GameState.money, GameState.get_total_prep(), GameState.reputation,
-		Database.config.get_spawn_interval_scale(GameState.reputation)])
+		Database.config.get_spawn_interval_scale(GameState.reputation),
+		DemandEstimator.expected_visitors(Database.config, GameState.reputation)])
 	(screen.get("_start_button") as Button).pressed.emit()
 
 
@@ -101,6 +123,27 @@ func _do_business(screen: Node) -> void:
 		if int(needed[dish_id]) > 0 and buttons.has(dish_id):
 			(buttons[dish_id] as Button).pressed.emit()
 			return
+
+
+func _shortages() -> Dictionary:
+	var needs: Dictionary = GameState.get_ingredient_needs()
+	var result: Dictionary = {}
+	for ing: IngredientData in Database.ingredients:
+		var lack: int = GameState.get_shortage(ing.id, needs)
+		if lack > 0:
+			result[ing.id] = lack
+	return result
+
+
+## version 1 のセーブを読み込んで、version 2 に移行できるか確かめる
+func _check_migration_v1() -> void:
+	var v1: Dictionary = {"version": 1, "money": 4321, "day": 5, "reputation": 12, "inventory": {"rice": 7}}
+	var file: FileAccess = FileAccess.open(TEST_SAVE_PATH, FileAccess.WRITE)
+	file.store_string(JSON.stringify(v1))
+	file.close()
+	GameState.use_save_path(TEST_SAVE_PATH)
+	var ok: bool = GameState.money == 4321 and GameState.day == 5 and GameState.reputation == 12 		and GameState.get_stock("rice") == 7 and not GameState.has_last_prep()
+	print("[smoke] migration v1 -> v2 ok=%s" % ok)
 
 
 func _hold(shelf: ReadyShelf, buttons: Array[Button], slot: int) -> void:

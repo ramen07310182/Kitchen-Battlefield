@@ -21,11 +21,24 @@ custom_minimum_size = Vector2(70, 0)
 layout_mode = 2
 text = "食材"
 
-[node name="StockLabel" type="Label" parent="HBox"]
-unique_name_in_owner = true
+[node name="StockTexts" type="VBoxContainer" parent="HBox"]
 layout_mode = 2
 size_flags_horizontal = 3
+size_flags_vertical = 4
+theme_override_constants/separation = 0
+
+[node name="StockLabel" type="Label" parent="HBox/StockTexts"]
+unique_name_in_owner = true
+layout_mode = 2
 text = "在庫 0"
+clip_text = true
+text_overrun_behavior = 3
+
+[node name="NeedLabel" type="Label" parent="HBox/StockTexts"]
+unique_name_in_owner = true
+layout_mode = 2
+theme_type_variation = &"SmallLabel"
+text = "目安 0"
 clip_text = true
 text_overrun_behavior = 3
 

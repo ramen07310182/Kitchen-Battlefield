@@ -61,10 +61,22 @@ unique_name_in_owner = true
 layout_mode = 2
 theme_override_constants/separation = 3
 
-[node name="PrepTotalLabel" type="Label" parent="SafeArea/VBox/Body/MenuPanel"]
+[node name="PrepFooter" type="HBoxContainer" parent="SafeArea/VBox/Body/MenuPanel"]
+layout_mode = 2
+theme_override_constants/separation = 6
+
+[node name="PrepTotalLabel" type="Label" parent="SafeArea/VBox/Body/MenuPanel/PrepFooter"]
 unique_name_in_owner = true
 layout_mode = 2
+size_flags_horizontal = 3
 text = "仕込み合計"
+autowrap_mode = 3
+
+[node name="RepeatPrepButton" type="Button" parent="SafeArea/VBox/Body/MenuPanel/PrepFooter"]
+unique_name_in_owner = true
+custom_minimum_size = Vector2(120, 32)
+layout_mode = 2
+text = "前回と同じ仕込み"
 
 [node name="IngredientPanel" type="VBoxContainer" parent="SafeArea/VBox/Body"]
 layout_mode = 2
