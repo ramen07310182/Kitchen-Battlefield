@@ -15,6 +15,10 @@ var _days_done: int = 0
 var _cooldown: float = 0.0
 var _made_mistake: bool = false
 var _return_tested: bool = false
+## 準備画面で時間のかかる確認（長押し）をしている間は、次の操作をしない
+var _busy: bool = false
+## 2日目の準備を一度だけ行う
+var _day2_prep_started: bool = false
 var _last_screen: String = ""
 var _failures: PackedStringArray = PackedStringArray()
 ## 本物のセーブがテストの前後で変わっていないか確かめるため
@@ -170,7 +174,7 @@ func _write_test_save(data: Dictionary) -> void:
 
 func _do_prep(screen: Node) -> void:
 	var dialog: ConfirmDialog = screen.get("_dialog")
-	if dialog.is_open():
+	if dialog.is_open() or _busy:
 		return
 	if _days_done == 0:
 		_do_prep_day1(screen)
@@ -200,6 +204,9 @@ func _do_prep_day1(screen: Node) -> void:
 
 ## 2日目: 画面のボタンで仕入れ予定 → 確定 →「前回と同じ仕込み」→ 多めに仕込む → 予定を残して営業開始
 func _do_prep_day2(screen: Node, dialog: ConfirmDialog) -> void:
+	if _day2_prep_started:
+		return
+	_day2_prep_started = true
 	# 画面の「+5」を押して仕入れ予定を作る（まだお金は減らない）
 	var money_before: int = GameState.money
 	var rows: Array[IngredientRow] = screen.get("_ingredient_rows")
@@ -222,6 +229,18 @@ func _do_prep_day2(screen: Node, dialog: ConfirmDialog) -> void:
 	_check("「前回と同じ仕込み」で仕込み数と置き場が前回と同じになる",
 		GameState.prep_counts == _day1_prep and GameState.shelf_plan == _day1_shelf,
 		"prep=%s shelf=%s" % [GameState.prep_counts, GameState.shelf_plan])
+
+	# 「＋」の長押し: 実際の押す・離す操作を送り、続けて増えることを確かめる
+	_busy = true
+	var plus: Button = (screen.get("_menu_rows") as Array[MenuRow])[1].get("_plus_button")
+	var prep_before: int = GameState.get_prep_count("yakizakana")
+	_send_press(plus, true)
+	await get_tree().create_timer(2.0).timeout
+	_send_press(plus, false)
+	var held_gain: int = GameState.get_prep_count("yakizakana") - prep_before
+	_check("「＋」を長押しすると続けて増える（途中から5ずつ）", held_gain >= 10,
+		"%d -> %d" % [prep_before, GameState.get_prep_count("yakizakana")])
+	_busy = false
 
 	# 多めに仕込んで、残った分が廃棄になるようにする
 	for dish: DishData in Database.dishes:
@@ -297,6 +316,16 @@ func _do_business(screen: Node) -> void:
 		if int(needed[dish_id]) > 0 and buttons.has(dish_id):
 			(buttons[dish_id] as Button).pressed.emit()
 			return
+
+
+## ボタンの真ん中を押す（pressed = true）・離す（false）操作を、本物の入力として送る
+func _send_press(button: Button, pressed: bool) -> void:
+	var event: InputEventMouseButton = InputEventMouseButton.new()
+	event.button_index = MOUSE_BUTTON_LEFT
+	event.pressed = pressed
+	event.position = button.get_global_rect().get_center()
+	event.global_position = event.position
+	get_viewport().push_input(event, true)
 
 
 func _hold(shelf: ReadyShelf, buttons: Array[Button], slot: int) -> void:
