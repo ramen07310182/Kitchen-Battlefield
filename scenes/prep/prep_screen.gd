@@ -18,6 +18,7 @@ const COLOR_STEP_OTHER := Color(0.22, 0.2, 0.19)
 
 var _step: Step = Step.MENU
 var _step_buttons: Array[Button] = []
+var _calendar_button: Button
 ## ボタンを押した結果のお知らせ。次の操作をするまで表示する
 var _notice: String = ""
 var _pending: Pending = Pending.NONE
@@ -39,6 +40,7 @@ var _after_check_start: bool = false
 @onready var _start_button: Button = %StartButton
 @onready var _dialog: ConfirmDialog = %ConfirmDialog
 @onready var _detail: DetailPopup = %DetailPopup
+@onready var _calendar: CalendarPopup = %CalendarPopup
 
 
 func _ready() -> void:
@@ -90,6 +92,16 @@ func _build_step_bar() -> void:
 		button.pressed.connect(_go_to.bind(i))
 		_step_bar.add_child(button)
 		_step_buttons.append(button)
+	# 手順の表示の横に「カレンダー」
+	var gap: Control = Control.new()
+	gap.custom_minimum_size = Vector2(16, 0)
+	_step_bar.add_child(gap)
+	var calendar_button: Button = Button.new()
+	calendar_button.text = UIText.CAL_BUTTON
+	calendar_button.custom_minimum_size = Vector2(88, 28)
+	calendar_button.pressed.connect(_calendar.open)
+	_step_bar.add_child(calendar_button)
+	_calendar_button = calendar_button
 
 
 func _on_back_pressed() -> void:

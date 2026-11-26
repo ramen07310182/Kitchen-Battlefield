@@ -1,0 +1,99 @@
+[gd_scene format=3]
+
+[ext_resource type="Script" path="res://scenes/prep/calendar_popup.gd" id="1_cal"]
+
+[node name="CalendarPopup" type="Control"]
+visible = false
+z_index = 15
+layout_mode = 3
+anchors_preset = 15
+anchor_right = 1.0
+anchor_bottom = 1.0
+grow_horizontal = 2
+grow_vertical = 2
+script = ExtResource("1_cal")
+
+[node name="Dim" type="ColorRect" parent="."]
+layout_mode = 1
+anchors_preset = 15
+anchor_right = 1.0
+anchor_bottom = 1.0
+grow_horizontal = 2
+grow_vertical = 2
+color = Color(0, 0, 0, 0.6)
+
+[node name="Center" type="CenterContainer" parent="."]
+layout_mode = 1
+anchors_preset = 15
+anchor_right = 1.0
+anchor_bottom = 1.0
+grow_horizontal = 2
+grow_vertical = 2
+mouse_filter = 2
+
+[node name="Panel" type="PanelContainer" parent="Center"]
+unique_name_in_owner = true
+layout_mode = 2
+
+[node name="VBox" type="VBoxContainer" parent="Center/Panel"]
+layout_mode = 2
+theme_override_constants/separation = 3
+
+[node name="Header" type="HBoxContainer" parent="Center/Panel/VBox"]
+layout_mode = 2
+theme_override_constants/separation = 6
+
+[node name="PrevButton" type="Button" parent="Center/Panel/VBox/Header"]
+unique_name_in_owner = true
+custom_minimum_size = Vector2(36, 28)
+layout_mode = 2
+text = "◀"
+
+[node name="MonthLabel" type="Label" parent="Center/Panel/VBox/Header"]
+unique_name_in_owner = true
+custom_minimum_size = Vector2(96, 0)
+layout_mode = 2
+theme_type_variation = &"HeaderLabel"
+text = "2027年1月"
+horizontal_alignment = 1
+
+[node name="NextButton" type="Button" parent="Center/Panel/VBox/Header"]
+unique_name_in_owner = true
+custom_minimum_size = Vector2(36, 28)
+layout_mode = 2
+text = "▶"
+
+[node name="TotalLabel" type="Label" parent="Center/Panel/VBox/Header"]
+unique_name_in_owner = true
+layout_mode = 2
+size_flags_horizontal = 3
+horizontal_alignment = 2
+text = "この月の利益"
+
+[node name="CloseButton" type="Button" parent="Center/Panel/VBox/Header"]
+unique_name_in_owner = true
+custom_minimum_size = Vector2(64, 28)
+layout_mode = 2
+text = "閉じる"
+
+[node name="Weekdays" type="GridContainer" parent="Center/Panel/VBox"]
+unique_name_in_owner = true
+layout_mode = 2
+theme_override_constants/h_separation = 2
+columns = 7
+
+[node name="Grid" type="GridContainer" parent="Center/Panel/VBox"]
+unique_name_in_owner = true
+layout_mode = 2
+theme_override_constants/h_separation = 2
+theme_override_constants/v_separation = 2
+columns = 7
+
+[node name="DetailLabel" type="Label" parent="Center/Panel/VBox"]
+unique_name_in_owner = true
+custom_minimum_size = Vector2(0, 16)
+layout_mode = 2
+theme_type_variation = &"SmallLabel"
+text = "日付を押すと、その日の結果が出ます"
+clip_text = true
+text_overrun_behavior = 3

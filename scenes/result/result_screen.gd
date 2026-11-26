@@ -5,6 +5,8 @@ extends Control
 ## 内訳では、売り切れて売り逃しが出た料理（黄）と、廃棄が多かった料理（赤）に色を付ける。
 
 signal next_day_requested
+## 「お店を強化」を押した（強化画面へ進む）
+signal upgrade_requested
 
 ## 内訳の表の列の幅（仕込み数・売れた数・売り逃し・廃棄数・売上）
 const COLUMN_WIDTHS: Array[int] = [46, 46, 56, 40, 68]
@@ -34,6 +36,8 @@ const COLOR_MINUS := Color(1.0, 0.5, 0.45)
 @onready var _dish_legend: Label = %DishLegend
 @onready var _dish_table: VBoxContainer = %DishTable
 @onready var _next_button: Button = %NextButton
+@onready var _upgrade_button: Button = %UpgradeButton
+@onready var _holiday_label: Label = %HolidayLabel
 
 
 func _ready() -> void:
@@ -85,7 +89,11 @@ func _ready() -> void:
 		stats.mistakes, GameState.reputation]
 
 	_build_dish_table(stats)
+	_upgrade_button.text = UIText.RESULT_UPGRADE
+	_holiday_label.text = ResultScreenText.holiday_note(GameState.day)
+	_holiday_label.visible = _holiday_label.text != ""
 	_next_button.pressed.connect(_on_next_pressed)
+	_upgrade_button.pressed.connect(_on_upgrade_pressed)
 
 
 ## big: 大きく出す行（利益・所持金）。そうでない行は小さい文字で、少し下げて出す
@@ -207,4 +215,11 @@ func _make_table_row(name_text: String, tag: String, values: Array, box: StyleBo
 
 func _on_next_pressed() -> void:
 	_next_button.disabled = true
+	_upgrade_button.disabled = true
 	next_day_requested.emit()
+
+
+func _on_upgrade_pressed() -> void:
+	_next_button.disabled = true
+	_upgrade_button.disabled = true
+	upgrade_requested.emit()

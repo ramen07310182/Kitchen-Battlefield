@@ -16,7 +16,7 @@ signal inventory_changed
 signal reputation_changed(value: int)
 
 const DEFAULT_SAVE_PATH := "user://save.json"
-const SAVE_VERSION := 7
+const SAVE_VERSION := 8
 
 var money: int = 0
 var day: int = 1
@@ -39,6 +39,13 @@ var last_sold_counts: Dictionary = {}
 var last_missed_counts: Dictionary = {}
 ## 店舗ランク（1始まり）。評判で上がり、一度上がったら評判が下がっても下げない（セーブする）
 var rank: int = 1
+## 日ごとの結果の履歴（カレンダー用。セーブする）。1日1行の配列で持つ（何年分たまっても軽いように）
+##   [営業日, 売上, 利益, 来客数, 評価×10（評価なしは -1）, 評判の増減]
+var history: Array[PackedInt32Array] = []
+## 営業日 → history の位置
+var _history_index: Dictionary = {}
+## 設備のレベル { 設備id: レベル }（0 = まだ買っていない。セーブする）
+var equipment_levels: Dictionary = {}
 ## 解放済みの料理のid（ランクで解放する。一度解放したら評判が下がっても使える。セーブする）
 var unlocked_dishes: Array[String] = []
 ## その日の準備を始めた時点の所持金と、その日に仕入れに使ったお金（結果画面の「所持金の増減」用。保存しない）
@@ -84,6 +91,9 @@ func _new_game() -> void:
 	last_sold_counts.clear()
 	last_missed_counts.clear()
 	rank = 1
+	history.clear()
+	_history_index.clear()
+	equipment_levels.clear()
 	unlocked_dishes.clear()
 	_unlock_by_rank()
 	_start_day_accounting()
@@ -614,6 +624,51 @@ func finish_business() -> void:
 	today.new_unlocks.clear()
 	for dish: DishData in _unlock_by_rank(day + 1):
 		today.new_unlocks.append(dish.id)
+	_record_history()
+
+
+# ---------------------------------------------------------------
+# 日ごとの結果の履歴（カレンダー）
+# ---------------------------------------------------------------
+
+const HISTORY_DAY := 0
+const HISTORY_SALES := 1
+const HISTORY_PROFIT := 2
+const HISTORY_VISITORS := 3
+const HISTORY_STARS10 := 4
+const HISTORY_REPUTATION := 5
+
+
+func _record_history() -> void:
+	var stars10: int = roundi(today.average_stars() * 10.0) if today.has_ratings() else -1
+	var row: PackedInt32Array = PackedInt32Array([day, today.sales, today.profit(), today.visitors, stars10, today.reputation_change])
+	if _history_index.has(day):
+		history[int(_history_index[day])] = row
+	else:
+		_history_index[day] = history.size()
+		history.append(row)
+
+
+## その営業日の結果（なければ空の配列）
+func get_history(business_day: int) -> PackedInt32Array:
+	if not _history_index.has(business_day):
+		return PackedInt32Array()
+	return history[int(_history_index[business_day])]
+
+
+func _set_history(rows: Variant) -> void:
+	history.clear()
+	_history_index.clear()
+	if not (rows is Array):
+		return
+	for item: Variant in rows:
+		if not (item is Array) or (item as Array).size() < 6:
+			continue
+		var row: PackedInt32Array = PackedInt32Array()
+		for i: int in 6:
+			row.append(int((item as Array)[i]))
+		_history_index[row[HISTORY_DAY]] = history.size()
+		history.append(row)
 
 
 ## 前回の営業で、その料理が何食売れたか。前回仕込んでいない（または前回がない）なら -1
@@ -650,6 +705,8 @@ func save_game() -> bool:
 		"last_missed": last_missed_counts.duplicate(),
 		"unlocked": Array(unlocked_dishes),
 		"rank": rank,
+		"equipment": equipment_levels.duplicate(),
+		"history": _history_for_save(),
 	}
 	var file: FileAccess = FileAccess.open(save_path, FileAccess.WRITE)
 	if file == null:
@@ -658,6 +715,13 @@ func save_game() -> bool:
 	file.store_string(JSON.stringify(data, "\t"))
 	file.close()
 	return true
+
+
+func _history_for_save() -> Array:
+	var rows: Array = []
+	for row: PackedInt32Array in history:
+		rows.append(Array(row))
+	return rows
 
 
 func load_game() -> bool:
@@ -715,6 +779,13 @@ func load_game() -> bool:
 	rank = clampi(maxi(int(data.get("rank", 1)), Database.get_rank_for_reputation(reputation)),
 		1, Database.get_max_rank())
 	_unlock_by_rank()
+	_set_history(data.get("history", []))
+	equipment_levels.clear()
+	var saved_equipment: Variant = data.get("equipment", {})
+	if saved_equipment is Dictionary:
+		for e: EquipmentData in Database.equipment:
+			if (saved_equipment as Dictionary).has(e.id):
+				equipment_levels[e.id] = clampi(int(saved_equipment[e.id]), 0, e.get_max_level())
 	_start_day_accounting()
 	money_changed.emit(money)
 	reputation_changed.emit(reputation)
@@ -769,5 +840,10 @@ func _migrate(data: Dictionary) -> Dictionary:
 		data["reputation"] = maxi(0, converted)
 		data["rank"] = Database.get_rank_for_reputation(maxi(0, converted))
 		version = 7
+	if version == 7:
+		# v8 でカレンダーの履歴と設備を追加。古いセーブには履歴がないので空から始める（日付は日数から計算する）
+		data["history"] = []
+		data["equipment"] = {}
+		version = 8
 	data["version"] = version
 	return data

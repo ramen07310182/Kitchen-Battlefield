@@ -5,6 +5,9 @@ extends RefCounted
 
 # --- 共通 ---
 const DAY := "%d日目"
+const DATE_FORMAT := "%d/%d/%d（%s）"
+const MONTH_DAY_FORMAT := "%d月%d日（%s）"
+const WEEKDAYS: Array[String] = ["日", "月", "火", "水", "木", "金", "土"]
 const REPUTATION := "評判 %d"
 const REPUTATION_WITH_RANK := "%s ★評判 %d"
 const TIME_LEFT := "残り %d:%02d"
@@ -155,6 +158,22 @@ const RESULT_RATING := "今日の評価"
 const RESULT_MONEY := "所持金"
 const RESULT_NO_RATING := "—"
 const RESULT_NEXT := "次の日へ"
+const RESULT_UPGRADE := "お店を強化"
+const RESULT_HOLIDAY_NEXT := "明日は定休日です（次の営業は%s）"
+
+# --- カレンダー ---
+const CAL_BUTTON := "カレンダー"
+const CAL_TITLE := "%d年%d月"
+const CAL_MONTH_TOTAL := "この月の利益 %s"
+const CAL_HOLIDAY := "定休"
+const CAL_CLOSE := "閉じる"
+const CAL_HINT := "日付を押すと、その日の結果が出ます"
+const CAL_DETAIL := "%s　%d日目　売上 %s　利益 %s　来客 %d人　評価 %s　評判 %s"
+const CAL_DETAIL_NONE := "%s　%d日目　記録がありません"
+const CAL_DETAIL_HOLIDAY := "%s　定休日"
+const CAL_DETAIL_TODAY := "%s　%d日目　これから営業する日です"
+const CAL_DETAIL_FUTURE := "%s　%d日目　まだ来ていない日です"
+const CAL_DETAIL_BEFORE := "%s　開店前です"
 
 
 ## 金額を「¥10,000」の形にする

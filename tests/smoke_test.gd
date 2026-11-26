@@ -637,8 +637,8 @@ func _do_result(screen: Node) -> void:
 	if _days_done >= DAYS_TO_RUN:
 		var saved: String = FileAccess.get_file_as_string(GameState.save_path)
 		print("[smoke] save: ", saved.replace("\n", " "))
-		_check("セーブは version 7 で、前回の置き場・売れた数・売り逃し・解放済みの料理・ランクを含む",
-			saved.contains("\"version\": 7") and saved.contains("last_shelf") and saved.contains("last_sold")
+		_check("セーブは version 8 で、前回の置き場・売れた数・売り逃し・解放済みの料理・ランク・履歴・設備を含む",
+			saved.contains("\"version\": 8") and saved.contains("\"history\"") and saved.contains("\"equipment\"") and saved.contains("last_shelf") and saved.contains("last_sold")
 			and saved.contains("last_missed") and saved.contains("\"unlocked\"") and saved.contains("\"rank\""))
 		_finish()
 
