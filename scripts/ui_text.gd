@@ -66,7 +66,7 @@ const RESULT_MONEY := "所持金"
 const RESULT_PEOPLE := "%d人"
 const RESULT_COUNT := "%d件"
 const RESULT_TIMES := "%d回"
-const RESULT_NO_RATING := "—"
+const RESULT_NO_RATING := "なし"
 const RESULT_NEXT := "次の日へ"
 
 

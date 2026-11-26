@@ -1,4 +1,14 @@
 [gd_resource type="Theme" format=3]
 
+[ext_resource type="FontFile" path="res://assets/fonts/pixel_mplus/PixelMplus12-Regular.ttf" id="1_font12"]
+[ext_resource type="FontFile" path="res://assets/fonts/pixel_mplus/PixelMplus10-Regular.ttf" id="2_font10"]
+
 [resource]
-default_font_size = 11
+default_font = ExtResource("1_font12")
+default_font_size = 12
+LargeLabel/base_type = &"Label"
+LargeLabel/font_sizes/font_size = 24
+LargeLabel/fonts/font = ExtResource("1_font12")
+SmallLabel/base_type = &"Label"
+SmallLabel/font_sizes/font_size = 10
+SmallLabel/fonts/font = ExtResource("2_font10")

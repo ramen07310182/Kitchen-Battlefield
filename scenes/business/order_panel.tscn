@@ -19,7 +19,7 @@ text = "注文状況"
 unique_name_in_owner = true
 layout_mode = 2
 theme_override_colors/font_color = Color(0.6, 0.6, 0.6, 1)
-theme_override_font_sizes/font_size = 9
+theme_type_variation = &"SmallLabel"
 text = "注文はまだありません"
 
 [node name="OrderList" type="VBoxContainer" parent="VBox"]

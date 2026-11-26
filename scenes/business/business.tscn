@@ -101,7 +101,7 @@ anchors_preset = 10
 anchor_right = 1.0
 offset_bottom = 16.0
 grow_horizontal = 2
-theme_override_font_sizes/font_size = 9
+theme_type_variation = &"SmallLabel"
 text = "入口"
 horizontal_alignment = 1
 
@@ -158,7 +158,7 @@ grow_horizontal = 2
 grow_vertical = 2
 theme_override_colors/font_outline_color = Color(0, 0, 0, 1)
 theme_override_constants/outline_size = 6
-theme_override_font_sizes/font_size = 24
+theme_type_variation = &"LargeLabel"
 text = "本日の営業終了！"
 horizontal_alignment = 1
 vertical_alignment = 1
