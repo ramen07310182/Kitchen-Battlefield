@@ -34,15 +34,24 @@ func _run() -> void:
 
 	# 準備画面: 仕込み数・開店時の置き場・仕入れ予定を入れ、食材不足の赤い表示も見える状態にする
 	var prep: Node = _current_screen(main)
-	GameState.change_prep(Database.dishes[0].id, 3)
-	GameState.change_prep(Database.dishes[1].id, 2)
-	GameState.change_prep(Database.dishes[2].id, 3)
+	# すべての料理を仕込む（在庫で作れる分まで）
+	for dish: DishData in Database.dishes:
+		GameState.change_prep(dish.id, 2)
 	GameState.add_to_shelf_plan(Database.dishes[0].id)
 	GameState.add_to_shelf_plan(Database.dishes[1].id)
 	GameState.change_purchase(Database.ingredients[0].id, 10)
 	GameState.change_purchase(Database.ingredients[1].id, 5)
 	await _wait_frames(3)
 	await _shot("prep")
+	# 長押しの詳細（料理と食材）
+	prep.call("_show_dish_detail", Database.dishes[3].id)
+	await _wait_frames(4)
+	await _shot("prep_detail_dish")
+	prep.call("_show_ingredient_detail", Database.ingredients[1].id)
+	await _wait_frames(4)
+	await _shot("prep_detail_ingredient")
+	(prep.get("_detail") as DetailPopup).close()
+	await _wait_frames(2)
 	# 仕入れの確認ダイアログ
 	(prep.get("_purchase_button") as Button).pressed.emit()
 	await _wait_frames(3)

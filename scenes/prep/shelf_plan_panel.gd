@@ -8,14 +8,13 @@ signal add_requested(dish_id: String)
 signal remove_requested(index: int)
 signal clear_requested
 
-const SLOT_SIZE := Vector2(40, 30)
+const SLOT_SIZE := Vector2(40, 28)
 
 var _slot_buttons: Array[Button] = []
 var _add_buttons: Dictionary = {}  # 料理id -> Button
 var _clear_button: Button
 
 @onready var _title_label: Label = %TitleLabel
-@onready var _help_label: Label = %HelpLabel
 @onready var _slots: HBoxContainer = %Slots
 @onready var _add_row: HFlowContainer = %AddRow
 @onready var _header: HBoxContainer = %Header
@@ -23,7 +22,6 @@ var _clear_button: Button
 
 func _ready() -> void:
 	add_theme_stylebox_override("panel", UIUtil.flat_box(Color(0.18, 0.19, 0.2)))
-	_help_label.text = UIText.PREP_SHELF_HELP
 	for i: int in Database.config.shelf_capacity:
 		var slot: Button = Button.new()
 		slot.custom_minimum_size = SLOT_SIZE
@@ -35,13 +33,13 @@ func _ready() -> void:
 		_slot_buttons.append(slot)
 	for dish: DishData in Database.dishes:
 		var button: Button = Button.new()
-		button.custom_minimum_size = Vector2(58, 30)
+		button.custom_minimum_size = Vector2(56, 28)
 		button.text = UIText.PREP_SHELF_ADD % dish.short_name
 		button.pressed.connect(func() -> void: add_requested.emit(dish.id))
 		_add_row.add_child(button)
 		_add_buttons[dish.id] = button
 	_clear_button = Button.new()
-	_clear_button.custom_minimum_size = Vector2(64, 26)
+	_clear_button.custom_minimum_size = Vector2(64, 24)
 	_clear_button.text = UIText.PREP_SHELF_CLEAR
 	_clear_button.pressed.connect(clear_requested.emit)
 	_header.add_child(_clear_button)

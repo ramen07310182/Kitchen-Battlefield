@@ -60,7 +60,8 @@
 - 例: 仮の絵 `customers/salaryman.png`（4コマ）が置いてある。**本物の絵ができたら置き換えるか削除する**（`data/sprites/customers/salaryman.tres` も一緒に）
 
 ### 2. 料理（料理ごと）
-今ある料理: `karaage`（唐揚げ定食）、`yakizakana`（焼き魚定食）、`shogayaki`（生姜焼き定食）。
+今ある料理: `karaage`（唐揚げ定食）、`yakizakana`（焼き魚定食）、`shogayaki`（生姜焼き定食）、`oyakodon`（親子丼定食）、`yasaiitame`（野菜炒め定食）。
+- 置き場所: `dishes/karaage.png`、`dishes/yakizakana.png`、`dishes/shogayaki.png`、`dishes/oyakodon.png`、`dishes/yasaiitame.png`（どれも 24×24・1コマ）
 
 | ファイル | 大きさ | アニメーション | 向き | 基準点 | 表示される場所 |
 |---|---|---|---|---|---|

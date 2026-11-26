@@ -93,7 +93,7 @@ text = "仕込み数 合計"
 
 [node name="RepeatPrepButton" type="Button" parent="SafeArea/VBox/Body/MenuPanel/PrepFooter"]
 unique_name_in_owner = true
-custom_minimum_size = Vector2(130, 30)
+custom_minimum_size = Vector2(130, 26)
 layout_mode = 2
 text = "前回と同じ仕込み"
 
