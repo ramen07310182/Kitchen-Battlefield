@@ -28,6 +28,12 @@ extends Resource
 ## 営業終了後の画面に切り替わるまで（秒）
 @export var end_delay: float = 1.5
 
+@export_group("評判と来店")
+## 評判1ポイントごとに、来店間隔をどれだけ縮めるか（0.004 = 0.4%）
+@export var interval_reduction_per_reputation: float = 0.004
+## 来店間隔の倍率の下限（0.5 = どれだけ評判が高くても間隔は半分まで）
+@export var min_interval_scale: float = 0.5
+
 @export_group("経費")
 ## その他経費（1日あたり固定）
 @export var other_expense: int = 2000
@@ -52,3 +58,13 @@ extends Resource
 ## 仕入れボタン1回で買う個数（小・大）
 @export var buy_step_small: int = 1
 @export var buy_step_large: int = 5
+
+
+## 評判に応じた来店間隔の倍率（1.0 = 基本のまま、小さいほどよく来る）
+func get_spawn_interval_scale(reputation: int) -> float:
+	return clampf(1.0 - float(reputation) * interval_reduction_per_reputation, min_interval_scale, 1.0)
+
+
+## 評判に応じた平均の来店間隔（秒）
+func get_average_spawn_interval(reputation: int) -> float:
+	return (spawn_interval_min + spawn_interval_max) * 0.5 * get_spawn_interval_scale(reputation)

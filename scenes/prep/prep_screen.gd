@@ -15,6 +15,7 @@ var _ingredient_rows: Array[IngredientRow] = []
 @onready var _ingredient_list: VBoxContainer = %IngredientList
 @onready var _prep_total_label: Label = %PrepTotalLabel
 @onready var _message_label: Label = %MessageLabel
+@onready var _pace_label: Label = %PaceLabel
 @onready var _start_button: Button = %StartButton
 
 
@@ -53,6 +54,12 @@ func _refresh() -> void:
 	var has_menu: bool = not GameState.today_menu.is_empty()
 	_start_button.disabled = not has_menu
 	_message_label.text = UIText.PREP_HINT if has_menu else UIText.PREP_NEED_MENU
+	var cfg: GameConfig = Database.config
+	_pace_label.text = UIText.PREP_PACE % [
+		GameState.reputation,
+		1.0 / cfg.get_spawn_interval_scale(GameState.reputation),
+		cfg.get_average_spawn_interval(GameState.reputation),
+	]
 
 
 func _on_buy_requested(ingredient_id: String, count: int) -> void:

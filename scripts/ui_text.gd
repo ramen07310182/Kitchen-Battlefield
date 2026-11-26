@@ -24,6 +24,7 @@ const PREP_BUY := "+%d"
 const PREP_START := "営業開始"
 const PREP_NEED_MENU := "メニューを1つ以上「出す」にしてください"
 const PREP_HINT := "準備ができたら営業開始！"
+const PREP_PACE := "評判 %d：お客さんが来るペース ×%.2f（平均 %.1f秒ごと）"
 
 # --- 営業 ---
 const CHEF := "店主"

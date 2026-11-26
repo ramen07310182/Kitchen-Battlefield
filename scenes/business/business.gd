@@ -43,7 +43,7 @@ func _ready() -> void:
 	_spawner.spawn_requested.connect(_on_spawn_requested)
 
 	_on_shelf_changed()
-	_spawner.start(_config, menu)
+	_spawner.start(_config, menu, GameState.reputation)
 
 
 func _process(delta: float) -> void:

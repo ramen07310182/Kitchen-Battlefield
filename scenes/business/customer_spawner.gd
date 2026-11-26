@@ -10,11 +10,14 @@ var active: bool = false
 var _config: GameConfig
 var _menu: Array[DishData] = []
 var _timer: float = 0.0
+## 来店間隔の倍率（評判が高いほど小さい）。営業開始時の評判で決め、その日の間は変えない
+var _interval_scale: float = 1.0
 
 
-func start(config: GameConfig, menu: Array[DishData]) -> void:
+func start(config: GameConfig, menu: Array[DishData], reputation: int) -> void:
 	_config = config
 	_menu = menu
+	_interval_scale = config.get_spawn_interval_scale(reputation)
 	_timer = config.first_spawn_delay
 	active = true
 
@@ -29,7 +32,7 @@ func _process(delta: float) -> void:
 	_timer -= delta
 	if _timer > 0.0:
 		return
-	_timer = randf_range(_config.spawn_interval_min, _config.spawn_interval_max)
+	_timer = randf_range(_config.spawn_interval_min, _config.spawn_interval_max) * _interval_scale
 	var customer_type: CustomerTypeData = _pick_customer_type()
 	if customer_type == null:
 		return

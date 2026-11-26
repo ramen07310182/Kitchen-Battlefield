@@ -54,7 +54,9 @@ func _do_prep(screen: Node) -> void:
 		GameState.buy_ingredient(ing.id, 5)
 	for dish: DishData in Database.dishes:
 		GameState.change_prep(dish.id, 1)
-	print("[smoke] prep: money=%d prep_total=%d" % [GameState.money, GameState.get_total_prep()])
+	print("[smoke] prep: money=%d prep_total=%d rep=%d interval_scale=%.3f" % [
+		GameState.money, GameState.get_total_prep(), GameState.reputation,
+		Database.config.get_spawn_interval_scale(GameState.reputation)])
 	(screen.get("_start_button") as Button).pressed.emit()
 
 
