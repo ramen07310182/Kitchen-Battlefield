@@ -32,11 +32,23 @@ func _run() -> void:
 	add_child(main)
 	await _wait_frames(3)
 
-	# 準備画面: 1品だけ仕込んで、ほかは食材不足の赤い表示が見える状態にする
+	# 準備画面: 仕込み数・開店時の置き場・仕入れ予定を入れ、食材不足の赤い表示も見える状態にする
 	var prep: Node = _current_screen(main)
-	GameState.change_prep(Database.dishes[0].id, 2)
+	GameState.change_prep(Database.dishes[0].id, 3)
+	GameState.change_prep(Database.dishes[1].id, 2)
+	GameState.add_to_shelf_plan(Database.dishes[0].id)
+	GameState.add_to_shelf_plan(Database.dishes[1].id)
+	GameState.change_purchase(Database.ingredients[0].id, 10)
+	GameState.change_purchase(Database.ingredients[1].id, 5)
 	await _wait_frames(3)
 	await _shot("prep")
+	# 仕入れの確認ダイアログ
+	(prep.get("_purchase_button") as Button).pressed.emit()
+	await _wait_frames(3)
+	await _shot("prep_dialog")
+	var dialog: ConfirmDialog = prep.get("_dialog")
+	(dialog.get("_ok_button") as Button).pressed.emit()
+	await _wait_frames(2)
 
 	(prep.get("_start_button") as Button).pressed.emit()
 	await _wait_frames(2)

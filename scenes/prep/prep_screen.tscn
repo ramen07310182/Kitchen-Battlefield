@@ -3,6 +3,8 @@
 [ext_resource type="Script" path="res://scenes/prep/prep_screen.gd" id="1_prep"]
 [ext_resource type="Script" path="res://scripts/ui/safe_area_container.gd" id="2_safe"]
 [ext_resource type="PackedScene" path="res://scenes/common/top_bar.tscn" id="3_top"]
+[ext_resource type="PackedScene" path="res://scenes/prep/shelf_plan_panel.tscn" id="4_shelf"]
+[ext_resource type="PackedScene" path="res://scenes/common/confirm_dialog.tscn" id="5_dialog"]
 
 [node name="PrepScreen" type="Control"]
 layout_mode = 3
@@ -48,14 +50,28 @@ theme_override_constants/separation = 6
 [node name="MenuPanel" type="VBoxContainer" parent="SafeArea/VBox/Body"]
 layout_mode = 2
 size_flags_horizontal = 3
-size_flags_stretch_ratio = 1.15
 theme_override_constants/separation = 3
 
-[node name="MenuTitle" type="Label" parent="SafeArea/VBox/Body/MenuPanel"]
+[node name="MenuHeader" type="HBoxContainer" parent="SafeArea/VBox/Body/MenuPanel"]
+layout_mode = 2
+theme_override_constants/separation = 6
+
+[node name="MenuTitle" type="Label" parent="SafeArea/VBox/Body/MenuPanel/MenuHeader"]
 unique_name_in_owner = true
 layout_mode = 2
 theme_type_variation = &"HeaderLabel"
-text = "今日のメニュー・仕込み"
+text = "今日のメニュー（仕込み数）"
+
+[node name="MenuHelp" type="Label" parent="SafeArea/VBox/Body/MenuPanel/MenuHeader"]
+unique_name_in_owner = true
+layout_mode = 2
+size_flags_horizontal = 3
+size_flags_vertical = 8
+theme_type_variation = &"SmallLabel"
+theme_override_colors/font_color = Color(0.7, 0.7, 0.7, 1)
+text = "説明"
+clip_text = true
+text_overrun_behavior = 3
 
 [node name="MenuList" type="VBoxContainer" parent="SafeArea/VBox/Body/MenuPanel"]
 unique_name_in_owner = true
@@ -70,14 +86,17 @@ theme_override_constants/separation = 6
 unique_name_in_owner = true
 layout_mode = 2
 size_flags_horizontal = 3
-text = "仕込み合計"
-autowrap_mode = 3
+text = "仕込み数 合計"
 
 [node name="RepeatPrepButton" type="Button" parent="SafeArea/VBox/Body/MenuPanel/PrepFooter"]
 unique_name_in_owner = true
-custom_minimum_size = Vector2(120, 32)
+custom_minimum_size = Vector2(130, 30)
 layout_mode = 2
 text = "前回と同じ仕込み"
+
+[node name="ShelfPlanPanel" parent="SafeArea/VBox/Body/MenuPanel" instance=ExtResource("4_shelf")]
+unique_name_in_owner = true
+layout_mode = 2
 
 [node name="IngredientPanel" type="VBoxContainer" parent="SafeArea/VBox/Body"]
 layout_mode = 2
@@ -89,6 +108,8 @@ unique_name_in_owner = true
 layout_mode = 2
 theme_type_variation = &"HeaderLabel"
 text = "食材の仕入れ"
+clip_text = true
+text_overrun_behavior = 3
 
 [node name="IngredientList" type="VBoxContainer" parent="SafeArea/VBox/Body/IngredientPanel"]
 unique_name_in_owner = true
@@ -97,17 +118,20 @@ theme_override_constants/separation = 3
 
 [node name="Footer" type="HBoxContainer" parent="SafeArea/VBox"]
 layout_mode = 2
-theme_override_constants/separation = 8
+theme_override_constants/separation = 6
 
 [node name="FooterTexts" type="VBoxContainer" parent="SafeArea/VBox/Footer"]
 layout_mode = 2
 size_flags_horizontal = 3
-theme_override_constants/separation = 2
+size_flags_vertical = 4
+theme_override_constants/separation = 0
 
 [node name="MessageLabel" type="Label" parent="SafeArea/VBox/Footer/FooterTexts"]
 unique_name_in_owner = true
 layout_mode = 2
 text = "準備ができたら営業開始！"
+clip_text = true
+text_overrun_behavior = 3
 
 [node name="PaceLabel" type="Label" parent="SafeArea/VBox/Footer/FooterTexts"]
 unique_name_in_owner = true
@@ -115,9 +139,40 @@ layout_mode = 2
 theme_type_variation = &"SmallLabel"
 theme_override_colors/font_color = Color(0.75, 0.75, 0.75, 1)
 text = "来店ペース"
+clip_text = true
+text_overrun_behavior = 3
+
+[node name="PurchaseTexts" type="VBoxContainer" parent="SafeArea/VBox/Footer"]
+layout_mode = 2
+size_flags_vertical = 4
+theme_override_constants/separation = 0
+
+[node name="PurchaseTotalLabel" type="Label" parent="SafeArea/VBox/Footer/PurchaseTexts"]
+unique_name_in_owner = true
+layout_mode = 2
+text = "仕入れ予定"
+horizontal_alignment = 2
+
+[node name="PurchaseNoteLabel" type="Label" parent="SafeArea/VBox/Footer/PurchaseTexts"]
+unique_name_in_owner = true
+layout_mode = 2
+theme_type_variation = &"SmallLabel"
+theme_override_colors/font_color = Color(1, 0.45, 0.4, 1)
+text = "所持金が足りません"
+horizontal_alignment = 2
+
+[node name="PurchaseButton" type="Button" parent="SafeArea/VBox/Footer"]
+unique_name_in_owner = true
+custom_minimum_size = Vector2(84, 36)
+layout_mode = 2
+text = "仕入れる"
 
 [node name="StartButton" type="Button" parent="SafeArea/VBox/Footer"]
 unique_name_in_owner = true
-custom_minimum_size = Vector2(130, 36)
+custom_minimum_size = Vector2(100, 36)
 layout_mode = 2
 text = "営業開始"
+
+[node name="ConfirmDialog" parent="." instance=ExtResource("5_dialog")]
+unique_name_in_owner = true
+layout_mode = 1

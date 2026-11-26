@@ -23,7 +23,7 @@ extends Resource
 @export var order_delay: float = 1.5
 ## 好きな料理が選ばれる重み（好きでない料理は1）
 @export var favorite_weight: float = 3.0
-## 完成品置き場の枠数（仕込みの合計もこれが上限）
+## 置き場の枠数（開店時に並べておける数もこれが上限）
 @export var shelf_capacity: int = 6
 ## 営業終了後の画面に切り替わるまで（秒）
 @export var end_delay: float = 1.5
@@ -55,9 +55,17 @@ extends Resource
 @export var stars_angry: float = 1.0
 
 @export_group("営業準備")
-## 仕入れボタン1回で買う個数（小・大）
+## 仕入れ予定ボタン1回で増減する個数（小・大）
 @export var buy_step_small: int = 1
 @export var buy_step_large: int = 5
+## 料理1種類あたりの仕込み数の上限
+@export var max_prep_per_dish: int = 99
+## 「－＋」を長押ししたとき: くり返しが始まるまでの秒数・くり返しの間隔（秒）
+@export var hold_repeat_delay: float = 0.4
+@export var hold_repeat_interval: float = 0.08
+## 長押しをこの秒数続けると、1回に増減する数を hold_fast_step にする
+@export var hold_fast_after: float = 1.2
+@export var hold_fast_step: int = 5
 ## 在庫不足の警告: 見積もった必要数にこの倍率をかけた数より在庫が少ないと赤くする
 ## （1.0 = 見積もりどおり、0.8 = 少し甘め、1.2 = 余裕を持たせる）
 @export var stock_warning_ratio: float = 1.0

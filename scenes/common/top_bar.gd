@@ -20,9 +20,9 @@ func _ready() -> void:
 	_on_reputation_changed(GameState.reputation)
 
 
-func set_time_left(seconds: float, is_open: bool) -> void:
+func set_time_left(seconds: float, is_open: bool, sold_out: bool = false) -> void:
 	if not is_open:
-		_time_label.text = UIText.TIME_CLOSED
+		_time_label.text = UIText.TIME_SOLD_OUT if sold_out else UIText.TIME_CLOSED
 		_time_label.modulate = Color(1.0, 0.6, 0.5)
 		return
 	var total: int = ceili(seconds)

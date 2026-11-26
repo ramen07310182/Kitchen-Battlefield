@@ -10,6 +10,11 @@ var completed_orders: int = 0
 var left_angry: int = 0
 var mistakes: int = 0
 var reputation_change: int = 0
+## 営業終了時に残って捨てた料理（残り・置き場・調理中）の数と原価。原価は ingredient_cost に含まれている
+var waste_count: int = 0
+var waste_cost: int = 0
+## 注文できる料理がなくなって、早めに閉店した
+var sold_out: bool = false
 
 var _star_total: float = 0.0
 var _star_count: int = 0

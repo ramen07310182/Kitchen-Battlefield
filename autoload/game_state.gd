@@ -1,26 +1,38 @@
 extends Node
 ## ゲーム全体の状態（オートロード: GameState）。
-## 所持金・日数・在庫・評判・今日のメニューと仕込み・今日の集計を持ち、セーブ／ロードを行う。
+## 所持金・日数・在庫・評判、営業準備の内容（仕入れ予定・今日のメニュー・仕込み数・開店時の置き場）、
+## 今日の集計を持ち、セーブ／ロードを行う。
+##
+## 用語:
+##   仕込み数: その日に出せる料理の数（料理ごとに 0〜99）。食材は営業開始のときにまとめて在庫から引く
+##   残り:     仕込み数のうち、まだ店主が作っていない数（営業中）
+##   置き場:   完成した料理を置く場所（6枠）。開店時に並べておく分も仕込み数から使う
 
 signal money_changed(value: int)
+## 在庫・仕入れ予定・メニュー・仕込み数・置き場の初期配置のどれかが変わった
 signal inventory_changed
 signal reputation_changed(value: int)
 
 const DEFAULT_SAVE_PATH := "user://save.json"
-const SAVE_VERSION := 2
+const SAVE_VERSION := 3
 
 var money: int = 0
 var day: int = 1
 var reputation: int = 0
-## { 食材id: 個数 }
+## 確定した在庫 { 食材id: 個数 }
 var inventory: Dictionary = {}
+## 仕入れ予定 { 食材id: 個数 }（「仕入れる」で確定するまで、お金も在庫も変わらない。保存しない）
+var purchase_plan: Dictionary = {}
 var today: DayStats = DayStats.new()
 ## 今日出す料理のid（保存しない。アプリを起動中は前日の選択を引き継ぐ）
 var today_menu: Array[String] = []
-## 営業開始時に作っておく個数 { 料理id: 個数 }
+## 仕込み数 { 料理id: 個数 }
 var prep_counts: Dictionary = {}
-## 前回の営業で実際に仕込んだ個数 { 料理id: 個数 }（「前回と同じ仕込み」用。セーブする）
+## 開店時に置き場に並べておく料理（並べる順。最大 shelf_capacity 個）
+var shelf_plan: Array[String] = []
+## 前回の営業の仕込み数と置き場の初期配置（「前回と同じ仕込み」用。セーブする）
 var last_prep_counts: Dictionary = {}
+var last_shelf_plan: Array[String] = []
 ## セーブファイルの場所。テストのときだけ別の場所に切り替える
 var save_path: String = DEFAULT_SAVE_PATH
 
@@ -52,11 +64,14 @@ func _new_game() -> void:
 	inventory.clear()
 	for ing: IngredientData in Database.ingredients:
 		inventory[ing.id] = int(cfg.start_inventory.get(ing.id, 0))
+	purchase_plan.clear()
 	today_menu.clear()
 	for dish: DishData in Database.dishes:
 		today_menu.append(dish.id)
 	prep_counts.clear()
+	shelf_plan.clear()
 	last_prep_counts.clear()
+	last_shelf_plan.clear()
 
 
 # ---------------------------------------------------------------
@@ -73,53 +88,83 @@ func add_reputation(delta: int) -> void:
 	reputation_changed.emit(reputation)
 
 
+## 確定した在庫（仕入れ予定は含まない）
 func get_stock(ingredient_id: String) -> int:
 	return int(inventory.get(ingredient_id, 0))
 
 
-func buy_ingredient(ingredient_id: String, count: int) -> bool:
-	var ing: IngredientData = Database.get_ingredient(ingredient_id)
-	if ing == null or count <= 0:
+# ---------------------------------------------------------------
+# 仕入れ予定（確定式）
+# ---------------------------------------------------------------
+
+func get_planned_purchase(ingredient_id: String) -> int:
+	return int(purchase_plan.get(ingredient_id, 0))
+
+
+## 仕入れ予定を増減する。0未満にはならない（今ある在庫は減らせない）
+func change_purchase(ingredient_id: String, delta: int) -> void:
+	if Database.get_ingredient(ingredient_id) == null:
+		return
+	var next: int = maxi(0, get_planned_purchase(ingredient_id) + delta)
+	if next == 0:
+		purchase_plan.erase(ingredient_id)
+	else:
+		purchase_plan[ingredient_id] = next
+	inventory_changed.emit()
+
+
+func has_purchase_plan() -> bool:
+	return not purchase_plan.is_empty()
+
+
+## 仕入れ予定の合計金額
+func get_purchase_total() -> int:
+	var total: int = 0
+	for ing_id: String in purchase_plan:
+		var ing: IngredientData = Database.get_ingredient(ing_id)
+		if ing != null:
+			total += ing.price * int(purchase_plan[ing_id])
+	return total
+
+
+func can_afford_purchase() -> bool:
+	return get_purchase_total() <= money
+
+
+## 仕入れ予定を確定する（お金を払って在庫に入れる）。所持金が足りなければ何もしない
+func confirm_purchase() -> bool:
+	if not has_purchase_plan() or not can_afford_purchase():
 		return false
-	var cost: int = ing.price * count
-	if cost > money:
-		return false
-	inventory[ingredient_id] = get_stock(ingredient_id) + count
-	add_money(-cost)
+	var total: int = get_purchase_total()
+	for ing_id: String in purchase_plan:
+		inventory[ing_id] = get_stock(ing_id) + int(purchase_plan[ing_id])
+	purchase_plan.clear()
+	add_money(-total)
 	inventory_changed.emit()
 	return true
 
 
-## 営業中に料理を1つ作れるだけの食材があるか
-func has_ingredients(dish: DishData) -> bool:
-	for ing_id: String in dish.ingredients:
-		if get_stock(ing_id) < int(dish.ingredients[ing_id]):
-			return false
-	return true
-
-
-## 料理1つ分の食材を使う。原価は今日の集計に入る
-func consume_ingredients(dish: DishData) -> void:
-	for ing_id: String in dish.ingredients:
-		inventory[ing_id] = get_stock(ing_id) - int(dish.ingredients[ing_id])
-	today.ingredient_cost += Database.get_dish_cost(dish)
+func clear_purchase_plan() -> void:
+	purchase_plan.clear()
 	inventory_changed.emit()
 
 
 # ---------------------------------------------------------------
-# 今日のメニューと仕込み（営業準備画面）
+# 今日のメニューと仕込み数（営業準備画面）
 # ---------------------------------------------------------------
 
 func is_on_menu(dish_id: String) -> bool:
 	return today_menu.has(dish_id)
 
 
+## メニューから外すと、その料理の仕込み数と置き場の初期配置も0にする
 func set_on_menu(dish_id: String, on: bool) -> void:
 	if on and not today_menu.has(dish_id):
 		today_menu.append(dish_id)
 	elif not on:
 		today_menu.erase(dish_id)
 		prep_counts.erase(dish_id)
+		_trim_shelf_plan(dish_id)
 	inventory_changed.emit()
 
 
@@ -143,7 +188,7 @@ func get_total_prep() -> int:
 	return total
 
 
-## 仕込みのために取っておく食材の数
+## 仕込みで使う食材の数（営業開始のときに在庫から引く分）
 func get_reserved(ingredient_id: String) -> int:
 	var total: int = 0
 	for dish_id: String in prep_counts:
@@ -153,10 +198,11 @@ func get_reserved(ingredient_id: String) -> int:
 	return total
 
 
+## 仕込み数をあと1増やせるか（上限 99、確定した在庫で判定）
 func can_add_prep(dish: DishData) -> bool:
 	if not is_on_menu(dish.id):
 		return false
-	if get_total_prep() >= Database.config.shelf_capacity:
+	if get_prep_count(dish.id) >= Database.config.max_prep_per_dish:
 		return false
 	for ing_id: String in dish.ingredients:
 		if get_stock(ing_id) - get_reserved(ing_id) < int(dish.ingredients[ing_id]):
@@ -164,39 +210,106 @@ func can_add_prep(dish: DishData) -> bool:
 	return true
 
 
-func change_prep(dish_id: String, delta: int) -> void:
+## 仕込み数を増減する。増やすときは作れる分だけ増やす。実際に変わった数を返す
+func change_prep(dish_id: String, delta: int) -> int:
 	var dish: DishData = Database.get_dish(dish_id)
-	if dish == null:
-		return
-	if delta > 0 and not can_add_prep(dish):
-		return
-	var next: int = maxi(0, get_prep_count(dish_id) + delta)
+	if dish == null or delta == 0:
+		return 0
+	var before: int = get_prep_count(dish_id)
+	var next: int = before
+	if delta > 0:
+		for i: int in delta:
+			if not can_add_prep(dish):
+				break
+			next += 1
+			prep_counts[dish_id] = next
+	else:
+		next = maxi(0, before + delta)
 	if next == 0:
 		prep_counts.erase(dish_id)
 	else:
 		prep_counts[dish_id] = next
-	inventory_changed.emit()
+	_trim_shelf_plan(dish_id)
+	if next != before:
+		inventory_changed.emit()
+	return next - before
 
 
-## 今日のメニュー・仕込み・評判から見た、食材ごとの必要数の目安 { 食材id: 個数 }
+## 今日のメニュー・仕込み数・評判から見た、食材ごとの必要数の目安 { 食材id: 個数 }
 func get_ingredient_needs() -> Dictionary:
 	return DemandEstimator.ingredient_needs(
 		get_menu_dishes(), prep_counts, Database.customer_types, Database.config, reputation)
 
 
-## 目安に対して足りない数（足りていれば0）
+## 料理ごとの注文数の目安 { 料理id: 数 }
+func get_expected_orders() -> Dictionary:
+	return DemandEstimator.expected_orders(get_menu_dishes(), Database.customer_types, Database.config, reputation)
+
+
+## 目安に対して、確定した在庫で足りない数（足りていれば0）
 func get_shortage(ingredient_id: String, needs: Dictionary) -> int:
 	return maxi(0, int(needs.get(ingredient_id, 0)) - get_stock(ingredient_id))
 
+
+## 目安に対して、仕入れ予定どおりに仕入れても足りない数
+func get_shortage_after_purchase(ingredient_id: String, needs: Dictionary) -> int:
+	return maxi(0, get_shortage(ingredient_id, needs) - get_planned_purchase(ingredient_id))
+
+
+# ---------------------------------------------------------------
+# 開店時の置き場
+# ---------------------------------------------------------------
+
+func get_shelf_plan_count(dish_id: String) -> int:
+	return shelf_plan.count(dish_id)
+
+
+## 開店時の置き場にもう1つ並べられるか（枠が空いていて、仕込み数を超えない）
+func can_add_to_shelf_plan(dish_id: String) -> bool:
+	return shelf_plan.size() < Database.config.shelf_capacity \
+		and get_shelf_plan_count(dish_id) < get_prep_count(dish_id)
+
+
+func add_to_shelf_plan(dish_id: String) -> bool:
+	if not can_add_to_shelf_plan(dish_id):
+		return false
+	shelf_plan.append(dish_id)
+	inventory_changed.emit()
+	return true
+
+
+## 開店時の置き場の index 番目を外す
+func remove_from_shelf_plan(index: int) -> void:
+	if index < 0 or index >= shelf_plan.size():
+		return
+	shelf_plan.remove_at(index)
+	inventory_changed.emit()
+
+
+func clear_shelf_plan() -> void:
+	shelf_plan.clear()
+	inventory_changed.emit()
+
+
+## 仕込み数を超えて並べている分を、後ろから外す
+func _trim_shelf_plan(dish_id: String) -> void:
+	while get_shelf_plan_count(dish_id) > get_prep_count(dish_id):
+		shelf_plan.remove_at(shelf_plan.rfind(dish_id))
+
+
+# ---------------------------------------------------------------
+# 前回と同じ仕込み
+# ---------------------------------------------------------------
 
 func has_last_prep() -> bool:
 	return not last_prep_counts.is_empty()
 
 
-## 前回と同じ仕込みにする。前回仕込んだ料理はメニューに入れる。
-## 食材や枠が足りない分は入れられない。全部入れられたら true
+## 仕込み数と置き場の初期配置を前回と同じにする。前回仕込んだ料理はメニューに入れる。
+## 食材が足りない分は入れられない。全部入れられたら true
 func apply_last_prep() -> bool:
 	prep_counts.clear()
+	shelf_plan.clear()
 	var complete: bool = true
 	for dish: DishData in Database.dishes:
 		var target: int = int(last_prep_counts.get(dish.id, 0))
@@ -209,6 +322,11 @@ func apply_last_prep() -> bool:
 				complete = false
 				break
 			prep_counts[dish.id] = get_prep_count(dish.id) + 1
+	for dish_id: String in last_shelf_plan:
+		if can_add_to_shelf_plan(dish_id):
+			shelf_plan.append(dish_id)
+		else:
+			complete = false
 	inventory_changed.emit()
 	return complete
 
@@ -217,21 +335,36 @@ func apply_last_prep() -> bool:
 # 営業の開始・集計・終了
 # ---------------------------------------------------------------
 
-## 今日の集計をリセットし、仕込みの分の食材を使う。作っておいた料理のidを返す
-func begin_business() -> Array[String]:
+## 今日の集計をリセットし、仕込み数の分の食材をまとめて在庫から引く。
+## 仕込み数と開店時の置き場を返し、準備画面の入力は空にする。
+## 戻り値: { "prep": { 料理id: 仕込み数 }, "shelf": Array[String] }
+func begin_business() -> Dictionary:
 	today = DayStats.new()
-	var prepared: Array[String] = []
+	var prep: Dictionary = {}
 	for dish: DishData in get_menu_dishes():
-		for i: int in get_prep_count(dish.id):
-			if not has_ingredients(dish):
-				break
-			consume_ingredients(dish)
-			prepared.append(dish.id)
-	last_prep_counts.clear()
-	for dish_id: String in prepared:
-		last_prep_counts[dish_id] = int(last_prep_counts.get(dish_id, 0)) + 1
+		var count: int = get_prep_count(dish.id)
+		# 念のため、在庫で作れる分に収める（ふつうは準備画面で上限を守っている）
+		for ing_id: String in dish.ingredients:
+			count = mini(count, get_stock(ing_id) / maxi(1, int(dish.ingredients[ing_id])))
+		if count <= 0:
+			continue
+		for ing_id: String in dish.ingredients:
+			inventory[ing_id] = get_stock(ing_id) - int(dish.ingredients[ing_id]) * count
+		today.ingredient_cost += Database.get_dish_cost(dish) * count
+		prep[dish.id] = count
+	var shelf: Array[String] = []
+	var placed: Dictionary = {}
+	for dish_id: String in shelf_plan:
+		if shelf.size() < Database.config.shelf_capacity and int(placed.get(dish_id, 0)) < int(prep.get(dish_id, 0)):
+			shelf.append(dish_id)
+			placed[dish_id] = int(placed.get(dish_id, 0)) + 1
+	last_prep_counts = prep.duplicate()
+	last_shelf_plan = shelf.duplicate()
 	prep_counts.clear()
-	return prepared
+	shelf_plan.clear()
+	purchase_plan.clear()
+	inventory_changed.emit()
+	return { "prep": prep, "shelf": shelf }
 
 
 func record_visit() -> void:
@@ -255,6 +388,21 @@ func record_angry() -> void:
 
 func record_mistake() -> void:
 	today.mistakes += 1
+
+
+func record_sold_out() -> void:
+	today.sold_out = true
+
+
+## 営業終了時に残った料理（残り・置き場・調理中）を廃棄として記録する。原価はすでに食材原価に入っている
+func record_waste(leftover: Dictionary) -> void:
+	for dish_id: String in leftover:
+		var count: int = int(leftover[dish_id])
+		var dish: DishData = Database.get_dish(dish_id)
+		if dish == null or count <= 0:
+			continue
+		today.waste_count += count
+		today.waste_cost += Database.get_dish_cost(dish) * count
 
 
 func _apply_rating(level: Satisfaction.Level) -> void:
@@ -290,6 +438,7 @@ func save_game() -> bool:
 		"reputation": reputation,
 		"inventory": inventory.duplicate(),
 		"last_prep": last_prep_counts.duplicate(),
+		"last_shelf": Array(last_shelf_plan),
 	}
 	var file: FileAccess = FileAccess.open(save_path, FileAccess.WRITE)
 	if file == null:
@@ -322,9 +471,16 @@ func load_game() -> bool:
 	var saved_prep: Variant = data.get("last_prep", {})
 	if saved_prep is Dictionary:
 		for dish: DishData in Database.dishes:
-			var count: int = int((saved_prep as Dictionary).get(dish.id, 0))
+			var count: int = clampi(int((saved_prep as Dictionary).get(dish.id, 0)), 0, Database.config.max_prep_per_dish)
 			if count > 0:
 				last_prep_counts[dish.id] = count
+	last_shelf_plan.clear()
+	var saved_shelf: Variant = data.get("last_shelf", [])
+	if saved_shelf is Array:
+		for item: Variant in saved_shelf:
+			var dish_id: String = str(item)
+			if Database.get_dish(dish_id) != null and last_shelf_plan.size() < Database.config.shelf_capacity:
+				last_shelf_plan.append(dish_id)
 	money_changed.emit(money)
 	reputation_changed.emit(reputation)
 	inventory_changed.emit()
@@ -341,5 +497,16 @@ func _migrate(data: Dictionary) -> Dictionary:
 		# v2 で「前回の仕込み」を追加。v1 のセーブには無いので空にする
 		data["last_prep"] = {}
 		version = 2
+	if version == 2:
+		# v3 で「仕込み数」と「開店時の置き場」を分けた。
+		# v2 までの仕込みは、作ったものを全部置き場に並べて始めていたので、両方に同じ内容を入れる
+		var shelf: Array = []
+		var old_prep: Variant = data.get("last_prep", {})
+		if old_prep is Dictionary:
+			for dish: DishData in Database.dishes:
+				for i: int in int((old_prep as Dictionary).get(dish.id, 0)):
+					shelf.append(dish.id)
+		data["last_shelf"] = shelf
+		version = 3
 	data["version"] = version
 	return data

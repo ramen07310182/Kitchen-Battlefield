@@ -7,6 +7,7 @@ signal next_day_requested
 @onready var _money_grid: GridContainer = %MoneyGrid
 @onready var _service_grid: GridContainer = %ServiceGrid
 @onready var _rating_label: Label = %RatingLabel
+@onready var _note_label: Label = %NoteLabel
 @onready var _next_button: Button = %NextButton
 
 
@@ -17,6 +18,9 @@ func _ready() -> void:
 
 	_add_row(_money_grid, UIText.RESULT_SALES, UIText.money(stats.sales))
 	_add_row(_money_grid, UIText.RESULT_COST, UIText.money(-stats.ingredient_cost))
+	if stats.waste_count > 0:
+		_add_row(_money_grid, UIText.RESULT_WASTE % stats.waste_count, UIText.money(-stats.waste_cost),
+			Color(1.0, 0.7, 0.5))
 	_add_row(_money_grid, UIText.RESULT_OTHER, UIText.money(-stats.other_expense))
 	var profit: int = stats.profit()
 	_add_row(_money_grid, UIText.RESULT_PROFIT, UIText.money(profit),
@@ -34,6 +38,8 @@ func _ready() -> void:
 		_rating_label.text = "%s  %s" % [UIText.RESULT_RATING, UIText.stars(stats.rounded_stars())]
 	else:
 		_rating_label.text = "%s  %s" % [UIText.RESULT_RATING, UIText.RESULT_NO_RATING]
+	_note_label.text = UIText.RESULT_SOLD_OUT if stats.sold_out else ""
+	_note_label.visible = stats.sold_out
 
 	_next_button.pressed.connect(_on_next_pressed)
 
