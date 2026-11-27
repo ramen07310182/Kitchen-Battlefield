@@ -60,8 +60,32 @@
 - 例: 仮の絵 `customers/salaryman.png`（4コマ）が置いてある。**本物の絵ができたら置き換えるか削除する**（`data/sprites/customers/salaryman.tres` も一緒に）
 
 ### 2. 料理（料理ごと）
-今ある料理: `karaage`（唐揚げ定食）、`yakizakana`（焼き魚定食）、`shogayaki`（生姜焼き定食）、`oyakodon`（親子丼定食）、`yasaiitame`（野菜炒め定食）。
-- 置き場所: `dishes/karaage.png`、`dishes/yakizakana.png`、`dishes/shogayaki.png`、`dishes/oyakodon.png`、`dishes/yasaiitame.png`（どれも 24×24・1コマ）
+今ある料理（25品）。置き場所は `dishes/<id>.png`（どれも 24×24・1コマ）:
+- `dishes/chicken_nanban.png`（チキン南蛮定食）
+- `dishes/ebifry.png`（エビフライ定食）
+- `dishes/gyudon.png`（牛丼）
+- `dishes/hamburg.png`（ハンバーグ定食）
+- `dishes/hoikoro.png`（回鍋肉定食）
+- `dishes/kaisendon.png`（海鮮丼）
+- `dishes/karaage.png`（唐揚げ定食）
+- `dishes/katsudon.png`（カツ丼）
+- `dishes/korokke.png`（コロッケ定食）
+- `dishes/mabodofu.png`（麻婆豆腐定食）
+- `dishes/medamayaki.png`（目玉焼き定食）
+- `dishes/mixfry.png`（ミックスフライ定食）
+- `dishes/nikujaga.png`（肉じゃが定食）
+- `dishes/omakase.png`（店主のおまかせ定食）
+- `dishes/omurice.png`（オムライス）
+- `dishes/oyakodon.png`（親子丼定食）
+- `dishes/sabamiso.png`（鯖の味噌煮定食）
+- `dishes/shogayaki.png`（生姜焼き定食）
+- `dishes/steak.png`（ステーキ定食）
+- `dishes/sukiyaki.png`（すき焼き定食）
+- `dishes/tendon.png`（天丼）
+- `dishes/tofu_hamburg.png`（豆腐ハンバーグ定食）
+- `dishes/tonkatsu.png`（とんかつ定食）
+- `dishes/yakizakana.png`（焼き魚定食）
+- `dishes/yasaiitame.png`（野菜炒め定食）
 
 | ファイル | 大きさ | アニメーション | 向き | 基準点 | 表示される場所 |
 |---|---|---|---|---|---|
@@ -70,13 +94,16 @@
 - 絵があると、完成品置き場の「唐揚」などの文字は消えて絵だけになる。料理どうしの違いが小さな絵でもわかるように、色や形をはっきり変える
 - 完成品置き場の枠の背景色は料理ごとの色（`data/dishes/*.tres` の `color`）のまま。絵はその上に乗る
 
-### 3. テーブル・椅子
+### 3. カウンター・テーブル・イス
 | ファイル | 大きさ | アニメーション | 向き | 基準点 | 表示される場所 |
 |---|---|---|---|---|---|
-| `furniture/table.png` | 64×32 | なし | 正面（少し上から） | 下の中央（32,32） | 客席のテーブル4つ。**客より手前**に描かれ、テーブル番号（T1〜T4）の文字が上に重なる |
-| `furniture/chair.png` | 32×32 | なし | 正面（背もたれが見える） | 下の中央（16,32） | テーブルの奥。**客より後ろ**に描かれる |
+| `furniture/counter.png` | 32×20 のタイル | なし | 正面（少し上から） | ―（横に並べる） | 店内の上側の横長のカウンター（幅は画面によって変わる）。カウンター席のお客さんの頭が手前に重なる |
+| `furniture/stool.png` | 26×14 | なし | 正面 | 下の中央 | カウンターのイス（C1〜C6）。お客さんの足元 |
+| `furniture/table4.png` | 100×32 | なし | 正面（少し上から） | 下の中央（50,32） | 店内の下側の4人がけテーブル（最大3卓）。真ん中に「T1」、四隅に席の番号（1〜4）の文字が重なる。奥の席のお客さんより手前、手前の席のお客さんより後ろに描かれる |
+| `furniture/chair.png` | 26×14 | なし | 正面（背もたれが見える） | 下の中央 | テーブルのイス（1卓に4脚。上に2脚、下に2脚） |
 
-- 椅子の下端はテーブルの天板の上端あたり（テーブルの絵の上から4pxくらい）に来る
+- 使えない席（設備「席の拡張」でまだ増やしていない席）のイスとテーブルは描かれない
+- 以前の1人用テーブル（`furniture/table.png`）は使わなくなった
 
 ### 4. 店の床・壁・入口
 | ファイル | 大きさ | アニメーション | 向き | 基準点 | 表示される場所 |
@@ -103,8 +130,12 @@
 |---|---|---|---|---|---|
 | `equipment/<id>.png` | 24×24 | なし（1コマ） | 正面 | 真ん中 | お店を強化画面の各行の左。絵がなければ色の四角 |
 
-- 今ある設備: `tables`（テーブル）、`shelf`（置き場の棚）、`stove`（コンロ）、`fryer`（フライヤー）、`rice_cooker`（炊飯器）
-- テーブルを増やしても、店内のテーブル・椅子の絵は `furniture/table.png`・`furniture/chair.png` を使い回す（新しい絵は要らない）。5卓以上は2列に並ぶので、テーブルの絵は 64×32 に収める
+- 今ある設備: `seats`（席の拡張）、`shelf`（置き場の棚）、`stove`（コンロ）、`fryer`（フライヤー）、`rice_cooker`（炊飯器）
+- 席を増やしても、店内のイス・テーブルの絵は上の `furniture/` の絵を使い回す（新しい絵は要らない）
+
+### 5-3. 食材のアイコン（今後の予定・任意）
+- 食材の絵は今は使っていない（準備画面の色の帯で代用）。置くなら `ingredients/<id>.png`（16×16）を想定
+- 今ある食材（13種類）: `rice`（米）、`chicken`（鶏肉）、`fish`（魚）、`pork`（豚肉）、`cabbage`（キャベツ）、`egg`（卵）、`onion`（玉ねぎ）、`beef`（牛肉）、`shrimp`（海老）、`tofu`（豆腐）、`potato`（じゃがいも）、`negi`（ねぎ）、`panko`（パン粉）
 
 ### 6. 厨房の背景・UIのボタンと枠
 UIの絵は**ナインパッチ**（9分割）で使う: 四隅（`nine_patch_margin` px 四方）はそのまま、辺と真ん中を伸ばして、どんな大きさのボタン・枠にも合わせる。
