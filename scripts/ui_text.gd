@@ -62,9 +62,10 @@ const PREP_STOCK_RESERVED := "在庫 %d（使う %d）＋予定 %d"
 const PREP_PURCHASE_STEP := "%+d"
 const PREP_PURCHASE_TOTAL := "仕入れ予定 %s"
 const PREP_PURCHASE_NONE := "仕入れ予定なし"
-const PREP_PURCHASE_SHORT_MONEY := "所持金が %s 足りません"
+const PREP_PURCHASE_SHORT_MONEY := "仕入れると所持金が %s になります"
 const PREP_PURCHASE_BUTTON := "仕入れる"
 const PREP_PURCHASE_CONFIRM := "食材を合計 %s で仕入れます。\nよろしいですか？"
+const PREP_PURCHASE_CONFIRM_NEGATIVE := "食材を合計 %s で仕入れます。\n仕入れると所持金が %s になります。よろしいですか？"
 const PREP_PURCHASE_OK := "仕入れる"
 const PREP_PURCHASE_DONE := "食材を仕入れました（%s）"
 const PREP_CANCEL := "やめる"
@@ -202,7 +203,16 @@ const CAL_DETAIL_FUTURE := "%s　%d日目　まだ来ていない日です"
 const CAL_DETAIL_BEFORE := "%s　開店前です"
 
 
-## 金額を「¥10,000」の形にする
+## マイナスの金額（所持金など）を出すときの色
+const COLOR_NEGATIVE_MONEY := Color(1.0, 0.45, 0.4)
+
+
+## 所持金の表示の色（マイナスなら赤、それ以外は白）
+static func money_color(value: int) -> Color:
+	return COLOR_NEGATIVE_MONEY if value < 0 else Color.WHITE
+
+
+## 金額を「¥10,000」の形にする（マイナスは「-¥12,300」）
 static func money(value: int) -> String:
 	var digits: String = str(absi(value))
 	var out: String = ""

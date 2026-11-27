@@ -100,10 +100,16 @@ func _check_rules() -> void:
 	_check("「仕入れる」で合計金額が引かれ在庫が増える",
 		GameState.money == money_before - total and GameState.get_stock("rice") == rice_before + 5
 		and not GameState.has_purchase_plan(), "total=%d money=%d" % [total, GameState.money])
+	# 所持金が足りなくても仕入れられ、所持金はマイナスになる（赤い表示）
+	var before_negative: int = GameState.money
 	GameState.change_purchase("fish", 1000)
-	_check("所持金が足りない仕入れは確定できない",
-		not GameState.can_afford_purchase() and not GameState.confirm_purchase())
-	GameState.clear_purchase_plan()
+	var big_total: int = GameState.get_purchase_total()
+	var warned: bool = not GameState.can_afford_purchase() and GameState.get_money_after_purchase() < 0
+	_check("所持金が足りなくても仕入れられ、所持金がマイナスになる（表示は赤）",
+		warned and GameState.confirm_purchase() and GameState.money == before_negative - big_total and GameState.money < 0
+		and UIText.money(GameState.money).begins_with("-¥") and UIText.money_color(GameState.money) == UIText.COLOR_NEGATIVE_MONEY,
+		"money=%s" % UIText.money(GameState.money))
+	GameState.add_money(before_negative - GameState.money)
 
 	# 仕込み数の上限は99だけ（在庫では止まらない）。足りない食材は料理ごとにわかる
 	var karaage: DishData = Database.get_dish("karaage")

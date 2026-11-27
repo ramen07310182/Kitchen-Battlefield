@@ -42,6 +42,7 @@ func set_time_left(seconds: float, is_open: bool, sold_out: bool = false) -> voi
 
 func _on_money_changed(value: int) -> void:
 	_money_label.text = UIText.money(value)
+	_money_label.add_theme_color_override("font_color", UIText.money_color(value))
 
 
 func _on_reputation_changed(value: int) -> void:

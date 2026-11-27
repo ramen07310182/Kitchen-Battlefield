@@ -79,7 +79,7 @@ func _ready() -> void:
 	# 所持金（大）と、利益との関係（小）
 	var money_change: int = GameState.money - stats.day_start_money
 	var stock_change: int = GameState.get_stock_value() - stats.day_start_stock_value
-	_add_row(_money_grid, UIText.RESULT_MONEY, UIText.money(GameState.money), Color.WHITE, true)
+	_add_row(_money_grid, UIText.RESULT_MONEY, UIText.money(GameState.money), UIText.money_color(GameState.money), true)
 	_add_row(_money_grid, UIText.RESULT_MONEY_CHANGE, _signed_money(money_change), COLOR_PLUS if money_change >= 0 else COLOR_MINUS)
 	_add_row(_money_grid, UIText.RESULT_PURCHASE, UIText.money(-stats.purchase_cost))
 	_add_row(_money_grid, UIText.RESULT_STOCK_CHANGE, _signed_money(stock_change))

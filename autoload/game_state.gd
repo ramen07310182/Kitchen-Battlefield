@@ -167,13 +167,19 @@ func get_purchase_total() -> int:
 	return total
 
 
+## 仕入れても所持金がマイナスにならないか（マイナスになっても仕入れはできる。表示の注意に使う）
 func can_afford_purchase() -> bool:
 	return get_purchase_total() <= money
 
 
-## 仕入れ予定を確定する（お金を払って在庫に入れる）。所持金が足りなければ何もしない
+## 予定どおり仕入れたあとの所持金
+func get_money_after_purchase() -> int:
+	return money - get_purchase_total()
+
+
+## 仕入れ予定を確定する（お金を払って在庫に入れる）。所持金が足りなくても仕入れられる（所持金はマイナスになる）
 func confirm_purchase() -> bool:
-	if not has_purchase_plan() or not can_afford_purchase():
+	if not has_purchase_plan():
 		return false
 	var total: int = get_purchase_total()
 	day_purchase_cost += total

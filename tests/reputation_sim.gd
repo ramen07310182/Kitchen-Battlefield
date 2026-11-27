@@ -123,20 +123,9 @@ func _plan_prep() -> void:
 		var target: int = maxi(1, ceili(float(expected.get(dish.id, 0.0)) * float(_skill["prep_factor"])))
 		GameState.change_prep(dish.id, -999)
 		GameState.change_prep(dish.id, target)
-	# 仕入れ代が払えない分は、仕込み数をいちばん多い料理から減らして合わせる
+	# 足りない食材は、所持金がマイナスになっても仕入れる
 	GameState.plan_prep_shortage()
-	var guard: int = 0
-	while not GameState.can_afford_purchase() and GameState.get_total_prep() > 0 and guard < 500:
-		guard += 1
-		var biggest: String = ""
-		for dish_id: String in GameState.prep_counts:
-			if biggest == "" or GameState.get_prep_count(dish_id) > GameState.get_prep_count(biggest):
-				biggest = dish_id
-		GameState.change_prep(biggest, -1)
-		GameState.clear_purchase_plan()
-		GameState.plan_prep_shortage()
-	if not GameState.confirm_purchase():
-		GameState.clear_purchase_plan()
+	GameState.confirm_purchase()
 	GameState.reduce_prep_to_stock()
 	var dishes: Array[DishData] = GameState.get_menu_dishes()
 	var i: int = 0

@@ -171,11 +171,12 @@ func _refresh_purchase() -> void:
 	var total: int = GameState.get_purchase_total()
 	var has_plan: bool = GameState.has_purchase_plan()
 	_purchase_total_label.text = UIText.PREP_PURCHASE_TOTAL % UIText.money(total) if has_plan else UIText.PREP_PURCHASE_NONE
-	var affordable: bool = GameState.can_afford_purchase()
-	_purchase_note_label.visible = has_plan and not affordable
-	if not affordable:
-		_purchase_note_label.text = UIText.PREP_PURCHASE_SHORT_MONEY % UIText.money(total - GameState.money)
-	_purchase_button.disabled = not has_plan or not affordable
+	# 所持金が足りなくても仕入れられる（所持金はマイナスになる）。そのときは注意だけ出す
+	var after: int = GameState.get_money_after_purchase()
+	_purchase_note_label.visible = has_plan and after < 0
+	if after < 0:
+		_purchase_note_label.text = UIText.PREP_PURCHASE_SHORT_MONEY % UIText.money(after)
+	_purchase_button.disabled = not has_plan
 
 
 func _refresh_message() -> void:
@@ -254,11 +255,14 @@ func _ask_shortage() -> void:
 
 
 func _on_purchase_pressed() -> void:
-	if not GameState.has_purchase_plan() or not GameState.can_afford_purchase():
+	if not GameState.has_purchase_plan():
 		return
 	_pending = Pending.PURCHASE
-	_dialog.ask(UIText.PREP_PURCHASE_CONFIRM % UIText.money(GameState.get_purchase_total()),
-		UIText.PREP_PURCHASE_OK, UIText.PREP_CANCEL)
+	var total_text: String = UIText.money(GameState.get_purchase_total())
+	var after: int = GameState.get_money_after_purchase()
+	var message: String = UIText.PREP_PURCHASE_CONFIRM % total_text if after >= 0 \
+		else UIText.PREP_PURCHASE_CONFIRM_NEGATIVE % [total_text, UIText.money(after)]
+	_dialog.ask(message, UIText.PREP_PURCHASE_OK, UIText.PREP_CANCEL)
 
 
 func _on_start_pressed() -> void:
