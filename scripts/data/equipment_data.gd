@@ -8,8 +8,8 @@ extends Resource
 ## 最大レベル = level_prices の数
 
 enum Effect {
-	## 客席（テーブル）の数。値はテーブルの数
-	TABLES,
+	## 席の数（イスの数。お客さん1人が1席）。値は席の数
+	SEATS,
 	## 置き場の枠の数。値は枠の数
 	SHELF,
 	## 調理時間の倍率。値は倍率（0.85 = 15%短い）。cook_category の料理だけに効く（"all" ならすべて）
@@ -20,7 +20,7 @@ enum Effect {
 @export var display_name: String = ""
 ## 効果の説明（一覧に出す短い文）
 @export var description: String = ""
-@export var effect: Effect = Effect.TABLES
+@export var effect: Effect = Effect.SEATS
 ## COOK_TIME のとき、効果を受ける料理の分類（DishData.cook_category）。"all" ならすべての料理
 @export var cook_category: String = ""
 @export var level_values: PackedFloat32Array = PackedFloat32Array([0.0])

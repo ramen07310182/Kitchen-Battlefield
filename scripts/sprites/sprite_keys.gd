@@ -9,8 +9,11 @@ const WALL := "shop/wall"
 const ENTRANCE := "shop/entrance"
 
 # 家具
-const TABLE := "furniture/table"
 const CHAIR := "furniture/chair"
+## カウンター（横に並べて敷き詰める）・カウンターのイス・4人がけのテーブル
+const COUNTER := "furniture/counter"
+const STOOL := "furniture/stool"
+const TABLE4 := "furniture/table4"
 
 # 厨房
 const CHEF := "kitchen/chef"
@@ -56,7 +59,9 @@ static func all_entries() -> Array[Dictionary]:
 		list.append({ "key": customer(t.id), "anims": CUSTOMER_ANIMS })
 	for d: DishData in Database.dishes:
 		list.append({ "key": dish(d.id), "anims": PackedStringArray() })
-	list.append({ "key": TABLE, "anims": PackedStringArray() })
+	list.append({ "key": COUNTER, "anims": PackedStringArray() })
+	list.append({ "key": STOOL, "anims": PackedStringArray() })
+	list.append({ "key": TABLE4, "anims": PackedStringArray() })
 	list.append({ "key": CHAIR, "anims": PackedStringArray() })
 	list.append({ "key": FLOOR, "anims": PackedStringArray() })
 	list.append({ "key": WALL, "anims": PackedStringArray() })

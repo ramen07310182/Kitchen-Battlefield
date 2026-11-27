@@ -18,7 +18,7 @@ func _ready() -> void:
 	_empty_label.text = UIText.ORDER_EMPTY
 
 
-## orders: [{ table: int(1始まり), dish: DishData, elapsed: float, ratio: float }]
+## orders: [{ seat: String（席の番号。C1・T1-2 など）, dish: DishData, elapsed: float, ratio: float }]
 func show_orders(orders: Array[Dictionary], great_ratio: float, good_ratio: float, delta: float) -> void:
 	_blink_time += delta
 	while _rows.size() < orders.size():
@@ -32,7 +32,7 @@ func show_orders(orders: Array[Dictionary], great_ratio: float, good_ratio: floa
 		var dish: DishData = order["dish"]
 		var ratio: float = order["ratio"]
 		row.show()
-		_row_labels[i].text = UIText.ORDER_ROW % [int(order["table"]), dish.display_name, int(order["elapsed"])]
+		_row_labels[i].text = UIText.ORDER_ROW % [String(order["seat"]), dish.display_name, int(order["elapsed"])]
 		var box: StyleBoxFlat = _row_boxes[i]
 		box.border_color = dish.color
 		row.modulate = Color.WHITE

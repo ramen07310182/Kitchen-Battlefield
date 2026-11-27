@@ -15,8 +15,8 @@ extends Resource
 ## 来店間隔（秒）。この範囲でランダム
 @export var spawn_interval_min: float = 5.0
 @export var spawn_interval_max: float = 9.0
-## テーブルの数（1人用）。設備「テーブル」があれば、そのデータのレベル0の値を使う（これは設備がないときの値）
-@export var table_count: int = 4
+## 席の数（お客さん1人が1席）。設備「席の拡張」があれば、そのデータの値を使う（これは設備がないときの値）
+@export var seat_count: int = 4
 ## お客さんの歩く速さ（px/秒）
 @export var walk_speed: float = 160.0
 ## 着席してから注文するまで（秒）

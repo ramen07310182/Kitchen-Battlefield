@@ -14,7 +14,7 @@ const MAIN_SCENE: PackedScene = preload("res://scenes/main/main.tscn")
 const SIM_SAVE_PATH := "user://save_reputation_sim.json"
 
 ## 設備を買う優先順位（上から順に、買えるものを買う）と、買ったあとに手元に残すお金
-const BUY_PRIORITY: PackedStringArray = ["tables", "fryer", "stove", "shelf", "rice_cooker"]
+const BUY_PRIORITY: PackedStringArray = ["seats", "fryer", "stove", "shelf", "rice_cooker"]
 const BUY_RESERVE := 10000
 const DEFAULT_CSV := "user://reputation_sim.csv"
 
@@ -64,7 +64,7 @@ func _ready() -> void:
 	GameState.use_save_path(SIM_SAVE_PATH)
 	_rows.append("| 日 | 日付 | 来客 | 提供 | 怒って帰った | 売り逃し | ★ | 評判の増減 | 評判 | ランク | 利益 | 所持金 | 設備（卓・棚・コ・フ・炊） | 買った設備 |")
 	_rows.append("|---|---|---|---|---|---|---|---|---|---|---|---|---|---|")
-	_csv_rows.append("day,date,reputation,reputation_change,rank,money,profit,visitors,served,angry,missed,stars,tables,shelf,stove,fryer,rice_cooker,unlocked_count,unlocked,bought")
+	_csv_rows.append("day,date,reputation,reputation_change,rank,money,profit,visitors,served,angry,missed,stars,seats,shelf,stove,fryer,rice_cooker,unlocked_count,unlocked,bought")
 	if _fast:
 		_run_fast()
 		return
@@ -142,7 +142,6 @@ func _do_business(screen: Node) -> void:
 	var customers: Array[Customer] = screen.get("_customers")
 	var slots: Array[String] = shelf.get("_slots")
 	var shelf_buttons: Array[Button] = shelf.get("_buttons")
-	var tables: Array[DiningTable] = dining.get("_tables")
 	var cook_buttons: Dictionary = kitchen.get("_buttons")
 
 	# 待っている客（注文の古い順）に出せる料理があれば出す
@@ -161,7 +160,7 @@ func _do_business(screen: Node) -> void:
 						slot = j
 						break
 			_hold(shelf, shelf_buttons, slot)
-			(tables[c.table_index].get("_tap_button") as Button).pressed.emit()
+			(dining.get_seat(c.seat_index).get("_tap_button") as Button).pressed.emit()
 			return
 		DayStats.add_to(needed, c.dish.id, 1)
 	# 足りない料理を作る（作っている分・置き場の分を引く）
@@ -228,7 +227,7 @@ func _record_day() -> void:
 
 
 ## 表の「設備」の列の並び（卓・棚・コンロ・フライヤー・炊飯器）
-const BUY_PRIORITY_ORDER_FOR_TABLE: PackedStringArray = ["tables", "shelf", "stove", "fryer", "rice_cooker"]
+const BUY_PRIORITY_ORDER_FOR_TABLE: PackedStringArray = ["seats", "shelf", "stove", "fryer", "rice_cooker"]
 
 
 ## 優先順位の上から、手元に BUY_RESERVE を残して買えるものを買う（1日に何個でも）

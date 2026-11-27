@@ -33,7 +33,7 @@ func run_day(opening: Dictionary) -> void:
 		DayStats.add_to(buffer, dish_id, 1)
 	var shelf_capacity: int = GameState.get_shelf_capacity()
 	var tables_free_at: Array[float] = []
-	for i: int in GameState.get_table_count():
+	for i: int in GameState.get_seat_count():
 		tables_free_at.append(0.0)
 	var reaction: float = float(_skill["reaction"])
 	var interval_scale: float = _config.get_spawn_interval_scale(GameState.reputation)

@@ -110,12 +110,15 @@ color = Color(0.55, 0.45, 0.35, 1)
 [node name="Entrance" type="Control" parent="SafeArea/VBox/Main/LeftColumn/Dining"]
 unique_name_in_owner = true
 layout_mode = 1
-anchors_preset = 9
+anchors_preset = 11
+anchor_left = 1.0
+anchor_right = 1.0
 anchor_bottom = 1.0
-offset_left = 4.0
+offset_left = -38.0
 offset_top = 28.0
-offset_right = 38.0
+offset_right = -4.0
 offset_bottom = -8.0
+grow_horizontal = 0
 grow_vertical = 2
 mouse_filter = 2
 script = ExtResource("9_sprite")
@@ -141,7 +144,17 @@ theme_type_variation = &"SmallLabel"
 text = "入口"
 horizontal_alignment = 1
 
-[node name="Tables" type="Control" parent="SafeArea/VBox/Main/LeftColumn/Dining"]
+[node name="Furniture" type="Control" parent="SafeArea/VBox/Main/LeftColumn/Dining"]
+unique_name_in_owner = true
+layout_mode = 1
+anchors_preset = 15
+anchor_right = 1.0
+anchor_bottom = 1.0
+grow_horizontal = 2
+grow_vertical = 2
+mouse_filter = 2
+
+[node name="Seats" type="Control" parent="SafeArea/VBox/Main/LeftColumn/Dining"]
 unique_name_in_owner = true
 layout_mode = 1
 anchors_preset = 15

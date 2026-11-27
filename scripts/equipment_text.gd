@@ -3,12 +3,12 @@ extends RefCounted
 ## 設備の効果を、画面に出す文にする。
 
 
-## レベル level の効果（「テーブル 5卓」「置き場 7枠」「調理時間 15% 短い」）
+## レベル level の効果（「10席」「置き場 7枠」「調理時間 15% 短い」）
 static func effect_text(e: EquipmentData, level: int) -> String:
 	var value: float = e.get_value(level)
 	match e.effect:
-		EquipmentData.Effect.TABLES:
-			return UIText.UPGRADE_EFFECT_TABLES % int(value)
+		EquipmentData.Effect.SEATS:
+			return UIText.UPGRADE_EFFECT_SEATS % int(value)
 		EquipmentData.Effect.SHELF:
 			return UIText.UPGRADE_EFFECT_SHELF % int(value)
 		_:

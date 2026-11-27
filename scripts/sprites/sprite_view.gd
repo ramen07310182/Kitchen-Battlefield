@@ -9,7 +9,7 @@ extends Control
 
 enum Mode { ANCHOR, TILE }
 
-## 絵の名前（assets/sprites/ からのパス。拡張子なし）。例: "furniture/table"
+## 絵の名前（assets/sprites/ からのパス。拡張子なし）。例: "furniture/table4"
 @export var sprite_key: String = "":
 	set(value):
 		if sprite_key == value:

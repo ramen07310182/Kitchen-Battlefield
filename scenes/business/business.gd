@@ -45,13 +45,13 @@ func _ready() -> void:
 		if int(prep.get(dish.id, 0)) > 0:
 			_menu.append(dish)
 
-	_dining.setup(GameState.get_table_count())
+	_dining.setup(GameState.get_seat_count())
 	_shelf.setup(GameState.get_shelf_capacity())
 	for dish_id: String in shelf_items:
 		_shelf.add_dish(dish_id)
 	_kitchen.setup(_menu, _supply)
 
-	_dining.table_tapped.connect(_on_table_tapped)
+	_dining.seat_tapped.connect(_on_seat_tapped)
 	_shelf.contents_changed.connect(_on_shelf_changed)
 	_shelf.held_changed.connect(func(dish_id: String) -> void: _kitchen.set_holding(dish_id != ""))
 	_kitchen.dish_cooked.connect(_on_dish_cooked)
@@ -75,7 +75,7 @@ func _process(delta: float) -> void:
 		_finish()
 	_top_bar.set_time_left(_time_left, _is_open, _sold_out)
 	_order_panel.show_orders(_collect_orders(), _config.great_ratio, _config.good_ratio, delta)
-	_update_table_highlights()
+	_update_seat_highlights()
 
 
 # ---------------------------------------------------------------
@@ -107,8 +107,8 @@ func _close_sold_out() -> void:
 func _on_spawn_requested(customer_type: CustomerTypeData, dish: DishData, missed_dish_id: String) -> void:
 	if not _is_open:
 		return
-	var table_index: int = _dining.find_free_table()
-	if table_index < 0:
+	var seat_index: int = _dining.find_free_seat()
+	if seat_index < 0:
 		return  # 席がいっぱいなら来店しない
 	# 注文が入った時点で料理を1個確保する（作れない料理の注文を出さないため）
 	if not _supply.reserve(dish.id):
@@ -117,8 +117,8 @@ func _on_spawn_requested(customer_type: CustomerTypeData, dish: DishData, missed
 	if missed_dish_id != "":
 		GameState.record_missed(missed_dish_id, 1)
 	var customer: Customer = CUSTOMER_SCENE.instantiate() as Customer
-	_dining.add_customer(customer, table_index)
-	customer.setup(customer_type, dish, table_index, _config)
+	_dining.add_customer(customer, seat_index)
+	customer.setup(customer_type, dish, seat_index, _config)
 	customer.order_placed.connect(_on_customer_ordered)
 	customer.paid.connect(_on_customer_paid)
 	customer.left_angry.connect(_on_customer_left_angry)
@@ -126,7 +126,7 @@ func _on_spawn_requested(customer_type: CustomerTypeData, dish: DishData, missed
 	customer.exited.connect(_on_customer_exited)
 	_customers.append(customer)
 	GameState.record_visit()
-	customer.start(_dining.get_entrance_position(), _dining.get_seat_position(table_index))
+	customer.start(_dining.get_entrance_position(), _dining.get_seat_position(seat_index))
 
 
 func _on_customer_ordered(customer: Customer) -> void:
@@ -144,7 +144,7 @@ func _on_customer_left_angry(customer: Customer) -> void:
 
 
 func _on_customer_seat_released(customer: Customer) -> void:
-	_dining.release_table(customer.table_index)
+	_dining.release_seat(customer.seat_index)
 
 
 func _on_customer_exited(customer: Customer) -> void:
@@ -173,8 +173,9 @@ func _on_return_requested() -> void:
 	_supply.return_to_remaining(held)
 
 
-func _on_table_tapped(table_index: int) -> void:
-	var customer: Customer = _dining.get_occupant(table_index)
+## 席（座っているお客さん）をタップした
+func _on_seat_tapped(seat_index: int) -> void:
+	var customer: Customer = _dining.get_occupant(seat_index)
 	if customer == null or not customer.is_waiting_food():
 		return
 	var held: String = _shelf.get_held_dish()
@@ -192,11 +193,11 @@ func _on_table_tapped(table_index: int) -> void:
 		customer.show_popup(UIText.POPUP_WRONG, Color(1.0, 0.5, 0.4))
 
 
-func _update_table_highlights() -> void:
+func _update_seat_highlights() -> void:
 	var held: String = _shelf.get_held_dish()
-	for i: int in _dining.get_table_count():
+	for i: int in _dining.get_seat_count():
 		var c: Customer = _dining.get_occupant(i)
-		_dining.set_table_highlight(i, held != "" and c != null and c.is_waiting_food() and c.dish.id == held)
+		_dining.set_seat_highlight(i, held != "" and c != null and c.is_waiting_food() and c.dish.id == held)
 
 
 func _collect_orders() -> Array[Dictionary]:
@@ -208,7 +209,7 @@ func _collect_orders() -> Array[Dictionary]:
 	var orders: Array[Dictionary] = []
 	for c: Customer in waiting:
 		orders.append({
-			"table": c.table_index + 1,
+			"seat": _dining.get_seat_label(c.seat_index),
 			"dish": c.dish,
 			"elapsed": c.wait_elapsed,
 			"ratio": c.get_wait_ratio(),

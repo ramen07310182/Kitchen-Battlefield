@@ -253,25 +253,25 @@ func _check_rules() -> void:
 	# 設備: 所持金不足・ランク不足・購入と効果（席数・枠数・調理時間）
 	var money_now: int = GameState.money
 	GameState.add_money(-money_now)
-	_check("所持金が足りない設備は買えない", GameState.get_buy_block("tables") == GameState.BuyBlock.MONEY and not GameState.buy_equipment("tables"))
+	_check("所持金が足りない設備は買えない", GameState.get_buy_block("seats") == GameState.BuyBlock.MONEY and not GameState.buy_equipment("seats"))
 	GameState.add_money(1000000)
 	var karaage_dish: DishData = Database.get_dish("karaage")
-	var table_before: int = GameState.get_table_count()
+	var table_before: int = GameState.get_seat_count()
 	var shelf_before: int = GameState.get_shelf_capacity()
 	var cook_before: float = GameState.get_cook_time(karaage_dish)
 	var money_before_buy: int = GameState.money
-	var bought: bool = GameState.buy_equipment("tables") and GameState.buy_equipment("shelf") and GameState.buy_equipment("fryer")
+	var bought: bool = GameState.buy_equipment("seats") and GameState.buy_equipment("shelf") and GameState.buy_equipment("fryer")
 	_check("設備を買うと、お金が減り、席数・置き場の枠・調理時間に効果が出る",
-		bought and GameState.get_table_count() == table_before + 1 and GameState.get_shelf_capacity() == shelf_before + 1
+		bought and GameState.get_seat_count() == 6 and table_before == 4 and GameState.get_shelf_capacity() == shelf_before + 1
 		and is_equal_approx(GameState.get_cook_time(karaage_dish), cook_before * Database.get_equipment("fryer").get_value(1))
 		and is_equal_approx(GameState.get_cook_time(Database.get_dish("yakizakana")), Database.get_dish("yakizakana").cook_time)
 		and GameState.money < money_before_buy,
-		"tables %d->%d shelf %d->%d karaage %.2f->%.2f" % [table_before, GameState.get_table_count(), shelf_before,
+		"tables %d->%d shelf %d->%d karaage %.2f->%.2f" % [table_before, GameState.get_seat_count(), shelf_before,
 			GameState.get_shelf_capacity(), cook_before, GameState.get_cook_time(karaage_dish)])
 	var saved_rank: int = GameState.rank
 	GameState.rank = 1
 	_check("必要なランクに届かない設備は買えない（テーブルの2つ目の追加は知る人ぞ知る店から）",
-		GameState.get_buy_block("tables") == GameState.BuyBlock.RANK and not GameState.buy_equipment("tables"))
+		GameState.get_buy_block("seats") == GameState.BuyBlock.RANK and not GameState.buy_equipment("seats"))
 	GameState.rank = saved_rank
 	GameState.equipment_levels.clear()
 
@@ -597,15 +597,14 @@ func _do_business(screen: Node) -> void:
 	var customers: Array[Customer] = screen.get("_customers")
 	var slots: Array[String] = shelf.get("_slots")
 	var shelf_buttons: Array[Button] = shelf.get("_buttons")
-	var tables: Array[DiningTable] = dining.get("_tables")
 
 	# 2日目の最初に1回だけ: 強化画面で買った設備が営業画面に出ている（テーブル5卓・置き場7枠）
 	if _days_done == 1 and not _equipment_checked:
 		_equipment_checked = true
-		_check("買った設備の効果が営業画面に出る（テーブル・置き場の枠）",
-			dining.get_table_count() == GameState.get_table_count() and dining.get_table_count() == 5
+		_check("買った設備の効果が営業画面に出る（席・置き場の枠）",
+			dining.get_seat_count() == GameState.get_seat_count() and dining.get_seat_count() == 6
 			and slots.size() == GameState.get_shelf_capacity() and slots.size() == 7,
-			"tables=%d slots=%d" % [dining.get_table_count(), slots.size()])
+			"tables=%d slots=%d" % [dining.get_seat_count(), slots.size()])
 
 	# 1日目の最初に1回だけ: 置き場の料理を持って「残りに戻す」
 	if _days_done == 0 and not _return_tested:
@@ -634,11 +633,11 @@ func _do_business(screen: Node) -> void:
 						wrong = i
 				if wrong >= 0:
 					_hold(shelf, shelf_buttons, wrong)
-					(tables[c.table_index].get("_tap_button") as Button).pressed.emit()
+					(dining.get_seat(c.seat_index).get("_tap_button") as Button).pressed.emit()
 					_made_mistake = true
 					print("[smoke] mistake test -> mistakes=%d" % GameState.today.mistakes)
 			_hold(shelf, shelf_buttons, slot)
-			(tables[c.table_index].get("_tap_button") as Button).pressed.emit()
+			(dining.get_seat(c.seat_index).get("_tap_button") as Button).pressed.emit()
 			return
 		needed[c.dish.id] = int(needed.get(c.dish.id, 0)) + 1
 	var queue: Array[DishData] = kitchen.get("_queue")
@@ -746,8 +745,8 @@ func _do_result(screen: Node) -> void:
 	if _days_done >= DAYS_TO_RUN:
 		var saved: String = FileAccess.get_file_as_string(GameState.save_path)
 		print("[smoke] save: ", saved.replace("\n", " "))
-		_check("セーブは version 8 で、前回の置き場・売れた数・売り逃し・解放済みの料理・ランク・履歴・設備を含む",
-			saved.contains("\"version\": 8") and saved.contains("\"history\"") and saved.contains("\"equipment\"") and saved.contains("last_shelf") and saved.contains("last_sold")
+		_check("セーブは version 9 で、前回の置き場・売れた数・売り逃し・解放済みの料理・ランク・履歴・設備を含む",
+			saved.contains("\"version\": 9") and saved.contains("\"history\"") and saved.contains("\"equipment\"") and saved.contains("last_shelf") and saved.contains("last_sold")
 			and saved.contains("last_missed") and saved.contains("\"unlocked\"") and saved.contains("\"rank\""))
 		_finish()
 
@@ -781,7 +780,7 @@ func _do_upgrade(screen: Node) -> void:
 	var rows: Array[EquipmentRow] = screen.get("_rows")
 	_check("強化画面に設備が5種類出る", rows.size() == Database.equipment.size() and rows.size() == 5)
 	for row: EquipmentRow in rows:
-		if row.equipment.id in ["tables", "shelf", "fryer"]:
+		if row.equipment.id in ["seats", "shelf", "fryer"]:
 			var money_before: int = GameState.money
 			var price: int = row.equipment.get_price(GameState.get_equipment_level(row.equipment.id))
 			(row.get("_buy_button") as Button).pressed.emit()

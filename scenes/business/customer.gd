@@ -17,7 +17,8 @@ const GAUGE_WIDTH := 36.0
 
 var type_data: CustomerTypeData
 var dish: DishData
-var table_index: int = -1
+## 座る席（DiningArea の席の番号）
+var seat_index: int = -1
 var state: State = State.WALKING_IN
 ## 注文してからの経過時間
 var wait_elapsed: float = 0.0
@@ -40,10 +41,10 @@ var _exit_position: Vector2 = Vector2.ZERO
 
 
 ## add_child の後に呼ぶ
-func setup(customer_type: CustomerTypeData, ordered_dish: DishData, table: int, config: GameConfig) -> void:
+func setup(customer_type: CustomerTypeData, ordered_dish: DishData, seat: int, config: GameConfig) -> void:
 	type_data = customer_type
 	dish = ordered_dish
-	table_index = table
+	seat_index = seat
 	_config = config
 	_body.color = type_data.color
 	_figure.set_sprite(SpriteKeys.customer(type_data.id), SpriteKeys.ANIM_WALK)

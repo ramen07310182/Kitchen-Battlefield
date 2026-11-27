@@ -16,7 +16,7 @@ signal inventory_changed
 signal reputation_changed(value: int)
 
 const DEFAULT_SAVE_PATH := "user://save.json"
-const SAVE_VERSION := 8
+const SAVE_VERSION := 9
 
 var money: int = 0
 var day: int = 1
@@ -653,9 +653,9 @@ func _equipment_value(effect: EquipmentData.Effect, fallback: float) -> float:
 	return fallback
 
 
-## 客席（テーブル）の数
-func get_table_count() -> int:
-	return int(_equipment_value(EquipmentData.Effect.TABLES, Database.config.table_count))
+## 席の数（イスの数。お客さん1人が1席。テーブルは相席してよい）
+func get_seat_count() -> int:
+	return int(_equipment_value(EquipmentData.Effect.SEATS, Database.config.seat_count))
 
 
 ## 置き場の枠の数
@@ -873,6 +873,18 @@ func load_game() -> bool:
 	return true
 
 
+## 席の数がいちばん近い「席の拡張」のレベル（同じくらい近いときは多いほう）
+func _closest_seat_level(seats: int) -> int:
+	var e: EquipmentData = Database.get_equipment("seats")
+	if e == null:
+		return 0
+	var best: int = 0
+	for level: int in range(0, e.get_max_level() + 1):
+		if absf(e.get_value(level) - seats) <= absf(e.get_value(best) - seats):
+			best = level
+	return best
+
+
 ## 古いバージョンのセーブデータを今の形式に変換する。読めないものは空の辞書を返す
 func _migrate(data: Dictionary) -> Dictionary:
 	var version: int = int(data.get("version", 0))
@@ -925,5 +937,16 @@ func _migrate(data: Dictionary) -> Dictionary:
 		data["history"] = []
 		data["equipment"] = {}
 		version = 8
+	if version == 8:
+		# v9 で「テーブル（1人用 4〜8卓）」を「席の拡張（4・6・10・14・18席）」に変えた。
+		# 席の数がなるべく近くなるレベルに換算する（同じくらい近いときは多いほう）
+		var raw_equipment: Variant = data.get("equipment", {})
+		var equipment: Dictionary = raw_equipment if raw_equipment is Dictionary else {}
+		if equipment.has("tables"):
+			var old_seats: int = 4 + int(equipment["tables"])
+			equipment.erase("tables")
+			equipment["seats"] = _closest_seat_level(old_seats)
+		data["equipment"] = equipment
+		version = 9
 	data["version"] = version
 	return data

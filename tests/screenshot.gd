@@ -12,6 +12,7 @@ const BUSINESS_SHOT_TIME := 24.0
 
 var _out_dir: String = "user://screenshots"
 var _shot_name: String = "shot"
+var _seat_level: int = 0
 
 
 func _ready() -> void:
@@ -20,10 +21,15 @@ func _ready() -> void:
 			_out_dir = arg.trim_prefix("--out=")
 		elif arg.begins_with("--name="):
 			_shot_name = arg.trim_prefix("--name=")
+		elif arg.begins_with("--seat-level="):
+			_seat_level = int(arg.trim_prefix("--seat-level="))
 	DirAccess.make_dir_recursive_absolute(_out_dir)
 	GameState.use_save_path(TEST_SAVE_PATH)
 	GameState.delete_save()
 	GameState.use_save_path(TEST_SAVE_PATH)
+	# -- --seat-level=N で、1日目から「席の拡張」をそのレベルにして撮る（見た目の確認用）
+	if _seat_level > 0:
+		GameState.equipment_levels["seats"] = _seat_level
 	_run()
 
 
@@ -103,7 +109,7 @@ func _run() -> void:
 	await _wait_frames(5)
 	await _shot("upgrade")
 	var upgrade: Node = _current_screen(main)
-	upgrade.call("_show_detail", "tables")
+	upgrade.call("_show_detail", "seats")
 	await _wait_frames(4)
 	await _shot("upgrade_detail")
 	(upgrade.get("_detail") as DetailPopup).close()
@@ -135,7 +141,7 @@ func _run() -> void:
 	await get_tree().create_timer(BUSINESS_SHOT_TIME, true, false, false).timeout
 	Engine.time_scale = 1.0
 	await _wait_frames(3)
-	await _shot("business8")
+	await _shot("business_max")
 
 	GameState.delete_save()
 	get_tree().quit()
@@ -148,7 +154,6 @@ func _auto_serve(business: Node) -> void:
 	var dining: DiningArea = business.get("_dining")
 	var slots: Array[String] = shelf.get("_slots")
 	var shelf_buttons: Array[Button] = shelf.get("_buttons")
-	var tables: Array[DiningTable] = dining.get("_tables")
 	var cook_buttons: Dictionary = kitchen.get("_buttons")
 	for c: Customer in (business.get("_customers") as Array[Customer]):
 		if not c.is_waiting_food():
@@ -157,7 +162,7 @@ func _auto_serve(business: Node) -> void:
 		if slot >= 0:
 			if int(shelf.get("_held_index")) != slot:
 				shelf_buttons[slot].pressed.emit()
-			(tables[c.table_index].get("_tap_button") as Button).pressed.emit()
+			(dining.get_seat(c.seat_index).get("_tap_button") as Button).pressed.emit()
 			return
 		if kitchen.get_pending_count() == 0 and cook_buttons.has(c.dish.id):
 			(cook_buttons[c.dish.id] as Button).pressed.emit()
