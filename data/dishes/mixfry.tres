@@ -1,0 +1,17 @@
+[gd_resource type="Resource" script_class="DishData" format=3]
+
+[ext_resource type="Script" path="res://scripts/data/dish_data.gd" id="1_dish"]
+
+[resource]
+script = ExtResource("1_dish")
+id = "mixfry"
+display_name = "ミックスフライ定食"
+short_name = "ミック"
+price = 1450
+ingredients = {"rice": 1, "shrimp": 1, "fish": 1, "panko": 1, "cabbage": 1}
+cook_time = 9.0
+color = Color(0.9, 0.65, 0.5, 1)
+sort_order = 22
+cook_category = "fry"
+unlock_rank = 4
+unlock_day = 280

@@ -1,0 +1,17 @@
+[gd_resource type="Resource" script_class="DishData" format=3]
+
+[ext_resource type="Script" path="res://scripts/data/dish_data.gd" id="1_dish"]
+
+[resource]
+script = ExtResource("1_dish")
+id = "tonkatsu"
+display_name = "とんかつ定食"
+short_name = "とんか"
+price = 1000
+ingredients = {"rice": 1, "pork": 1, "panko": 1, "cabbage": 1}
+cook_time = 7.0
+color = Color(0.8, 0.55, 0.25, 1)
+sort_order = 9
+cook_category = "fry"
+unlock_rank = 1
+unlock_day = 75

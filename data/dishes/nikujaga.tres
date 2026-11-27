@@ -1,0 +1,17 @@
+[gd_resource type="Resource" script_class="DishData" format=3]
+
+[ext_resource type="Script" path="res://scripts/data/dish_data.gd" id="1_dish"]
+
+[resource]
+script = ExtResource("1_dish")
+id = "nikujaga"
+display_name = "肉じゃが定食"
+short_name = "肉じゃ"
+price = 1000
+ingredients = {"rice": 1, "beef": 1, "potato": 1, "onion": 1}
+cook_time = 7.0
+color = Color(0.8, 0.65, 0.45, 1)
+sort_order = 11
+cook_category = "simmer"
+unlock_rank = 1
+unlock_day = 105

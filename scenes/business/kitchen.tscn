@@ -2,6 +2,7 @@
 
 [ext_resource type="Script" path="res://scenes/business/kitchen.gd" id="1_kitchen"]
 [ext_resource type="Script" path="res://scripts/sprites/sprite_view.gd" id="2_sprite"]
+[ext_resource type="Script" path="res://scripts/ui/drag_scroll_container.gd" id="3_scroll"]
 
 [node name="Kitchen" type="PanelContainer"]
 script = ExtResource("1_kitchen")
@@ -10,9 +11,15 @@ script = ExtResource("1_kitchen")
 layout_mode = 2
 theme_override_constants/separation = 6
 
-[node name="CookButtons" type="GridContainer" parent="HBox"]
+[node name="CookScroll" type="ScrollContainer" parent="HBox"]
 unique_name_in_owner = true
 custom_minimum_size = Vector2(150, 0)
+layout_mode = 2
+size_flags_horizontal = 3
+script = ExtResource("3_scroll")
+
+[node name="CookButtons" type="GridContainer" parent="HBox/CookScroll"]
+unique_name_in_owner = true
 layout_mode = 2
 size_flags_horizontal = 3
 theme_override_constants/h_separation = 3

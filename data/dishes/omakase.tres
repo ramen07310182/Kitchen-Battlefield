@@ -1,0 +1,17 @@
+[gd_resource type="Resource" script_class="DishData" format=3]
+
+[ext_resource type="Script" path="res://scripts/data/dish_data.gd" id="1_dish"]
+
+[resource]
+script = ExtResource("1_dish")
+id = "omakase"
+display_name = "店主のおまかせ定食"
+short_name = "おまか"
+price = 1900
+ingredients = {"rice": 1, "beef": 1, "shrimp": 1, "tofu": 1, "egg": 1, "negi": 1}
+cook_time = 10.0
+color = Color(0.95, 0.8, 0.2, 1)
+sort_order = 24
+cook_category = "simmer"
+unlock_rank = 4
+unlock_day = 340

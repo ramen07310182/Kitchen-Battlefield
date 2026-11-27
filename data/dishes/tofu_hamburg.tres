@@ -1,0 +1,17 @@
+[gd_resource type="Resource" script_class="DishData" format=3]
+
+[ext_resource type="Script" path="res://scripts/data/dish_data.gd" id="1_dish"]
+
+[resource]
+script = ExtResource("1_dish")
+id = "tofu_hamburg"
+display_name = "豆腐ハンバーグ定食"
+short_name = "豆ハン"
+price = 980
+ingredients = {"rice": 1, "tofu": 1, "chicken": 1, "onion": 1}
+cook_time = 7.0
+color = Color(0.75, 0.7, 0.55, 1)
+sort_order = 17
+cook_category = "grill"
+unlock_rank = 2
+unlock_day = 195

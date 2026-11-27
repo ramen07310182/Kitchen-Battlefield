@@ -1,0 +1,17 @@
+[gd_resource type="Resource" script_class="DishData" format=3]
+
+[ext_resource type="Script" path="res://scripts/data/dish_data.gd" id="1_dish"]
+
+[resource]
+script = ExtResource("1_dish")
+id = "steak"
+display_name = "ステーキ定食"
+short_name = "ステキ"
+price = 1600
+ingredients = {"rice": 1, "beef": 1, "onion": 1}
+cook_time = 8.0
+color = Color(0.5, 0.2, 0.2, 1)
+sort_order = 23
+cook_category = "grill"
+unlock_rank = 4
+unlock_day = 300

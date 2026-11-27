@@ -1,0 +1,17 @@
+[gd_resource type="Resource" script_class="DishData" format=3]
+
+[ext_resource type="Script" path="res://scripts/data/dish_data.gd" id="1_dish"]
+
+[resource]
+script = ExtResource("1_dish")
+id = "sukiyaki"
+display_name = "すき焼き定食"
+short_name = "すき焼"
+price = 1500
+ingredients = {"rice": 1, "beef": 1, "tofu": 1, "negi": 1, "egg": 1}
+cook_time = 9.0
+color = Color(0.6, 0.3, 0.35, 1)
+sort_order = 21
+cook_category = "simmer"
+unlock_rank = 4
+unlock_day = 260

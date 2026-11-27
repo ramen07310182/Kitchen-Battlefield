@@ -383,8 +383,9 @@ func _do_prep_day1(screen: Node, dialog: ConfirmDialog) -> void:
 	_check("1日目は「前回と同じ仕込み」を押せない", (menu_step.get("_repeat_button") as Button).disabled)
 	var menu_rows: Array[MenuRow] = menu_step.get("_menu_rows")
 	var locked: Array[Label] = menu_step.get("_locked_labels")
-	_check("①には解放済みの3品と、まだ解放していない料理（評判 ○ で解放）が出る",
-		menu_rows.size() == 3 and locked.size() == 2 and locked[0].text.contains(Database.get_rank_name(2) + "で解放"),
+	_check("①には解放済みの3品と、次に解放される料理（3品だけ）が出る",
+		menu_rows.size() == 3 and locked.size() == PrepMenuStep.LOCKED_PREVIEW_COUNT
+		and locked[0].text.contains(Database.get_rank_name(2) + "で解放"),
 		"rows=%d locked=%d" % [menu_rows.size(), locked.size()])
 	GameState.change_prep("karaage", 2)
 	GameState.change_prep("yakizakana", 1)
@@ -534,8 +535,10 @@ func _do_prep_day2(screen: Node, dialog: ConfirmDialog) -> void:
 	for dish: DishData in GameState.get_unlocked_dishes():
 		GameState.change_prep(dish.id, 5)
 	print("[smoke] day2 prep=%s shelf=%s prep_shortage=%s" % [GameState.prep_counts, GameState.shelf_plan, GameState.get_prep_shortage()])
-	_check("2日目は料理%d種類をすべて仕込める（食材%d種類）" % [Database.dishes.size(), Database.ingredients.size()],
-		GameState.prep_counts.size() == Database.dishes.size() and Database.dishes.size() == 5 and Database.ingredients.size() == 7)
+	_check("2日目は解放済みの料理%d品をすべて仕込める（データは料理%d品・食材%d種類）" % [
+		GameState.get_unlocked_dishes().size(), Database.dishes.size(), Database.ingredients.size()],
+		GameState.prep_counts.size() == GameState.get_unlocked_dishes().size() and GameState.prep_counts.size() == 5
+		and Database.dishes.size() == 25 and Database.ingredients.size() == 13)
 
 	# ②仕入れ: 画面のボタンで予定を作る（まだお金は減らない）→ 不足分を予定に入れる → 確認して確定
 	(screen.get("_next_button") as Button).pressed.emit()

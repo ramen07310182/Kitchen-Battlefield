@@ -1,0 +1,17 @@
+[gd_resource type="Resource" script_class="DishData" format=3]
+
+[ext_resource type="Script" path="res://scripts/data/dish_data.gd" id="1_dish"]
+
+[resource]
+script = ExtResource("1_dish")
+id = "chicken_nanban"
+display_name = "チキン南蛮定食"
+short_name = "南蛮"
+price = 1000
+ingredients = {"rice": 1, "chicken": 1, "egg": 1, "cabbage": 1}
+cook_time = 7.0
+color = Color(0.95, 0.85, 0.6, 1)
+sort_order = 14
+cook_category = "fry"
+unlock_rank = 1
+unlock_day = 150

@@ -20,7 +20,7 @@ autowrap_mode = 3
 unique_name_in_owner = true
 layout_mode = 2
 slot_size = Vector2(64, 48)
-add_button_size = Vector2(96, 36)
+add_button_size = Vector2(80, 34)
 
 [node name="SummaryLabel" type="Label" parent="."]
 unique_name_in_owner = true

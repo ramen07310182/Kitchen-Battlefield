@@ -231,14 +231,14 @@ func get_unlocked_dishes() -> Array[DishData]:
 	return result
 
 
-## まだ解放していない料理（解放に必要なランクが低い順）
+## まだ解放していない料理（解放される日が早い順。同じ日ならランクが低い順）
 func get_locked_dishes() -> Array[DishData]:
 	var result: Array[DishData] = []
 	for dish: DishData in Database.dishes:
 		if not is_unlocked(dish.id):
 			result.append(dish)
 	result.sort_custom(func(a: DishData, b: DishData) -> bool:
-		return a.unlock_rank < b.unlock_rank or (a.unlock_rank == b.unlock_rank and a.unlock_day < b.unlock_day))
+		return a.unlock_day < b.unlock_day or (a.unlock_day == b.unlock_day and a.unlock_rank < b.unlock_rank))
 	return result
 
 

@@ -1,0 +1,17 @@
+[gd_resource type="Resource" script_class="DishData" format=3]
+
+[ext_resource type="Script" path="res://scripts/data/dish_data.gd" id="1_dish"]
+
+[resource]
+script = ExtResource("1_dish")
+id = "hamburg"
+display_name = "ハンバーグ定食"
+short_name = "ハンバ"
+price = 1300
+ingredients = {"rice": 1, "beef": 1, "pork": 1, "onion": 1, "egg": 1}
+cook_time = 8.0
+color = Color(0.55, 0.35, 0.25, 1)
+sort_order = 18
+cook_category = "grill"
+unlock_rank = 3
+unlock_day = 210

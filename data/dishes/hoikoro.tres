@@ -1,0 +1,17 @@
+[gd_resource type="Resource" script_class="DishData" format=3]
+
+[ext_resource type="Script" path="res://scripts/data/dish_data.gd" id="1_dish"]
+
+[resource]
+script = ExtResource("1_dish")
+id = "hoikoro"
+display_name = "回鍋肉定食"
+short_name = "回鍋"
+price = 920
+ingredients = {"rice": 1, "pork": 1, "cabbage": 1, "negi": 1}
+cook_time = 5.0
+color = Color(0.65, 0.75, 0.35, 1)
+sort_order = 10
+cook_category = "grill"
+unlock_rank = 1
+unlock_day = 90

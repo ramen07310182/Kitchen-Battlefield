@@ -1,0 +1,17 @@
+[gd_resource type="Resource" script_class="DishData" format=3]
+
+[ext_resource type="Script" path="res://scripts/data/dish_data.gd" id="1_dish"]
+
+[resource]
+script = ExtResource("1_dish")
+id = "tendon"
+display_name = "天丼"
+short_name = "天丼"
+price = 1100
+ingredients = {"rice": 1, "shrimp": 1, "egg": 1}
+cook_time = 7.0
+color = Color(0.95, 0.75, 0.45, 1)
+sort_order = 19
+cook_category = "fry"
+unlock_rank = 3
+unlock_day = 225

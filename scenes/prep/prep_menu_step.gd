@@ -2,7 +2,7 @@ class_name PrepMenuStep
 extends HBoxContainer
 ## 営業準備の手順①「仕込み」: 解放済みの料理の仕込み数（0〜99）を決める。
 ## 右の小さな欄に、仕込みに使う食材の「必要数／在庫」を出す（足りない食材は赤）。
-## まだ解放していない料理は、一覧の最後に「評判 ○ で解放」と暗く出す。
+## まだ解放していない料理は、次に解放される数品だけ、一覧の最後に「○○で解放」と暗く出す。
 
 ## 行の長押し（kind は "dish"）／指を離した
 signal detail_requested(kind: String, id: String)
@@ -14,6 +14,8 @@ const MENU_ROW_SCENE: PackedScene = preload("res://scenes/prep/menu_row.tscn")
 const COLOR_OK := Color(0.85, 0.85, 0.85)
 const COLOR_SHORT := Color(1.0, 0.45, 0.4)
 const COLOR_LOCKED := Color(0.55, 0.55, 0.55)
+## 一覧の最後に出す「まだ解放していない料理」の数（次に解放される順）
+const LOCKED_PREVIEW_COUNT := 3
 
 var _menu_rows: Array[MenuRow] = []
 var _locked_labels: Array[Label] = []
@@ -50,7 +52,7 @@ func _rebuild_rows() -> void:
 		row.detail_requested.connect(func(dish_id: String) -> void: detail_requested.emit("dish", dish_id))
 		row.detail_closed.connect(detail_closed.emit)
 		_menu_rows.append(row)
-	for dish: DishData in GameState.get_locked_dishes():
+	for dish: DishData in GameState.get_locked_dishes().slice(0, LOCKED_PREVIEW_COUNT):
 		var panel: PanelContainer = PanelContainer.new()
 		panel.add_theme_stylebox_override("panel", UIUtil.flat_box(Color(0.15, 0.14, 0.13), Color(0.3, 0.3, 0.3), 1))
 		var label: Label = Label.new()
