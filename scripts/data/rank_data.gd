@@ -9,3 +9,5 @@ extends Resource
 @export var reputation_threshold: int = 0
 ## このランクのとき、その日の評判の点数がプラスなら、この倍率をかけて評判に反映する（高いランクほど小さく）
 @export var reputation_gain_scale: float = 0.5
+## このランクで雇えるホールスタッフの人数
+@export var staff_limit: int = 0

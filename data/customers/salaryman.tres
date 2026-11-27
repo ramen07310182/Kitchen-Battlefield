@@ -12,3 +12,5 @@ budget = 2000
 eat_time = 4.0
 spawn_weight = 1.0
 color = Color(0.25, 0.3, 0.55, 1)
+topping_rate = 0.5
+favorite_toppings = PackedStringArray("karaage_extra", "tonjiru")

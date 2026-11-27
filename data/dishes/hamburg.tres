@@ -6,7 +6,7 @@
 script = ExtResource("1_dish")
 id = "hamburg"
 display_name = "ハンバーグ定食"
-short_name = "ハンバ"
+short_name = "ハンバーグ"
 price = 1300
 ingredients = {"rice": 1, "beef": 1, "pork": 1, "onion": 1, "egg": 1}
 cook_time = 8.0

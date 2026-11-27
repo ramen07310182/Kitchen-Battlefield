@@ -23,3 +23,8 @@ extends Resource
 ##   unlock_day : この営業日（○日目）以降（0 なら日数の条件なし）
 @export var unlock_rank: int = 1
 @export var unlock_day: int = 0
+
+
+## トッピング（ToppingData）なら true
+func is_topping() -> bool:
+	return false

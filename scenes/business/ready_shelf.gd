@@ -2,6 +2,7 @@ class_name ReadyShelf
 extends PanelContainer
 ## 完成品置き場。料理をタップすると「持つ」、もう一度タップすると持つのをやめる。
 ## 持っている料理は、提供するまで枠に残る（枠は空かない）。
+## ホールスタッフが取りに来る枠は「予約」になり、プレイヤーは持てない（暗く出す）。スタッフが取り終えると枠が空く。
 
 signal contents_changed
 signal held_changed(dish_id: String)
@@ -13,6 +14,9 @@ const COLUMNS_WIDE := 4
 var _slots: Array[String] = []
 var _buttons: Array[Button] = []
 var _held_index: int = -1
+## スタッフが予約した枠 { 枠の番号: true }
+var _reserved: Dictionary = {}
+var _slot_size: Vector2 = Vector2(46, 32)
 
 @onready var _title_label: Label = %TitleLabel
 @onready var _held_panel: PanelContainer = %HeldPanel
@@ -28,6 +32,7 @@ func _ready() -> void:
 func setup(capacity: int) -> void:
 	_grid.columns = COLUMNS if capacity <= 6 else COLUMNS_WIDE
 	var slot_size: Vector2 = Vector2(46, 32) if capacity <= 6 else Vector2(40, 30)
+	_slot_size = slot_size
 	for i: int in capacity:
 		_slots.append("")
 		var button: Button = Button.new()
@@ -72,8 +77,45 @@ func remove_held() -> void:
 	held_changed.emit("")
 
 
+## スタッフが取れる枠（その料理があって、プレイヤーが持っておらず、予約されていない）。なければ -1
+func find_available_slot(item_id: String) -> int:
+	for i: int in _slots.size():
+		if _slots[i] == item_id and i != _held_index and not _reserved.has(i):
+			return i
+	return -1
+
+
+func is_reserved(index: int) -> bool:
+	return _reserved.has(index)
+
+
+## スタッフが取りに来る枠として予約する
+func reserve_slot(index: int) -> void:
+	if index < 0 or index >= _slots.size():
+		return
+	_reserved[index] = true
+	_refresh()
+
+
+func unreserve_slot(index: int) -> void:
+	_reserved.erase(index)
+	_refresh()
+
+
+## 予約した枠から料理を取り出す（枠が空く）。取り出した料理のid
+func take_reserved(index: int) -> String:
+	if not _reserved.has(index):
+		return ""
+	_reserved.erase(index)
+	var item_id: String = _slots[index]
+	_slots[index] = ""
+	_refresh()
+	contents_changed.emit()
+	return item_id
+
+
 func _on_slot_pressed(index: int) -> void:
-	if _slots[index] == "":
+	if _slots[index] == "" or _reserved.has(index):
 		return
 	_held_index = -1 if _held_index == index else index
 	_refresh()
@@ -94,11 +136,15 @@ func _refresh() -> void:
 			var dish_icon: Texture2D = SpriteLibrary.get_icon(SpriteKeys.dish(dish.id))
 			button.icon = dish_icon
 			button.text = "" if dish_icon != null else dish.short_name
-			button.disabled = false
+			button.add_theme_font_size_override("font_size", UIUtil.fit_font_size(dish.short_name, _slot_size.x - 6.0, 13))
+			button.disabled = _reserved.has(i)
 			var held: bool = i == _held_index
 			var box: StyleBoxFlat = UIUtil.flat_box(dish.color, Color(1, 1, 1) if held else dish.color.darkened(0.4), 3 if held else 1)
 			UIUtil.apply_button_style(button, box)
 			button.modulate = Color(0.6, 0.6, 0.6) if _held_index >= 0 and not held else Color.WHITE
+			if _reserved.has(i):
+				# スタッフが取りに来ている枠
+				button.modulate = Color(1, 1, 1, 0.35)
 
 	var held_dish: DishData = Database.get_dish(get_held_dish()) if _held_index >= 0 else null
 	if held_dish != null:

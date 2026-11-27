@@ -1,6 +1,6 @@
 class_name DemandEstimator
 extends RefCounted
-## 評判・客層の好みから料理ごとの注文数の目安を出し、仕込み数と合わせて食材の必要数（目安）を見積もる。
+## 評判・客層の好みから料理・トッピングごとの注文数の目安を出し、仕込み数と合わせて食材の必要数（目安）を見積もる。
 ## 注文数の目安は「すべての料理を出したとき」で出す（仕込み数を変えても目安が動かないように）。
 ## 来店数 = 営業時間 ÷ 平均の来店間隔（評判込み）。席が埋まって来店できない分は考えない（多めの目安）。
 ## 仕込み数の食材は営業開始のときにまとめて在庫から引くので、
@@ -13,8 +13,9 @@ static func expected_visitors(config: GameConfig, reputation: int) -> float:
 	return span / maxf(config.get_average_spawn_interval(reputation), 0.1) + 1.0
 
 
-## { 料理id: 注文数の目安 }
-static func expected_orders(menu: Array[DishData], customer_types: Array[CustomerTypeData], config: GameConfig, reputation: int) -> Dictionary:
+## { 料理id: 注文数の目安 }。toppings を渡すと、トッピングの目安も入れる（客層ごとの確率 × 好み）
+static func expected_orders(menu: Array[DishData], customer_types: Array[CustomerTypeData], config: GameConfig, reputation: int,
+		toppings: Array[DishData] = []) -> Dictionary:
 	var result: Dictionary = {}
 	var total_weight: float = 0.0
 	for t: CustomerTypeData in customer_types:
@@ -27,6 +28,12 @@ static func expected_orders(menu: Array[DishData], customer_types: Array[Custome
 		var probabilities: Dictionary = OrderChooser.order_probabilities(t, menu, config)
 		for dish_id: String in probabilities:
 			result[dish_id] = float(result.get(dish_id, 0.0)) + visitors * share * float(probabilities[dish_id])
+		if menu.is_empty():
+			continue
+		var topping_probabilities: Dictionary = OrderChooser.topping_probabilities(t, toppings, config)
+		for topping_id: String in topping_probabilities:
+			var add: float = visitors * share * t.topping_rate * float(topping_probabilities[topping_id])
+			result[topping_id] = float(result.get(topping_id, 0.0)) + add
 	return result
 
 

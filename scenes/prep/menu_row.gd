@@ -33,7 +33,8 @@ func _ready() -> void:
 func setup(data: DishData) -> void:
 	dish = data
 	_swatch.color = dish.color
-	_name_label.text = "%s  %s" % [dish.display_name, UIText.money(dish.price)]
+	# トッピングは「卵焼き  +¥150」（料理に追加する金額）
+	_name_label.text = "%s  %s%s" % [dish.display_name, "+" if dish.is_topping() else "", UIText.money(dish.price)]
 
 
 ## expected_orders: GameState.get_expected_orders() の結果

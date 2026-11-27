@@ -1,0 +1,17 @@
+[gd_resource type="Resource" script_class="ToppingData" format=3]
+
+[ext_resource type="Script" path="res://scripts/data/topping_data.gd" id="1_top"]
+
+[resource]
+script = ExtResource("1_top")
+id = "korokke_single"
+display_name = "単品コロッケ"
+short_name = "単品コロ"
+price = 200
+ingredients = {"potato": 1, "panko": 1}
+cook_time = 2.5
+color = Color(0.8, 0.6, 0.32, 1)
+sort_order = 4
+cook_category = "fry"
+unlock_rank = 3
+unlock_day = 250

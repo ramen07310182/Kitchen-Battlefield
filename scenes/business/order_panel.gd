@@ -1,9 +1,15 @@
 class_name OrderPanel
 extends PanelContainer
 ## 注文状況パネル（画面の端に常に表示）。待ち時間が長い注文ほど目立つ色になる。
+## 1行に「席の番号・料理＋トッピング・待ち時間」を出す。出し終えた料理・トッピングは薄くする。
+
+const SERVED_ALPHA := 0.35
 
 var _rows: Array[PanelContainer] = []
-var _row_labels: Array[Label] = []
+var _seat_labels: Array[Label] = []
+var _dish_labels: Array[Label] = []
+var _topping_labels: Array[Label] = []
+var _wait_labels: Array[Label] = []
 var _row_boxes: Array[StyleBoxFlat] = []
 var _blink_time: float = 0.0
 
@@ -18,7 +24,8 @@ func _ready() -> void:
 	_empty_label.text = UIText.ORDER_EMPTY
 
 
-## orders: [{ seat: String（席の番号。C1・T1-2 など）, dish: DishData, elapsed: float, ratio: float }]
+## orders: [{ seat: String（席の番号。C1・T1-2 など）, dish: DishData, topping: DishData か null,
+##   dish_served: bool, topping_served: bool, elapsed: float, ratio: float }]
 func show_orders(orders: Array[Dictionary], great_ratio: float, good_ratio: float, delta: float) -> void:
 	_blink_time += delta
 	while _rows.size() < orders.size():
@@ -30,9 +37,17 @@ func show_orders(orders: Array[Dictionary], great_ratio: float, good_ratio: floa
 			continue
 		var order: Dictionary = orders[i]
 		var dish: DishData = order["dish"]
+		var topping: DishData = order.get("topping")
 		var ratio: float = order["ratio"]
 		row.show()
-		_row_labels[i].text = UIText.ORDER_ROW % [String(order["seat"]), dish.display_name, int(order["elapsed"])]
+		_seat_labels[i].text = String(order["seat"])
+		_dish_labels[i].text = dish.display_name
+		_dish_labels[i].modulate.a = SERVED_ALPHA if bool(order.get("dish_served", false)) else 1.0
+		_topping_labels[i].visible = topping != null
+		if topping != null:
+			_topping_labels[i].text = UIText.ORDER_TOPPING % topping.display_name
+			_topping_labels[i].modulate.a = SERVED_ALPHA if bool(order.get("topping_served", false)) else 1.0
+		_wait_labels[i].text = UIText.ORDER_WAIT % int(order["elapsed"])
 		var box: StyleBoxFlat = _row_boxes[i]
 		box.border_color = dish.color
 		row.modulate = Color.WHITE
@@ -53,13 +68,39 @@ func _add_row() -> void:
 	box.border_width_left = 5
 	box.content_margin_left = 9
 	row.add_theme_stylebox_override("panel", box)
-	var label: Label = Label.new()
+	var vbox: VBoxContainer = VBoxContainer.new()
+	vbox.add_theme_constant_override("separation", 0)
+	row.add_child(vbox)
+	var line: HBoxContainer = HBoxContainer.new()
+	line.add_theme_constant_override("separation", 4)
+	vbox.add_child(line)
+	var seat: Label = Label.new()
+	line.add_child(seat)
 	# 料理名が長くても注文状況の幅を広げない（入りきらない分は「…」）
-	label.clip_text = true
-	label.text_overrun_behavior = TextServer.OVERRUN_TRIM_ELLIPSIS
-	label.custom_minimum_size = Vector2(60, 0)
-	row.add_child(label)
+	var dish_label: Label = _clipped_label(36)
+	line.add_child(dish_label)
+	# トッピングは2行目（待ち時間の横）に出す
+	var second: HBoxContainer = HBoxContainer.new()
+	second.add_theme_constant_override("separation", 6)
+	vbox.add_child(second)
+	var wait: Label = Label.new()
+	second.add_child(wait)
+	var topping_label: Label = _clipped_label(30)
+	topping_label.horizontal_alignment = HORIZONTAL_ALIGNMENT_RIGHT
+	second.add_child(topping_label)
 	_list.add_child(row)
 	_rows.append(row)
-	_row_labels.append(label)
+	_seat_labels.append(seat)
+	_dish_labels.append(dish_label)
+	_topping_labels.append(topping_label)
+	_wait_labels.append(wait)
 	_row_boxes.append(box)
+
+
+func _clipped_label(min_width: float) -> Label:
+	var label: Label = Label.new()
+	label.clip_text = true
+	label.text_overrun_behavior = TextServer.OVERRUN_TRIM_ELLIPSIS
+	label.custom_minimum_size = Vector2(min_width, 0)
+	label.size_flags_horizontal = Control.SIZE_EXPAND_FILL
+	return label

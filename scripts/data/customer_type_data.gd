@@ -8,6 +8,10 @@ extends Resource
 @export var patience: float = 30.0
 ## 好きな料理のid。注文時に選ばれやすくなる
 @export var favorite_dishes: PackedStringArray = PackedStringArray()
+## 料理を選んだあと、トッピングを1つ追加で頼む確率（0〜1）
+@export var topping_rate: float = 0.3
+## 好きなトッピングのid。トッピングを頼むとき選ばれやすくなる
+@export var favorite_toppings: PackedStringArray = PackedStringArray()
 ## 予算（円）。これより高い料理は基本的に頼まない
 @export var budget: int = 1000
 ## 食事にかかる時間（秒）

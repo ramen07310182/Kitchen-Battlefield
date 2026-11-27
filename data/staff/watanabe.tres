@@ -1,0 +1,13 @@
+[gd_resource type="Resource" script_class="StaffData" format=3]
+
+[ext_resource type="Script" path="res://scripts/data/staff_data.gd" id="1_staff"]
+
+[resource]
+script = ExtResource("1_staff")
+id = "watanabe"
+display_name = "渡辺さん"
+walk_speed = 120.0
+pick_time = 0.5
+daily_wage = 6000
+color = Color(0.85, 0.4, 0.55, 1)
+sort_order = 3

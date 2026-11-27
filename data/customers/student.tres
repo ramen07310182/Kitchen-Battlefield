@@ -12,3 +12,5 @@ budget = 950
 eat_time = 6.0
 spawn_weight = 1.0
 color = Color(0.3, 0.6, 0.35, 1)
+topping_rate = 0.15
+favorite_toppings = PackedStringArray("potato_salad")

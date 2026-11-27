@@ -5,24 +5,30 @@ extends Node
 ## 実際に席へ案内して料理を確保するのは営業画面（business.gd）。
 ##
 ## 売り逃しの記録: 客はまず今日のメニュー全体から「頼みたい料理」を選ぶ（OrderChooser）。
-## それが売り切れていたら、注文できる料理から選び直し、頼みたかった料理を missed_dish_id で知らせる。
+## それが売り切れていたら、注文できる料理から選び直し、頼みたかった料理を売り逃しとして知らせる。
+## トッピング: 料理を決めたあと、客層の確率でトッピングを1つ頼みたくなる。今日出すトッピングから選び、
+## それが売り切れていたら頼まない（売り逃しとして知らせる）。
 
-## missed_dish_id: 頼みたかったのに売り切れていた料理のid（なければ ""）
-signal spawn_requested(customer_type: CustomerTypeData, dish: DishData, missed_dish_id: String)
+## order: { "dish": DishData, "topping": DishData か null, "missed": Array[String]（頼みたかったのに売り切れていた料理・トッピングのid） }
+signal spawn_requested(customer_type: CustomerTypeData, order: Dictionary)
 
 var active: bool = false
 
 var _config: GameConfig
 var _menu: Array[DishData] = []
+var _toppings: Array[DishData] = []
 var _supply: DishSupply = null
 var _timer: float = 0.0
 ## 来店間隔の倍率（評判が高いほど小さい）。営業開始時の評判で決め、その日の間は変えない
 var _interval_scale: float = 1.0
 
 
-func start(config: GameConfig, menu: Array[DishData], reputation: int, supply: DishSupply) -> void:
+## toppings: 今日出すトッピング（仕込み数が1以上）
+func start(config: GameConfig, menu: Array[DishData], reputation: int, supply: DishSupply,
+		toppings: Array[DishData] = []) -> void:
 	_config = config
 	_menu = menu
+	_toppings = toppings
 	_supply = supply
 	_interval_scale = config.get_spawn_interval_scale(reputation)
 	_timer = config.first_spawn_delay
@@ -44,10 +50,9 @@ func _process(delta: float) -> void:
 	if customer_type == null:
 		return
 	var order: Dictionary = choose_order(customer_type)
-	var dish: DishData = order["dish"]
-	if dish == null:
+	if order["dish"] == null:
 		return
-	spawn_requested.emit(customer_type, dish, order["missed"])
+	spawn_requested.emit(customer_type, order)
 
 
 func _pick_customer_type() -> CustomerTypeData:
@@ -65,17 +70,28 @@ func _pick_customer_type() -> CustomerTypeData:
 	return types[types.size() - 1]
 
 
-## 注文を決める。戻り値: { "dish": 注文する料理（注文できる料理がなければ null）, "missed": 頼みたかったのに売り切れていた料理のid か "" }
+## 注文を決める。戻り値: { "dish": 注文する料理（注文できる料理がなければ null）, "topping": トッピングか null,
+##   "missed": 頼みたかったのに売り切れていた料理・トッピングのid の配列 }
 ## まず今日のメニュー全体から予算と好みで選び（確率は OrderChooser）、売り切れていたら注文できる料理から選び直す
 func choose_order(customer_type: CustomerTypeData) -> Dictionary:
+	var missed: Array[String] = []
 	var wanted: DishData = OrderChooser.choose(customer_type, _menu, _config)
 	if wanted == null:
-		return { "dish": null, "missed": "" }
-	if _supply == null or _supply.get_orderable(wanted.id) > 0:
-		return { "dish": wanted, "missed": "" }
-	var available: Array[DishData] = _supply.filter_orderable(_menu)
-	var dish: DishData = OrderChooser.choose(customer_type, available, _config) if not available.is_empty() else null
-	return { "dish": dish, "missed": wanted.id }
+		return { "dish": null, "topping": null, "missed": missed }
+	var dish: DishData = wanted
+	if _supply != null and _supply.get_orderable(wanted.id) <= 0:
+		missed.append(wanted.id)
+		var available: Array[DishData] = _supply.filter_orderable(_menu)
+		dish = OrderChooser.choose(customer_type, available, _config) if not available.is_empty() else null
+	var topping: DishData = null
+	if dish != null and not _toppings.is_empty() and OrderChooser.wants_topping(customer_type):
+		var wanted_topping: DishData = OrderChooser.choose_topping(customer_type, _toppings, _config)
+		if wanted_topping != null:
+			if _supply == null or _supply.get_orderable(wanted_topping.id) > 0:
+				topping = wanted_topping
+			else:
+				missed.append(wanted_topping.id)
+	return { "dish": dish, "topping": topping, "missed": missed }
 
 
 ## 売り切れで閉店したあと、営業時間の残り seconds 秒のあいだに来店しようとしたはずの客を、
@@ -91,5 +107,9 @@ func simulate_missed(seconds: float) -> Dictionary:
 			var wanted: DishData = OrderChooser.choose(customer_type, _menu, _config)
 			if wanted != null:
 				DayStats.add_to(result, wanted.id, 1)
+				if not _toppings.is_empty() and OrderChooser.wants_topping(customer_type):
+					var wanted_topping: DishData = OrderChooser.choose_topping(customer_type, _toppings, _config)
+					if wanted_topping != null:
+						DayStats.add_to(result, wanted_topping.id, 1)
 		t += randf_range(_config.spawn_interval_min, _config.spawn_interval_max) * _interval_scale
 	return result

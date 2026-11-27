@@ -6,7 +6,7 @@
 script = ExtResource("1_dish")
 id = "mixfry"
 display_name = "ミックスフライ定食"
-short_name = "ミック"
+short_name = "ミックス"
 price = 1450
 ingredients = {"rice": 1, "shrimp": 1, "fish": 1, "panko": 1, "cabbage": 1}
 cook_time = 9.0

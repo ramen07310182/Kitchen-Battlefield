@@ -1,0 +1,17 @@
+[gd_resource type="Resource" script_class="ToppingData" format=3]
+
+[ext_resource type="Script" path="res://scripts/data/topping_data.gd" id="1_top"]
+
+[resource]
+script = ExtResource("1_top")
+id = "karaage_extra"
+display_name = "唐揚げ追加"
+short_name = "唐揚追加"
+price = 250
+ingredients = {"chicken": 1}
+cook_time = 2.5
+color = Color(0.95, 0.62, 0.3, 1)
+sort_order = 2
+cook_category = "fry"
+unlock_rank = 1
+unlock_day = 100

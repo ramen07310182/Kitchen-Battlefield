@@ -1,5 +1,6 @@
 extends Control
 ## お店の強化画面（営業結果のあと、次の日の準備の前）。設備を買って、次の営業から効果を出す。
+## 「従業員」の区切りでは、ホールスタッフを雇う・やめてもらう（雇える人数はランクで決まる。費用は日給だけ）。
 ## 購入は確認ダイアログを出してから。所持金・ランクが足りないものは押せず、理由を出す。行の長押しで詳細（今と次のレベルの比較）。
 
 signal next_day_requested
@@ -7,7 +8,11 @@ signal next_day_requested
 const EQUIPMENT_ROW_SCENE: PackedScene = preload("res://scenes/upgrade/equipment_row.tscn")
 
 var _rows: Array[EquipmentRow] = []
+var _staff_rows: Array[StaffRow] = []
+var _staff_header: Label
 var _pending_id: String = ""
+## 確認ダイアログで聞いていること（"buy" = 設備の購入、"dismiss" = 従業員にやめてもらう）
+var _pending_action: String = ""
 
 @onready var _title_label: Label = %TitleLabel
 @onready var _help_label: Label = %HelpLabel
@@ -26,6 +31,7 @@ func _ready() -> void:
 	_message_label.text = UIText.UPGRADE_HINT
 	_holiday_label.text = ResultScreenText.holiday_note(GameState.day)
 	_holiday_label.visible = _holiday_label.text != ""
+	_list.add_child(_section_label(UIText.UPGRADE_SECTION_EQUIPMENT))
 	for e: EquipmentData in Database.equipment:
 		var row: EquipmentRow = EQUIPMENT_ROW_SCENE.instantiate() as EquipmentRow
 		_list.add_child(row)
@@ -34,6 +40,22 @@ func _ready() -> void:
 		row.detail_requested.connect(_show_detail)
 		row.detail_closed.connect(_detail.close)
 		_rows.append(row)
+	# 従業員（ホールスタッフ）
+	_staff_header = _section_label("")
+	_list.add_child(_staff_header)
+	var staff_help: Label = Label.new()
+	staff_help.theme_type_variation = &"SmallLabel"
+	staff_help.text = UIText.UPGRADE_STAFF_HELP
+	staff_help.autowrap_mode = TextServer.AUTOWRAP_WORD_SMART
+	staff_help.modulate = Color(0.8, 0.8, 0.8)
+	_list.add_child(staff_help)
+	for data: StaffData in Database.staff:
+		var staff_row: StaffRow = StaffRow.new()
+		_list.add_child(staff_row)
+		staff_row.setup(data)
+		staff_row.hire_requested.connect(_on_hire_requested)
+		staff_row.dismiss_requested.connect(_on_dismiss_requested)
+		_staff_rows.append(staff_row)
 	_dialog.answered.connect(_on_dialog_answered)
 	_next_button.pressed.connect(_on_next_pressed)
 	GameState.money_changed.connect(_on_money_changed)
@@ -47,6 +69,32 @@ func _on_money_changed(_value: int) -> void:
 func _refresh() -> void:
 	for row: EquipmentRow in _rows:
 		row.refresh()
+	for staff_row: StaffRow in _staff_rows:
+		staff_row.refresh()
+	_staff_header.text = UIText.UPGRADE_SECTION_STAFF % [GameState.hired_staff.size(), GameState.get_staff_limit()]
+
+
+func _section_label(text: String) -> Label:
+	var label: Label = Label.new()
+	label.text = text
+	label.theme_type_variation = &"HeaderLabel"
+	label.add_theme_color_override("font_color", Color(1.0, 0.85, 0.55))
+	return label
+
+
+func _on_hire_requested(staff_id: String) -> void:
+	if GameState.hire_staff(staff_id):
+		_message_label.text = UIText.UPGRADE_STAFF_HIRE_DONE % Database.get_staff(staff_id).display_name
+	_refresh()
+
+
+func _on_dismiss_requested(staff_id: String) -> void:
+	if not GameState.is_hired(staff_id):
+		return
+	_pending_id = staff_id
+	_pending_action = "dismiss"
+	_dialog.ask(UIText.UPGRADE_STAFF_DISMISS_CONFIRM % Database.get_staff(staff_id).display_name,
+		UIText.UPGRADE_STAFF_DISMISS_OK, UIText.PREP_CANCEL)
 
 
 func _on_buy_requested(equipment_id: String) -> void:
@@ -55,14 +103,22 @@ func _on_buy_requested(equipment_id: String) -> void:
 	var e: EquipmentData = Database.get_equipment(equipment_id)
 	var level: int = GameState.get_equipment_level(equipment_id)
 	_pending_id = equipment_id
+	_pending_action = "buy"
 	_dialog.ask(UIText.UPGRADE_CONFIRM % [e.display_name, level, level + 1, UIText.money(e.get_price(level))],
 		UIText.UPGRADE_OK, UIText.PREP_CANCEL)
 
 
 func _on_dialog_answered(ok: bool) -> void:
 	var equipment_id: String = _pending_id
+	var action: String = _pending_action
 	_pending_id = ""
+	_pending_action = ""
 	if not ok or equipment_id == "":
+		return
+	if action == "dismiss":
+		if GameState.dismiss_staff(equipment_id):
+			_message_label.text = UIText.UPGRADE_STAFF_DISMISS_DONE % Database.get_staff(equipment_id).display_name
+		_refresh()
 		return
 	if GameState.buy_equipment(equipment_id):
 		var e: EquipmentData = Database.get_equipment(equipment_id)

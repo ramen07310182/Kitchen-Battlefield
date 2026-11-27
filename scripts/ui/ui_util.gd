@@ -25,3 +25,10 @@ static func apply_button_style(button: Button, box: StyleBox) -> void:
 	for state: String in ["normal", "hover", "pressed", "hover_pressed", "disabled"]:
 		button.add_theme_stylebox_override(state, box)
 	button.add_theme_stylebox_override("focus", StyleBoxEmpty.new())
+
+
+## 短い名前を狭い枠に入れるときの文字の大きさ（1文字がおよそ文字の大きさの幅になるので、入りきらなければ小さくする）
+static func fit_font_size(text: String, width: float, base: int, min_size: int = 8) -> int:
+	if text.length() <= 0:
+		return base
+	return clampi(floori(width / float(text.length())), min_size, base)

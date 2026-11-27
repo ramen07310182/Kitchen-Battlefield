@@ -166,11 +166,16 @@ func _check_rules() -> void:
 	# 料理の解放
 	var unlocked_ings: Array[IngredientData] = GameState.get_unlocked_ingredients()
 	var has_egg: bool = false
+	var has_onion: bool = false
 	for ing: IngredientData in unlocked_ings:
 		if ing.id == "egg":
 			has_egg = true
-	_check("最初は3品だけ解放され、親子丼は仕込めず、卵は仕入れ画面に出ない",
-		GameState.get_unlocked_dishes().size() == 3 and GameState.change_prep("oyakodon", 1) == 0 and not has_egg)
+		if ing.id == "onion":
+			has_onion = true
+	var first_toppings: Array[DishData] = GameState.get_unlocked_toppings()
+	_check("最初は料理3品とトッピングの卵焼きだけ解放され、親子丼は仕込めず、仕入れ画面に卵は出て玉ねぎは出ない",
+		GameState.get_unlocked_dishes().size() == 3 and first_toppings.size() == 1 and first_toppings[0].id == "tamagoyaki"
+		and GameState.change_prep("oyakodon", 1) == 0 and has_egg and not has_onion)
 	# 評判の計算: 客ごとの点数をその日の分だけ足し、営業結果のときに「点数 × ランクの倍率」で反映する
 	GameState.today = DayStats.new()
 	for i: int in 10:
@@ -481,10 +486,21 @@ func _do_prep_day1(screen: Node, dialog: ConfirmDialog) -> void:
 	_check("1日目は「前回と同じ仕込み」を押せない", (menu_step.get("_repeat_button") as Button).disabled)
 	var menu_rows: Array[MenuRow] = menu_step.get("_menu_rows")
 	var locked: Array[Label] = menu_step.get("_locked_labels")
-	_check("①には解放済みの3品と、次に解放される料理（3品だけ）が出る",
-		menu_rows.size() == 3 and locked.size() == PrepMenuStep.LOCKED_PREVIEW_COUNT
-		and locked[0].text.contains(Database.get_rank_name(2) + "で解放"),
-		"rows=%d locked=%d" % [menu_rows.size(), locked.size()])
+	var dish_rows: int = 0
+	var topping_rows: int = 0
+	for row: MenuRow in menu_rows:
+		if row.dish.is_topping():
+			topping_rows += 1
+		else:
+			dish_rows += 1
+	var topping_header: Label = menu_step.get("_topping_header")
+	_check("①には解放済みの3品と次に解放される料理（3品）、区切りの下にトッピング（卵焼き）と次のトッピング（1品）が出る",
+		dish_rows == 3 and topping_rows == 1 and menu_rows[3].dish.id == "tamagoyaki"
+		and locked.size() == PrepMenuStep.LOCKED_PREVIEW_COUNT + PrepMenuStep.LOCKED_TOPPING_PREVIEW_COUNT
+		and locked[0].text.contains(Database.get_rank_name(2) + "で解放") and topping_header != null
+		and topping_header.get_parent().get_index() > menu_rows[2].get_index()
+		and topping_header.get_parent().get_index() < menu_rows[3].get_index(),
+		"rows=%d+%d locked=%d" % [dish_rows, topping_rows, locked.size()])
 	GameState.change_prep("karaage", 2)
 	GameState.change_prep("yakizakana", 1)
 	GameState.change_prep("shogayaki", 1)
@@ -503,8 +519,8 @@ func _do_prep_day1(screen: Node, dialog: ConfirmDialog) -> void:
 	_check("「次へ」「戻る」「手順の表示」で行き来しても、仕込み数と仕入れ予定が消えない",
 		at_purchase and back_ok and _step_of(screen) == 1 and GameState.prep_counts == prep_snapshot
 		and GameState.purchase_plan == plan_snapshot and not plan_snapshot.is_empty())
-	_check("②には解放済みの料理で使う食材だけが出る（卵・玉ねぎは出ない）",
-		ing_rows.size() == GameState.get_unlocked_ingredients().size() and ing_rows.size() == 5)
+	_check("②には解放済みの料理・トッピングで使う食材だけが出る（卵焼きの卵は出て、玉ねぎは出ない）",
+		ing_rows.size() == GameState.get_unlocked_ingredients().size() and ing_rows.size() == 6)
 	GameState.clear_purchase_plan()
 
 	# 食材が足りないと③へ進めない →「在庫に合わせて減らす」で進む
@@ -541,7 +557,7 @@ func _do_prep_day2(screen: Node, dialog: ConfirmDialog) -> void:
 	var menu_step: PrepMenuStep = screen.get("_menu_step")
 	var purchase_step: PrepPurchaseStep = screen.get("_purchase_step")
 	var menu_rows: Array[MenuRow] = menu_step.get("_menu_rows")
-	_check("解放した料理が①に出る（5品）", menu_rows.size() == 5, "rows=%d" % menu_rows.size())
+	_check("解放した料理が①に出る（料理5品＋トッピング1品）", menu_rows.size() == 6, "rows=%d" % menu_rows.size())
 
 	# 準備画面の各料理に「前回 ○食売れた」が出る（1日目は出ない）
 	var last_ok: bool = true
@@ -856,8 +872,8 @@ func _do_result(screen: Node) -> void:
 	if _days_done >= DAYS_TO_RUN:
 		var saved: String = FileAccess.get_file_as_string(GameState.save_path)
 		print("[smoke] save: ", saved.replace("\n", " "))
-		_check("セーブは version 9 で、前回の置き場・売れた数・売り逃し・解放済みの料理・ランク・履歴・設備を含む",
-			saved.contains("\"version\": 9") and saved.contains("\"history\"") and saved.contains("\"equipment\"") and saved.contains("last_shelf") and saved.contains("last_sold")
+		_check("セーブは version 10 で、前回の置き場・売れた数・売り逃し・解放済みの料理・ランク・履歴・設備・従業員を含む",
+			saved.contains("\"version\": 10") and saved.contains("\"staff\"") and saved.contains("\"history\"") and saved.contains("\"equipment\"") and saved.contains("last_shelf") and saved.contains("last_sold")
 			and saved.contains("last_missed") and saved.contains("\"unlocked\"") and saved.contains("\"rank\""))
 		_finish()
 

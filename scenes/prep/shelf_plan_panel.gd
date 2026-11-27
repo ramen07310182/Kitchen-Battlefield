@@ -33,10 +33,11 @@ func _ready() -> void:
 		slot.pressed.connect(func() -> void: remove_requested.emit(i))
 		_slots.add_child(slot)
 		_slot_buttons.append(slot)
-	for dish: DishData in Database.dishes:
+	for dish: DishData in Database.items:
 		var button: Button = Button.new()
 		button.custom_minimum_size = add_button_size
 		button.text = UIText.PREP_SHELF_ADD % dish.short_name
+		button.add_theme_font_size_override("font_size", UIUtil.fit_font_size(button.text, add_button_size.x - 10.0, 13))
 		button.pressed.connect(func() -> void: add_requested.emit(dish.id))
 		_add_row.add_child(button)
 		_add_buttons[dish.id] = button
@@ -62,9 +63,10 @@ func refresh() -> void:
 			var icon: Texture2D = SpriteLibrary.get_icon(SpriteKeys.dish(dish.id))
 			slot.icon = icon
 			slot.text = "" if icon != null else dish.short_name
+			slot.add_theme_font_size_override("font_size", UIUtil.fit_font_size(dish.short_name, slot_size.x - 6.0, 13))
 			slot.disabled = false
 			UIUtil.apply_button_style(slot, UIUtil.flat_box(dish.color, dish.color.darkened(0.4), 1))
-	for dish: DishData in Database.dishes:
+	for dish: DishData in Database.items:
 		var button: Button = _add_buttons[dish.id]
 		button.visible = GameState.is_on_menu(dish.id)
 		button.disabled = not GameState.can_add_to_shelf_plan(dish.id)

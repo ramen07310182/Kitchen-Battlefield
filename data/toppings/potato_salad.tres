@@ -1,0 +1,17 @@
+[gd_resource type="Resource" script_class="ToppingData" format=3]
+
+[ext_resource type="Script" path="res://scripts/data/topping_data.gd" id="1_top"]
+
+[resource]
+script = ExtResource("1_top")
+id = "potato_salad"
+display_name = "ポテトサラダ"
+short_name = "ポテサラ"
+price = 150
+ingredients = {"potato": 1}
+cook_time = 1.5
+color = Color(0.93, 0.9, 0.72, 1)
+sort_order = 1
+cook_category = ""
+unlock_rank = 1
+unlock_day = 40

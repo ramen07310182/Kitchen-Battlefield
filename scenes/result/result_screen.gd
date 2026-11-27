@@ -75,6 +75,8 @@ func _ready() -> void:
 	if stats.waste_count > 0:
 		_add_row(_profit_grid, UIText.RESULT_WASTE % stats.waste_count, UIText.money(-stats.waste_cost), COLOR_WASTE)
 	_add_row(_profit_grid, UIText.RESULT_OTHER, UIText.money(-stats.other_expense))
+	if stats.labor_cost > 0 or stats.staff_count > 0:
+		_add_row(_profit_grid, UIText.RESULT_LABOR % stats.staff_count, UIText.money(-stats.labor_cost))
 
 	# 所持金（大）と、利益との関係（小）
 	var money_change: int = GameState.money - stats.day_start_money
@@ -163,8 +165,9 @@ func _build_dish_table(stats: DayStats) -> void:
 		box.border_width_left = 6
 		box.content_margin_left = 12
 		box.border_color = dish.color if accent.a <= 0.0 else accent
+		var row_name: String = UIText.RESULT_TOPPING_NAME % dish.display_name if dish.is_topping() else dish.display_name
 		var row: PanelContainer = _make_table_row(
-			dish.display_name, tag,
+			row_name, tag,
 			[str(prepared), str(sold), str(missed), str(waste), UIText.money(sales)],
 			box, text_color, false)
 		_dish_table.add_child(row)

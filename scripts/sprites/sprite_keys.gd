@@ -34,6 +34,7 @@ const ANIM_EAT := "eat"
 const ANIM_COOK := "cook"
 
 const CUSTOMER_ANIMS: PackedStringArray = ["walk", "sit", "eat"]
+const STAFF_ANIMS: PackedStringArray = ["idle", "walk"]
 const CHEF_ANIMS: PackedStringArray = ["idle", "cook"]
 const STOVE_ANIMS: PackedStringArray = ["idle", "cook"]
 
@@ -42,8 +43,14 @@ static func customer(type_id: String) -> String:
 	return "customers/" + type_id
 
 
+## 料理とトッピングの絵（トッピングも dishes/ に置く）
 static func dish(dish_id: String) -> String:
 	return "dishes/" + dish_id
+
+
+## ホールスタッフの絵
+static func staff(staff_id: String) -> String:
+	return "staff/" + staff_id
 
 
 ## アニメーション付きの名前（"customers/student" + "walk" → "customers/student_walk"）
@@ -57,8 +64,10 @@ static func all_entries() -> Array[Dictionary]:
 	var list: Array[Dictionary] = []
 	for t: CustomerTypeData in Database.customer_types:
 		list.append({ "key": customer(t.id), "anims": CUSTOMER_ANIMS })
-	for d: DishData in Database.dishes:
+	for d: DishData in Database.items:
 		list.append({ "key": dish(d.id), "anims": PackedStringArray() })
+	for s: StaffData in Database.staff:
+		list.append({ "key": staff(s.id), "anims": STAFF_ANIMS })
 	list.append({ "key": COUNTER, "anims": PackedStringArray() })
 	list.append({ "key": STOOL, "anims": PackedStringArray() })
 	list.append({ "key": TABLE4, "anims": PackedStringArray() })

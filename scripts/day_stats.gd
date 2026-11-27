@@ -5,6 +5,9 @@ extends RefCounted
 var sales: int = 0
 var ingredient_cost: int = 0
 var other_expense: int = 0
+## 人件費（雇っている従業員の日給の合計）と、その日に働いた従業員の人数
+var labor_cost: int = 0
+var staff_count: int = 0
 var visitors: int = 0
 var completed_orders: int = 0
 var left_angry: int = 0
@@ -64,14 +67,14 @@ static func add_to(counts: Dictionary, key: String, amount: int) -> void:
 	counts[key] = int(counts.get(key, 0)) + amount
 
 
-## 仕込んだ料理のid（データの並び順）
+## 仕込んだ料理・トッピングのid（データの並び順。料理が先）
 func get_prepared_dish_ids() -> Array[String]:
 	var ids: Array[String] = []
-	for dish: DishData in Database.dishes:
+	for dish: DishData in Database.items:
 		if int(dish_prepared.get(dish.id, 0)) > 0:
 			ids.append(dish.id)
 	return ids
 
 
 func profit() -> int:
-	return sales - ingredient_cost - other_expense
+	return sales - ingredient_cost - other_expense - labor_cost

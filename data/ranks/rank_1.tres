@@ -8,3 +8,4 @@ rank = 1
 display_name = "無名店"
 reputation_threshold = 0
 reputation_gain_scale = 0.5
+staff_limit = 0

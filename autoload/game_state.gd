@@ -9,6 +9,8 @@ extends Node
 ##             仕込み数は在庫に関係なく決められる。足りない食材は仕入れの手順で補う（足りないままでは置き場の手順へ進めない）
 ##   残り:     仕込み数のうち、まだ店主が作っていない数（営業中）
 ##   置き場:   完成した料理を置く場所（6枠）。開店時に並べておく分も仕込み数から使う
+##   トッピング: 追加の1皿（ToppingData）。仕込み・仕入れ・置き場・調理は料理と同じに扱う（prep_counts などに料理と一緒に入る）
+##   従業員:   ホールスタッフ（StaffData）。雇える人数はランクで決まり、営業した日ごとに日給がかかる
 
 signal money_changed(value: int)
 ## 在庫・仕入れ予定・仕込み数・置き場の初期配置のどれかが変わった
@@ -16,7 +18,7 @@ signal inventory_changed
 signal reputation_changed(value: int)
 
 const DEFAULT_SAVE_PATH := "user://save.json"
-const SAVE_VERSION := 9
+const SAVE_VERSION := 10
 
 var money: int = 0
 var day: int = 1
@@ -46,8 +48,10 @@ var history: Array[PackedInt32Array] = []
 var _history_index: Dictionary = {}
 ## 設備のレベル { 設備id: レベル }（0 = まだ買っていない。セーブする）
 var equipment_levels: Dictionary = {}
-## 解放済みの料理のid（ランクで解放する。一度解放したら評判が下がっても使える。セーブする）
+## 解放済みの料理・トッピングのid（ランクと日数で解放する。一度解放したら評判が下がっても使える。セーブする）
 var unlocked_dishes: Array[String] = []
+## 雇っているホールスタッフのid（雇った順。セーブする）
+var hired_staff: Array[String] = []
 ## その日の準備を始めた時点の所持金と、その日に仕入れに使ったお金（結果画面の「所持金の増減」用。保存しない）
 var day_start_money: int = 0
 var day_purchase_cost: int = 0
@@ -95,6 +99,7 @@ func _new_game() -> void:
 	_history_index.clear()
 	equipment_levels.clear()
 	unlocked_dishes.clear()
+	hired_staff.clear()
 	_unlock_by_rank()
 	_start_day_accounting()
 
@@ -205,10 +210,26 @@ func is_on_menu(dish_id: String) -> bool:
 	return get_prep_count(dish_id) > 0
 
 
-## 今日のメニュー＝仕込み数が1以上の料理（データの並び順）
+## 今日のメニュー＝仕込み数が1以上の料理（データの並び順。トッピングは含まない）
 func get_menu_dishes() -> Array[DishData]:
+	return _filter_on_menu(Database.dishes)
+
+
+## 今日出すトッピング（仕込み数が1以上）
+func get_menu_toppings() -> Array[DishData]:
+	var list: Array[DishData] = []
+	list.assign(Database.toppings)
+	return _filter_on_menu(list)
+
+
+## 今日出す料理とトッピングの両方（料理が先）
+func get_menu_items() -> Array[DishData]:
+	return _filter_on_menu(Database.items)
+
+
+func _filter_on_menu(list: Array[DishData]) -> Array[DishData]:
 	var result: Array[DishData] = []
-	for dish: DishData in Database.dishes:
+	for dish: DishData in list:
 		if is_on_menu(dish.id):
 			result.append(dish)
 	return result
@@ -222,30 +243,53 @@ func is_unlocked(dish_id: String) -> bool:
 	return unlocked_dishes.has(dish_id)
 
 
-## 解放済みの料理（データの並び順）
+## 解放済みの料理（データの並び順。トッピングは含まない）
 func get_unlocked_dishes() -> Array[DishData]:
+	return _filter_unlocked(Database.dishes, true)
+
+
+## 解放済みのトッピング
+func get_unlocked_toppings() -> Array[DishData]:
+	var list: Array[DishData] = []
+	list.assign(Database.toppings)
+	return _filter_unlocked(list, true)
+
+
+## 解放済みの料理とトッピングの両方（料理が先）
+func get_unlocked_items() -> Array[DishData]:
+	return _filter_unlocked(Database.items, true)
+
+
+## まだ解放していない料理（解放される日が早い順。同じ日ならランクが低い順。トッピングは含まない）
+func get_locked_dishes() -> Array[DishData]:
+	return _sort_locked(_filter_unlocked(Database.dishes, false))
+
+
+## まだ解放していないトッピング（解放される日が早い順）
+func get_locked_toppings() -> Array[DishData]:
+	var list: Array[DishData] = []
+	list.assign(Database.toppings)
+	return _sort_locked(_filter_unlocked(list, false))
+
+
+func _filter_unlocked(list: Array[DishData], unlocked: bool) -> Array[DishData]:
 	var result: Array[DishData] = []
-	for dish: DishData in Database.dishes:
-		if is_unlocked(dish.id):
+	for dish: DishData in list:
+		if is_unlocked(dish.id) == unlocked:
 			result.append(dish)
 	return result
 
 
-## まだ解放していない料理（解放される日が早い順。同じ日ならランクが低い順）
-func get_locked_dishes() -> Array[DishData]:
-	var result: Array[DishData] = []
-	for dish: DishData in Database.dishes:
-		if not is_unlocked(dish.id):
-			result.append(dish)
+func _sort_locked(result: Array[DishData]) -> Array[DishData]:
 	result.sort_custom(func(a: DishData, b: DishData) -> bool:
 		return a.unlock_day < b.unlock_day or (a.unlock_day == b.unlock_day and a.unlock_rank < b.unlock_rank))
 	return result
 
 
-## 解放済みの料理で使う食材（データの並び順）
+## 解放済みの料理・トッピングで使う食材（データの並び順）
 func get_unlocked_ingredients() -> Array[IngredientData]:
 	var result: Array[IngredientData] = []
-	var dishes: Array[DishData] = get_unlocked_dishes()
+	var dishes: Array[DishData] = get_unlocked_items()
 	for ing: IngredientData in Database.ingredients:
 		for dish: DishData in dishes:
 			if dish.ingredients.has(ing.id):
@@ -254,12 +298,12 @@ func get_unlocked_ingredients() -> Array[IngredientData]:
 	return result
 
 
-## 解放の条件（ランクと営業日数）を満たした料理を解放する。新しく解放した料理を返す。
+## 解放の条件（ランクと営業日数）を満たした料理・トッピングを解放する。新しく解放したものを返す。
 ## for_day: どの営業日について判定するか（省略すると今の日。営業結果のあとは次の営業日で判定する）
 func _unlock_by_rank(for_day: int = -1) -> Array[DishData]:
 	var target_day: int = day if for_day < 0 else for_day
 	var newly: Array[DishData] = []
-	for dish: DishData in Database.dishes:
+	for dish: DishData in Database.items:
 		if not is_unlocked(dish.id) and rank >= dish.unlock_rank and target_day >= dish.unlock_day:
 			unlocked_dishes.append(dish.id)
 			newly.append(dish)
@@ -301,10 +345,19 @@ func get_prep_count(dish_id: String) -> int:
 	return int(prep_counts.get(dish_id, 0))
 
 
+## 料理（トッピングは含まない）の仕込み数の合計。料理が1つもなければ営業を始められない
 func get_total_prep() -> int:
 	var total: int = 0
-	for dish_id: String in prep_counts:
-		total += int(prep_counts[dish_id])
+	for dish: DishData in get_menu_dishes():
+		total += get_prep_count(dish.id)
+	return total
+
+
+## トッピングの仕込み数の合計
+func get_total_topping_prep() -> int:
+	var total: int = 0
+	for dish: DishData in get_menu_toppings():
+		total += get_prep_count(dish.id)
 	return total
 
 
@@ -362,7 +415,7 @@ func plan_prep_shortage() -> bool:
 
 ## 確定した在庫で作れるように、仕込み数を減らす（一覧の下の料理から1つずつ減らす）
 func reduce_prep_to_stock() -> void:
-	var dishes: Array[DishData] = get_menu_dishes()
+	var dishes: Array[DishData] = get_menu_items()
 	dishes.reverse()
 	var guard: int = 0
 	while has_prep_shortage() and guard < 10000:
@@ -417,14 +470,15 @@ func change_prep(dish_id: String, delta: int) -> int:
 	return next - before
 
 
-## 仕込み数が1以上の料理について、注文の目安と仕込み数から見た食材ごとの必要数の目安 { 食材id: 個数 }
+## 仕込み数が1以上の料理・トッピングについて、注文の目安と仕込み数から見た食材ごとの必要数の目安 { 食材id: 個数 }
 func get_ingredient_needs() -> Dictionary:
-	return DemandEstimator.ingredient_needs(get_menu_dishes(), prep_counts, get_expected_orders(), Database.config)
+	return DemandEstimator.ingredient_needs(get_menu_items(), prep_counts, get_expected_orders(), Database.config)
 
 
-## 料理ごとの注文数の目安 { 料理id: 数 }。解放済みの料理をすべて出したときの目安（仕込み数で変わらない）
+## 料理・トッピングごとの注文数の目安 { id: 数 }。解放済みのものをすべて出したときの目安（仕込み数で変わらない）
 func get_expected_orders() -> Dictionary:
-	return DemandEstimator.expected_orders(get_unlocked_dishes(), Database.customer_types, Database.config, reputation)
+	return DemandEstimator.expected_orders(get_unlocked_dishes(), Database.customer_types, Database.config, reputation,
+		get_unlocked_toppings())
 
 
 ## 目安に対して、確定した在庫で足りない数（足りていれば0）
@@ -492,7 +546,7 @@ func apply_last_prep() -> bool:
 	prep_counts.clear()
 	shelf_plan.clear()
 	var complete: bool = true
-	for dish: DishData in Database.dishes:
+	for dish: DishData in Database.items:
 		var target: int = int(last_prep_counts.get(dish.id, 0))
 		if target <= 0:
 			continue
@@ -519,7 +573,7 @@ func apply_last_prep() -> bool:
 func begin_business() -> Dictionary:
 	today = DayStats.new()
 	var prep: Dictionary = {}
-	for dish: DishData in get_menu_dishes():
+	for dish: DishData in get_menu_items():
 		var count: int = get_prep_count(dish.id)
 		# 念のため、在庫で作れる分に収める（ふつうは準備画面で、足りないままでは先へ進めない）
 		for ing_id: String in dish.ingredients:
@@ -531,6 +585,7 @@ func begin_business() -> Dictionary:
 		today.ingredient_cost += Database.get_dish_cost(dish) * count
 		prep[dish.id] = count
 	today.dish_prepared = prep.duplicate()
+	today.staff_count = hired_staff.size()
 	today.day_start_money = day_start_money
 	today.purchase_cost = day_purchase_cost
 	today.day_start_stock_value = day_start_stock_value
@@ -553,9 +608,20 @@ func record_visit() -> void:
 	today.visitors += 1
 
 
+## 料理だけの注文（トッピングなし）を出し終えた。料理1皿の記録と、注文の完了をまとめて記録する
 func record_served(dish_id: String, level: Satisfaction.Level) -> void:
+	record_item_served(dish_id)
+	record_order_completed(level)
+
+
+## 料理またはトッピングを1皿出した（売れた数に数える）
+func record_item_served(item_id: String) -> void:
+	DayStats.add_to(today.dish_sold, item_id, 1)
+
+
+## 1人の注文（料理＋トッピング）をすべて出し終えた。満足度を記録する
+func record_order_completed(level: Satisfaction.Level) -> void:
 	today.completed_orders += 1
-	DayStats.add_to(today.dish_sold, dish_id, 1)
 	_apply_rating(level)
 
 
@@ -611,10 +677,13 @@ func get_day_reputation_points() -> float:
 	return today.reputation_points + float(missed) * Database.config.reputation_missed 		+ float(today.mistakes) * Database.config.reputation_mistake
 
 
-## 営業終了時に1回だけ呼ぶ。その他経費を払う
+## 営業終了時に1回だけ呼ぶ。その他経費と人件費（雇っている従業員の日給）を払う
 func finish_business() -> void:
 	today.other_expense = Database.config.other_expense
 	add_money(-today.other_expense)
+	today.labor_cost = get_daily_wage_total()
+	today.staff_count = hired_staff.size()
+	add_money(-today.labor_cost)
 	# 次の準備画面で「前回 ○食売れた」と出すため、仕込んだ料理ごとに売れた数を覚える（0食も含める）
 	last_sold_counts.clear()
 	last_missed_counts.clear()
@@ -631,6 +700,58 @@ func finish_business() -> void:
 	for dish: DishData in _unlock_by_rank(day + 1):
 		today.new_unlocks.append(dish.id)
 	_record_history()
+
+
+# ---------------------------------------------------------------
+# 従業員（ホールスタッフ）
+# ---------------------------------------------------------------
+
+## 今のランクで雇える人数
+func get_staff_limit() -> int:
+	return Database.get_staff_limit(rank)
+
+
+func is_hired(staff_id: String) -> bool:
+	return hired_staff.has(staff_id)
+
+
+## 雇っている従業員（雇った順）
+func get_hired_staff() -> Array[StaffData]:
+	var result: Array[StaffData] = []
+	for staff_id: String in hired_staff:
+		var data: StaffData = Database.get_staff(staff_id)
+		if data != null:
+			result.append(data)
+	return result
+
+
+## 雇えるか（候補にいて、まだ雇っておらず、ランクの人数の上限に空きがある）
+func can_hire(staff_id: String) -> bool:
+	return Database.get_staff(staff_id) != null and not is_hired(staff_id) and hired_staff.size() < get_staff_limit()
+
+
+## 雇う（費用はかからない。日給は営業した日ごとにかかる）。雇えたら true
+func hire_staff(staff_id: String) -> bool:
+	if not can_hire(staff_id):
+		return false
+	hired_staff.append(staff_id)
+	return true
+
+
+## やめてもらう。やめてもらえたら true
+func dismiss_staff(staff_id: String) -> bool:
+	if not is_hired(staff_id):
+		return false
+	hired_staff.erase(staff_id)
+	return true
+
+
+## 雇っている従業員の日給の合計（営業した日ごとにかかる）
+func get_daily_wage_total() -> int:
+	var total: int = 0
+	for data: StaffData in get_hired_staff():
+		total += data.daily_wage
+	return total
 
 
 # ---------------------------------------------------------------
@@ -786,6 +907,7 @@ func save_game() -> bool:
 		"unlocked": Array(unlocked_dishes),
 		"rank": rank,
 		"equipment": equipment_levels.duplicate(),
+		"staff": Array(hired_staff),
 		"history": _history_for_save(),
 	}
 	var file: FileAccess = FileAccess.open(save_path, FileAccess.WRITE)
@@ -825,7 +947,7 @@ func load_game() -> bool:
 	last_prep_counts.clear()
 	var saved_prep: Variant = data.get("last_prep", {})
 	if saved_prep is Dictionary:
-		for dish: DishData in Database.dishes:
+		for dish: DishData in Database.items:
 			var count: int = clampi(int((saved_prep as Dictionary).get(dish.id, 0)), 0, Database.config.max_prep_per_dish)
 			if count > 0:
 				last_prep_counts[dish.id] = count
@@ -839,13 +961,13 @@ func load_game() -> bool:
 	last_sold_counts.clear()
 	var saved_sold: Variant = data.get("last_sold", {})
 	if saved_sold is Dictionary:
-		for dish: DishData in Database.dishes:
+		for dish: DishData in Database.items:
 			if (saved_sold as Dictionary).has(dish.id):
 				last_sold_counts[dish.id] = maxi(0, int(saved_sold[dish.id]))
 	last_missed_counts.clear()
 	var saved_missed: Variant = data.get("last_missed", {})
 	if saved_missed is Dictionary:
-		for dish: DishData in Database.dishes:
+		for dish: DishData in Database.items:
 			if (saved_missed as Dictionary).has(dish.id):
 				last_missed_counts[dish.id] = maxi(0, int(saved_missed[dish.id]))
 	unlocked_dishes.clear()
@@ -866,6 +988,13 @@ func load_game() -> bool:
 		for e: EquipmentData in Database.equipment:
 			if (saved_equipment as Dictionary).has(e.id):
 				equipment_levels[e.id] = clampi(int(saved_equipment[e.id]), 0, e.get_max_level())
+	hired_staff.clear()
+	var saved_staff: Variant = data.get("staff", [])
+	if saved_staff is Array:
+		for item: Variant in saved_staff:
+			var staff_id: String = str(item)
+			if Database.get_staff(staff_id) != null and not hired_staff.has(staff_id) and hired_staff.size() < get_staff_limit():
+				hired_staff.append(staff_id)
 	_start_day_accounting()
 	money_changed.emit(money)
 	reputation_changed.emit(reputation)
@@ -948,5 +1077,10 @@ func _migrate(data: Dictionary) -> Dictionary:
 			equipment["seats"] = _closest_seat_level(old_seats)
 		data["equipment"] = equipment
 		version = 9
+	if version == 9:
+		# v10 でトッピングと従業員を追加。古いセーブには従業員がいないので空にする
+		# （トッピングの解放は、読み込んだあとにランクと日数で決まる）
+		data["staff"] = []
+		version = 10
 	data["version"] = version
 	return data

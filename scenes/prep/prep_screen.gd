@@ -374,7 +374,7 @@ func _show_ingredient_detail(ingredient_id: String) -> void:
 	lines.append(UIText.DETAIL_ING_NEED % int(GameState.get_ingredient_needs().get(ingredient_id, 0)))
 	lines.append(UIText.DETAIL_ING_USED_BY)
 	var used: bool = false
-	for dish: DishData in GameState.get_unlocked_dishes():
+	for dish: DishData in GameState.get_unlocked_items():
 		if dish.ingredients.has(ingredient_id):
 			used = true
 			lines.append(UIText.DETAIL_ING_USED_ROW % [dish.display_name, int(dish.ingredients[ingredient_id]), GameState.get_prep_count(dish.id)])

@@ -53,4 +53,9 @@ func get_required_rank(level: int) -> int:
 
 ## この設備がその料理の調理時間に効くか
 func affects_dish(dish: DishData) -> bool:
-	return effect == Effect.COOK_TIME and (cook_category == "all" or cook_category == dish.cook_category)
+	# "all"（炊飯器）は定食・丼だけに効く（トッピングはご飯を使わない）
+	if effect != Effect.COOK_TIME:
+		return false
+	if cook_category == "all":
+		return not dish.is_topping()
+	return cook_category == dish.cook_category

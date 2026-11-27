@@ -8,6 +8,7 @@
 [ext_resource type="PackedScene" path="res://scenes/business/order_panel.tscn" id="7_orders"]
 [ext_resource type="Script" path="res://scenes/business/customer_spawner.gd" id="8_spawner"]
 [ext_resource type="PackedScene" path="res://scenes/business/dining_area.tscn" id="10_dining"]
+[ext_resource type="Script" path="res://scenes/business/staff_dispatcher.gd" id="11_staff"]
 
 [node name="Business" type="Control"]
 layout_mode = 3
@@ -124,3 +125,7 @@ vertical_alignment = 1
 [node name="CustomerSpawner" type="Node" parent="."]
 unique_name_in_owner = true
 script = ExtResource("8_spawner")
+
+[node name="StaffDispatcher" type="Node" parent="."]
+unique_name_in_owner = true
+script = ExtResource("11_staff")

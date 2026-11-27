@@ -21,7 +21,7 @@ static func target_dishes_text(e: EquipmentData) -> String:
 	if e.cook_category == "all":
 		return UIText.UPGRADE_DETAIL_ALL
 	var names: PackedStringArray = PackedStringArray()
-	for dish: DishData in Database.dishes:
+	for dish: DishData in Database.items:
 		if e.affects_dish(dish):
 			names.append(dish.display_name)
 	return "・".join(names)

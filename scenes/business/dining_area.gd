@@ -14,12 +14,12 @@ const SEATS_PER_TABLE := 4
 const MAX_SEATS := COUNTER_SEATS + TABLE_COUNT * SEATS_PER_TABLE
 
 ## カウンターの上（壁）の高さと、カウンターの高さ
-const COUNTER_TOP := 24.0
+const COUNTER_TOP := 34.0
 const COUNTER_HEIGHT := 20.0
 ## カウンターに座ったお客さんの頭がカウンターに重なる量
 const COUNTER_OVERLAP := 10.0
-## お客さんの吹き出しのぶん、頭の上に空ける高さ
-const BUBBLE_SPACE := 26.0
+## お客さんの吹き出し（料理とトッピングの2段）のぶん、頭の上に空ける高さ
+const BUBBLE_SPACE := 42.0
 ## テーブルの大きさと、テーブルの席どうしの間隔
 const TABLE_SIZE := Vector2(100, 32)
 const TABLE_SEAT_PITCH := 50.0
@@ -177,6 +177,11 @@ func add_customer(customer: Customer, seat_index: int) -> void:
 func release_seat(seat_index: int) -> void:
 	_seats[seat_index].occupant = null
 	_seats[seat_index].set_highlight(false)
+
+
+## ホールスタッフを置く（お客さんと同じ層。家具より手前）
+func add_staff(staff: HallStaff) -> void:
+	_customers_layer.add_child(staff)
 
 
 func get_occupant(seat_index: int) -> Customer:

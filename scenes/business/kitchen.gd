@@ -1,6 +1,6 @@
 class_name Kitchen
 extends PanelContainer
-## 厨房。料理ボタン（2列に並べ、仕込んだ料理が多いときはスクロールする）をタップすると、その料理の「残り」を1つ使って調理キューに入り、店主が順番に作る。
+## 厨房。料理・トッピングのボタン（2列に並べ、仕込んだ料理が多いときはスクロールする）をタップすると、その料理の「残り」を1つ使って調理キューに入り、店主が順番に作る。
 ## 食材は営業開始のときに使っているので、ここでは使わない。
 ## 置き場の空き枠（調理中・調理待ちを含む）より多くは作れない。
 ## 「残りに戻す」で、置き場で持っている料理を残りに戻せる（置き場の枠が空く）。
@@ -107,8 +107,13 @@ func _refresh_buttons() -> void:
 		var button: Button = _buttons[dish.id]
 		var remaining: int = _supply.get_remaining(dish.id)
 		button.disabled = not _can_cook(dish)
-		button.text = UIText.COOK_BUTTON % [dish.short_name, remaining]
+		button.text = UIText.COOK_BUTTON % [_button_name(dish), remaining]
 	_full = full
+
+
+## トッピングのボタンは「＋卵焼き」のように出す
+static func _button_name(dish: DishData) -> String:
+	return UIText.ORDER_TOPPING % dish.short_name if dish.is_topping() else dish.short_name
 
 
 func _refresh_status() -> void:

@@ -1,0 +1,17 @@
+[gd_resource type="Resource" script_class="ToppingData" format=3]
+
+[ext_resource type="Script" path="res://scripts/data/topping_data.gd" id="1_top"]
+
+[resource]
+script = ExtResource("1_top")
+id = "tonjiru"
+display_name = "豚汁"
+short_name = "豚汁"
+price = 300
+ingredients = {"pork": 1, "negi": 1}
+cook_time = 2.0
+color = Color(0.72, 0.52, 0.38, 1)
+sort_order = 3
+cook_category = "simmer"
+unlock_rank = 2
+unlock_day = 170

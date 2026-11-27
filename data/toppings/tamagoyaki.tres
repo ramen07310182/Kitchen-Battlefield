@@ -1,0 +1,17 @@
+[gd_resource type="Resource" script_class="ToppingData" format=3]
+
+[ext_resource type="Script" path="res://scripts/data/topping_data.gd" id="1_top"]
+
+[resource]
+script = ExtResource("1_top")
+id = "tamagoyaki"
+display_name = "卵焼き"
+short_name = "卵焼き"
+price = 150
+ingredients = {"egg": 1}
+cook_time = 2.0
+color = Color(1.0, 0.88, 0.4, 1)
+sort_order = 0
+cook_category = "grill"
+unlock_rank = 1
+unlock_day = 0

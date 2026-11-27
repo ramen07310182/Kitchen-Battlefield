@@ -2,7 +2,8 @@ class_name PrepMenuStep
 extends HBoxContainer
 ## 営業準備の手順①「仕込み」: 解放済みの料理の仕込み数（0〜99）を決める。
 ## 右の小さな欄に、仕込みに使う食材の「必要数／在庫」を出す（足りない食材は赤）。
-## まだ解放していない料理は、次に解放される数品だけ、一覧の最後に「○○で解放」と暗く出す。
+## まだ解放していない料理は、次に解放される数品だけ、料理の一覧の最後に「○○で解放」と暗く出す。
+## 料理の一覧の下に区切りを入れて、トッピングの一覧（仕込み数の決め方は料理と同じ）を出す。
 
 ## 行の長押し（kind は "dish"）／指を離した
 signal detail_requested(kind: String, id: String)
@@ -16,9 +17,12 @@ const COLOR_SHORT := Color(1.0, 0.45, 0.4)
 const COLOR_LOCKED := Color(0.55, 0.55, 0.55)
 ## 一覧の最後に出す「まだ解放していない料理」の数（次に解放される順）
 const LOCKED_PREVIEW_COUNT := 3
+## トッピングの一覧の最後に出す「まだ解放していないトッピング」の数
+const LOCKED_TOPPING_PREVIEW_COUNT := 1
 
 var _menu_rows: Array[MenuRow] = []
 var _locked_labels: Array[Label] = []
+var _topping_header: Label
 
 @onready var _help_label: Label = %HelpLabel
 @onready var _total_label: Label = %TotalLabel
@@ -44,30 +48,60 @@ func _rebuild_rows() -> void:
 		child.queue_free()
 	_menu_rows.clear()
 	_locked_labels.clear()
+	_topping_header = null
 	for dish: DishData in GameState.get_unlocked_dishes():
-		var row: MenuRow = MENU_ROW_SCENE.instantiate() as MenuRow
-		_menu_list.add_child(row)
-		row.setup(dish)
-		row.prep_changed.connect(_on_prep_changed)
-		row.detail_requested.connect(func(dish_id: String) -> void: detail_requested.emit("dish", dish_id))
-		row.detail_closed.connect(detail_closed.emit)
-		_menu_rows.append(row)
+		_add_menu_row(dish)
 	for dish: DishData in GameState.get_locked_dishes().slice(0, LOCKED_PREVIEW_COUNT):
-		var panel: PanelContainer = PanelContainer.new()
-		panel.add_theme_stylebox_override("panel", UIUtil.flat_box(Color(0.15, 0.14, 0.13), Color(0.3, 0.3, 0.3), 1))
-		var label: Label = Label.new()
-		label.text = PrepMenuStep.locked_text(dish)
-		label.modulate = COLOR_LOCKED
-		panel.add_child(label)
-		_menu_list.add_child(panel)
-		_locked_labels.append(label)
+		_add_locked_row(dish)
+	# トッピング（区切りの見出しの下に並べる）
+	var toppings: Array[DishData] = GameState.get_unlocked_toppings()
+	var locked_toppings: Array[DishData] = GameState.get_locked_toppings().slice(0, LOCKED_TOPPING_PREVIEW_COUNT)
+	if toppings.is_empty() and locked_toppings.is_empty():
+		return
+	_topping_header = Label.new()
+	_topping_header.text = UIText.PREP_TOPPING_TITLE
+	_topping_header.theme_type_variation = &"HeaderLabel"
+	_topping_header.add_theme_color_override("font_color", Color(1.0, 0.85, 0.55))
+	var header_margin: MarginContainer = MarginContainer.new()
+	header_margin.add_theme_constant_override("margin_top", 8)
+	header_margin.add_child(_topping_header)
+	_menu_list.add_child(header_margin)
+	for dish: DishData in toppings:
+		_add_menu_row(dish)
+	for dish: DishData in locked_toppings:
+		_add_locked_row(dish)
+
+
+func _add_menu_row(dish: DishData) -> void:
+	var row: MenuRow = MENU_ROW_SCENE.instantiate() as MenuRow
+	_menu_list.add_child(row)
+	row.setup(dish)
+	row.prep_changed.connect(_on_prep_changed)
+	row.detail_requested.connect(func(dish_id: String) -> void: detail_requested.emit("dish", dish_id))
+	row.detail_closed.connect(detail_closed.emit)
+	_menu_rows.append(row)
+
+
+func _add_locked_row(dish: DishData) -> void:
+	var panel: PanelContainer = PanelContainer.new()
+	panel.add_theme_stylebox_override("panel", UIUtil.flat_box(Color(0.15, 0.14, 0.13), Color(0.3, 0.3, 0.3), 1))
+	var label: Label = Label.new()
+	label.text = PrepMenuStep.locked_text(dish)
+	label.modulate = COLOR_LOCKED
+	panel.add_child(label)
+	_menu_list.add_child(panel)
+	_locked_labels.append(label)
 
 
 func refresh() -> void:
 	var expected: Dictionary = GameState.get_expected_orders()
 	for row: MenuRow in _menu_rows:
 		row.refresh(expected)
-	_total_label.text = UIText.PREP_TOTAL % GameState.get_total_prep()
+	var toppings: int = GameState.get_total_topping_prep()
+	if toppings > 0:
+		_total_label.text = UIText.PREP_TOTAL_WITH_TOPPING % [GameState.get_total_prep(), toppings]
+	else:
+		_total_label.text = UIText.PREP_TOTAL % GameState.get_total_prep()
 	_repeat_button.disabled = not GameState.has_last_prep()
 	_refresh_usage()
 

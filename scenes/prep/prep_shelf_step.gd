@@ -19,7 +19,7 @@ func _ready() -> void:
 func refresh() -> void:
 	_shelf_plan.refresh()
 	var parts: PackedStringArray = PackedStringArray()
-	for dish: DishData in GameState.get_menu_dishes():
+	for dish: DishData in GameState.get_menu_items():
 		parts.append(UIText.PREP_SUMMARY_ITEM % [dish.short_name, GameState.get_prep_count(dish.id)])
 	_summary_label.text = UIText.PREP_SUMMARY % ("・".join(parts) if not parts.is_empty() else UIText.PREP_SUMMARY_NONE)
 

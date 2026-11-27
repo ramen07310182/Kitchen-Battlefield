@@ -1,16 +1,25 @@
 extends Node
-## data/ にある料理・食材・客層・設定を読み込んで提供する（オートロード: Database）。
+## data/ にある料理・トッピング・食材・客層・従業員・設定を読み込んで提供する（オートロード: Database）。
 ## 新しい料理などは、対応するフォルダに .tres を追加するだけで読み込まれる。
 
 const CONFIG_PATH := "res://data/game_config.tres"
 const DISH_DIR := "res://data/dishes/"
+const TOPPING_DIR := "res://data/toppings/"
+const STAFF_DIR := "res://data/staff/"
 const INGREDIENT_DIR := "res://data/ingredients/"
 const CUSTOMER_DIR := "res://data/customers/"
 const RANK_DIR := "res://data/ranks/"
 const EQUIPMENT_DIR := "res://data/equipment/"
 
 var config: GameConfig
+## 料理（定食・丼。トッピングは含まない）
 var dishes: Array[DishData] = []
+## トッピング（追加の1皿）
+var toppings: Array[ToppingData] = []
+## 料理とトッピングの両方（料理が先。仕込み・置き場・調理・内訳など、両方を同じに扱う所で使う）
+var items: Array[DishData] = []
+## 雇える従業員の候補（sort_order の順）
+var staff: Array[StaffData] = []
 var ingredients: Array[IngredientData] = []
 var customer_types: Array[CustomerTypeData] = []
 ## 店舗ランク（rank の小さい順）
@@ -31,6 +40,12 @@ func _init() -> void:
 	for res: Resource in _load_dir(DISH_DIR):
 		if res is DishData:
 			dishes.append(res as DishData)
+	for res: Resource in _load_dir(TOPPING_DIR):
+		if res is ToppingData:
+			toppings.append(res as ToppingData)
+	for res: Resource in _load_dir(STAFF_DIR):
+		if res is StaffData:
+			staff.append(res as StaffData)
 	for res: Resource in _load_dir(INGREDIENT_DIR):
 		if res is IngredientData:
 			ingredients.append(res as IngredientData)
@@ -48,13 +63,19 @@ func _init() -> void:
 	equipment.sort_custom(func(a: EquipmentData, b: EquipmentData) -> bool: return a.sort_order < b.sort_order)
 	dishes.sort_custom(func(a: DishData, b: DishData) -> bool: return a.sort_order < b.sort_order)
 	ingredients.sort_custom(func(a: IngredientData, b: IngredientData) -> bool: return a.sort_order < b.sort_order)
+	toppings.sort_custom(func(a: ToppingData, b: ToppingData) -> bool: return a.sort_order < b.sort_order)
+	staff.sort_custom(func(a: StaffData, b: StaffData) -> bool: return a.sort_order < b.sort_order)
+	items.append_array(dishes)
+	for t: ToppingData in toppings:
+		items.append(t)
 
-	for dish: DishData in dishes:
+	for dish: DishData in items:
 		_dish_by_id[dish.id] = dish
 	for ing: IngredientData in ingredients:
 		_ingredient_by_id[ing.id] = ing
 
 
+## 料理またはトッピング（id は両方で重ならないようにする）
 func get_dish(id: String) -> DishData:
 	return _dish_by_id.get(id) as DishData
 
@@ -100,6 +121,13 @@ func _load_dir(path: String) -> Array[Resource]:
 	return result
 
 
+func get_staff(id: String) -> StaffData:
+	for s: StaffData in staff:
+		if s.id == id:
+			return s
+	return null
+
+
 func get_equipment(id: String) -> EquipmentData:
 	for e: EquipmentData in equipment:
 		if e.id == id:
@@ -124,6 +152,12 @@ func _rank_data(rank: int) -> RankData:
 func get_rank_name(rank: int) -> String:
 	var data: RankData = _rank_data(rank)
 	return data.display_name if data != null else ""
+
+
+## そのランクで雇えるホールスタッフの人数
+func get_staff_limit(rank: int) -> int:
+	var data: RankData = _rank_data(rank)
+	return data.staff_limit if data != null else 0
 
 
 ## そのランクになるのに必要な評判（ランクの範囲外なら -1）

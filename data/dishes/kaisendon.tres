@@ -6,7 +6,7 @@
 script = ExtResource("1_dish")
 id = "kaisendon"
 display_name = "海鮮丼"
-short_name = "海鮮"
+short_name = "海鮮丼"
 price = 1400
 ingredients = {"rice": 1, "fish": 1, "shrimp": 1}
 cook_time = 4.0
