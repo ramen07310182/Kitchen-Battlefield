@@ -372,6 +372,14 @@ func _check_migration() -> void:
 		"inventory": {"rice": 4}, "unlocked": [], "rank": 2, "history": [], "equipment": {"tables": 3}})
 	GameState.use_save_path(TEST_SAVE_PATH)
 	var converted_7: int = GameState.get_equipment_level("seats")
+	_write_test_save({"version": 9, "money": 9000, "day": 50, "reputation": 40,
+		"inventory": {"rice": 4}, "unlocked": ["karaage", "yakizakana", "shogayaki", "oyakodon"], "rank": 2,
+		"history": [], "equipment": {"seats": 1}})
+	GameState.use_save_path(TEST_SAVE_PATH)
+	_check("セーブ移行 v9 -> v10（従業員なしで始まり、トッピングは日数とランクで解放される。席の拡張はそのまま）",
+		GameState.hired_staff.is_empty() and GameState.is_unlocked("tamagoyaki") and GameState.is_unlocked("potato_salad")
+		and not GameState.is_unlocked("karaage_extra") and GameState.get_equipment_level("seats") == 1 and GameState.is_unlocked("oyakodon"),
+		"unlocked=%s" % [GameState.unlocked_dishes])
 	_check("セーブ移行 v8 -> v9（テーブル8卓→10席、7卓→6席。ほかの設備はそのまま）",
 		converted_8 == 2 and converted_7 == 1, "8卓→Lv%d 7卓→Lv%d" % [converted_8, converted_7])
 	_write_test_save({"version": 6, "money": 9000, "day": 8, "reputation": 20,
