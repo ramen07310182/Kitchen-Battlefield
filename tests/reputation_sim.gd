@@ -30,7 +30,7 @@ const SKILLS: Dictionary = {
 	"good": { "prep_factor": 1.1, "reaction": 0.4, "wrong_rate": 0.0, "precook": true, "hire_ratio": 0.12 },
 	"normal": { "prep_factor": 0.9, "reaction": 2.0, "wrong_rate": 0.05, "precook": false, "hire_ratio": 0.12 },
 	# 操作の遅いボットは、配膳を手伝ってもらうため、売上が少なくても早めに安い人を雇う
-	"sloppy": { "prep_factor": 0.6, "reaction": 5.0, "wrong_rate": 0.25, "precook": false, "hire_ratio": 0.15, "hire_cheap": true },
+	"sloppy": { "prep_factor": 0.6, "reaction": 5.0, "wrong_rate": 0.25, "precook": false, "hire_ratio": 0.2, "hire_cheap": true },
 }
 
 var _skill_name: String = "good"
@@ -84,6 +84,8 @@ func _ready() -> void:
 		_run_fast()
 		return
 	Engine.time_scale = 12.0
+	# --headless では画面が正方形（640×640）になり、客席が実機よりずっと縦長になって歩く距離が変わるので、16:9 にしておく
+	get_tree().root.size = Vector2i(1280, 720)
 	_main = MAIN_SCENE.instantiate()
 	add_child(_main)
 

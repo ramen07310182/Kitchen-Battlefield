@@ -4,6 +4,7 @@ extends RefCounted
 ## 実際の営業画面と同じルール（来店間隔・席・注文の選び方・トッピング・仕込み数と確保・店主1人の調理・置き場・待てる時間）を
 ## 時刻の計算でまねて、結果は GameState の記録の関数（record_visit など）に入れる。
 ## 歩く時間やボットの操作の細かい動きは、平均的な値で置き換えている。
+## 調理ボタンを押すのもボットの操作（1回に reaction 秒）として順に数える（配膳とは別の列。料理を待つあいだに押せるため）。
 ## 配膳: ボット（1回に reaction 秒）とホールスタッフ（取る時間＋歩く時間。戻るまで次を運べない）を
 ## それぞれ1人ずつの「運ぶ人」として、いちばん早く届けられる人が運ぶ（スタッフが運んだ分はミスにならない）。
 
@@ -46,6 +47,8 @@ func run_day(opening: Dictionary) -> void:
 	var reaction: float = float(_skill["reaction"])
 	# 運ぶ人ごとの、次に手が空く時刻（0番目がボット、1番目からスタッフ）
 	var server_free: Array[float] = [0.0]
+	# ボットが次に調理ボタンを押せる時刻
+	var press_free: float = 0.0
 	var staff_list: Array[StaffData] = GameState.get_hired_staff()
 	for s: StaffData in staff_list:
 		server_free.append(0.0)
@@ -87,7 +90,10 @@ func run_day(opening: Dictionary) -> void:
 						ready = order_time
 					else:
 						supply.take_for_cooking(item.id)
-						var start: float = maxf(order_time + reaction, chef_free)
+						# 調理ボタンを押すのもボットの操作（1回に reaction 秒）。料理を待つあいだに押せるので、配膳とは別に順に数える
+						var press: float = maxf(order_time, press_free) + reaction
+						press_free = press
+						var start: float = maxf(press, chef_free)
 						chef_free = start + GameState.get_cook_time(item)
 						ready = chef_free
 					# 届くまで: いちばん早く届けられる人が運ぶ
