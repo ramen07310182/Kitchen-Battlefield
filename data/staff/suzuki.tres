@@ -6,8 +6,8 @@
 script = ExtResource("1_staff")
 id = "suzuki"
 display_name = "鈴木さん"
-walk_speed = 70.0
-pick_time = 1.1
+walk_speed = 120.0
+pick_time = 0.9
 daily_wage = 3000
 color = Color(0.4, 0.7, 0.5, 1)
 sort_order = 1

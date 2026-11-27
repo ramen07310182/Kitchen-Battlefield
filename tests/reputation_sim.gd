@@ -3,8 +3,11 @@ extends Node
 ## 実行: Godot --headless --path . res://tests/reputation_sim.tscn -- --skill=good --days=15 --seed=1
 ##   --fast         : 画面を出さずに営業を計算する高速モード（FastDayModel の近似。365日分が数十秒）
 ##   --csv=<path>   : 日ごとの結果を CSV に書き出す（省略時は user://reputation_sim.csv。--fast では必ず書き出す）
-##   --no-buy       : 設備を買わない
+##   --no-buy       : 設備を買わず、従業員も雇わない
+##   --no-toppings  : トッピングを仕込まない（比べる用）
 ## ボットは、営業結果のあとに「手元に一定のお金を残して」優先順位に沿って設備を買う（BUY_PRIORITY）。
+## 従業員: 雇える人数に空きがあれば、日給が「最近7日の売上の平均 × HIRE_WAGE_RATIO」以下の人のうち、いちばん速い人を雇う。
+## 仕込み: 解放済みの料理とトッピングを、注文の目安 × 倍率だけ仕込む。
 ##   --skill=good   : 上手なボット（目安どおりに仕込み、すぐに作って出す。ミスをしない）
 ##   --skill=normal : ふつうのボット（仕込みは目安より少し少なめ、動きは少し遅い、たまに違う料理を出す）
 ##   --skill=sloppy : ミスの多いボット（仕込みが少なめ、動きが遅い、ときどき違う料理を出す）
@@ -16,6 +19,9 @@ const SIM_SAVE_PATH := "user://save_reputation_sim.json"
 ## 設備を買う優先順位（上から順に、買えるものを買う）と、買ったあとに手元に残すお金
 const BUY_PRIORITY: PackedStringArray = ["seats", "fryer", "stove", "shelf", "rice_cooker"]
 const BUY_RESERVE := 10000
+## 雇う人の日給の上限（最近の売上の平均に対する割合）
+const HIRE_WAGE_RATIO := 0.12
+const RECENT_DAYS := 7
 const DEFAULT_CSV := "user://reputation_sim.csv"
 
 ## ボットの設定（上手／ふつう／ミスが多い）
@@ -38,8 +44,11 @@ var _csv_rows: PackedStringArray = PackedStringArray()
 var _csv_path: String = DEFAULT_CSV
 var _fast: bool = false
 var _buy: bool = true
-## その日に買った設備（表に出す）
+var _toppings: bool = true
+## その日に買った設備・雇った従業員（表に出す）
 var _bought_today: PackedStringArray = PackedStringArray()
+## 最近の売上（雇うかどうかの判断）
+var _recent_sales: Array[int] = []
 
 
 func _ready() -> void:
@@ -55,6 +64,8 @@ func _ready() -> void:
 			_fast = true
 		elif arg == "--no-buy":
 			_buy = false
+		elif arg == "--no-toppings":
+			_toppings = false
 		elif arg.begins_with("--csv="):
 			_csv_path = arg.trim_prefix("--csv=")
 	_skill = SKILLS.get(_skill_name, SKILLS["good"])
@@ -62,9 +73,9 @@ func _ready() -> void:
 	GameState.use_save_path(SIM_SAVE_PATH)
 	GameState.delete_save()
 	GameState.use_save_path(SIM_SAVE_PATH)
-	_rows.append("| 日 | 日付 | 来客 | 提供 | 怒って帰った | 売り逃し | ★ | 評判の増減 | 評判 | ランク | 利益 | 所持金 | 設備（卓・棚・コ・フ・炊） | 買った設備 |")
-	_rows.append("|---|---|---|---|---|---|---|---|---|---|---|---|---|---|")
-	_csv_rows.append("day,date,reputation,reputation_change,rank,money,profit,visitors,served,angry,missed,stars,seats,shelf,stove,fryer,rice_cooker,unlocked_count,unlocked,bought")
+	_rows.append("| 日 | 日付 | 来客 | 提供 | 怒って帰った | 売り逃し | ★ | 評判の増減 | 評判 | ランク | 利益 | 所持金 | 設備（卓・棚・コ・フ・炊） | 従業員 | 買った設備・雇った人 |")
+	_rows.append("|---|---|---|---|---|---|---|---|---|---|---|---|---|---|---|")
+	_csv_rows.append("day,date,reputation,reputation_change,rank,money,profit,visitors,served,angry,missed,stars,seats,shelf,stove,fryer,rice_cooker,unlocked_count,unlocked,bought,sales,labor,staff,topping_sold")
 	if _fast:
 		_run_fast()
 		return
@@ -119,7 +130,9 @@ func _do_prep(screen: Node) -> void:
 
 func _plan_prep() -> void:
 	var expected: Dictionary = GameState.get_expected_orders()
-	for dish: DishData in GameState.get_unlocked_dishes():
+	for dish: DishData in GameState.get_unlocked_items():
+		if dish.is_topping() and not _toppings:
+			continue
 		var target: int = maxi(1, ceili(float(expected.get(dish.id, 0.0)) * float(_skill["prep_factor"])))
 		GameState.change_prep(dish.id, -999)
 		GameState.change_prep(dish.id, target)
@@ -144,7 +157,7 @@ func _do_business(screen: Node) -> void:
 	var shelf_buttons: Array[Button] = shelf.get("_buttons")
 	var cook_buttons: Dictionary = kitchen.get("_buttons")
 
-	# 待っている客（注文の古い順）に出せる料理があれば出す
+	# 待っている客（注文の古い順）に出せる料理・トッピングがあれば出す（スタッフが取りに来ている枠は使わない）
 	var waiting: Array[Customer] = []
 	for c: Customer in customers:
 		if c.is_waiting_food():
@@ -152,17 +165,18 @@ func _do_business(screen: Node) -> void:
 	waiting.sort_custom(func(a: Customer, b: Customer) -> bool: return a.order_sequence < b.order_sequence)
 	var needed: Dictionary = {}
 	for c: Customer in waiting:
-		var slot: int = slots.find(c.dish.id)
-		if slot >= 0:
-			if randf() < float(_skill["wrong_rate"]):
-				for j: int in slots.size():
-					if slots[j] != "" and slots[j] != c.dish.id:
-						slot = j
-						break
-			_hold(shelf, shelf_buttons, slot)
-			(dining.get_seat(c.seat_index).get("_tap_button") as Button).pressed.emit()
-			return
-		DayStats.add_to(needed, c.dish.id, 1)
+		for item_id: String in c.get_needed_items():
+			var slot: int = _find_slot(shelf, slots, item_id)
+			if slot >= 0:
+				if randf() < float(_skill["wrong_rate"]):
+					for j: int in slots.size():
+						if slots[j] != "" and slots[j] != item_id and not shelf.is_reserved(j):
+							slot = j
+							break
+				_hold(shelf, shelf_buttons, slot)
+				(dining.get_seat(c.seat_index).get("_tap_button") as Button).pressed.emit()
+				return
+			DayStats.add_to(needed, item_id, 1)
 	# 足りない料理を作る（作っている分・置き場の分を引く）
 	var queue: Array[DishData] = kitchen.get("_queue")
 	var current: DishData = kitchen.get("_current")
@@ -184,6 +198,13 @@ func _do_business(screen: Node) -> void:
 			(cook_buttons[best] as Button).pressed.emit()
 
 
+func _find_slot(shelf: ReadyShelf, slots: Array[String], item_id: String) -> int:
+	for i: int in slots.size():
+		if slots[i] == item_id and not shelf.is_reserved(i):
+			return i
+	return -1
+
+
 func _hold(shelf: ReadyShelf, buttons: Array[Button], slot: int) -> void:
 	if int(shelf.get("_held_index")) != slot:
 		buttons[slot].pressed.emit()
@@ -200,8 +221,12 @@ func _do_result(screen: Node) -> void:
 ## 結果のあと: 設備を買い、その日の行を表と CSV に足す（GameState.finish_business() のあとに呼ぶ）
 func _record_day() -> void:
 	_bought_today.clear()
+	_recent_sales.append(GameState.today.sales)
+	if _recent_sales.size() > RECENT_DAYS:
+		_recent_sales.pop_front()
 	if _buy:
 		_buy_equipment()
+		_hire_staff()
 	var s: DayStats = GameState.today
 	var missed: int = 0
 	for dish_id: String in s.dish_missed:
@@ -211,19 +236,23 @@ func _record_day() -> void:
 	for id: String in BUY_PRIORITY_ORDER_FOR_TABLE:
 		levels.append(str(GameState.get_equipment_level(id)))
 	var date_text: String = GameCalendar.format_date(GameCalendar.date_for_business_day(GameState.day))
-	_rows.append("| %d | %s | %d | %d | %d | %d | %s | %s | %d | %d %s%s | %s | %s | %s | %s |" % [
+	_rows.append("| %d | %s | %d | %d | %d | %d | %s | %s | %d | %d %s%s | %s | %s | %s | %s | %s |" % [
 		GameState.day, date_text, s.visitors, s.completed_orders, s.left_angry, missed, stars,
 		UIText.signed(s.reputation_change), GameState.reputation, GameState.rank, GameState.get_rank_name(),
 		"（ランクアップ）" if s.rank_up > 0 else "", UIText.money(s.profit()), UIText.money(GameState.money),
-		"・".join(levels), "・".join(_bought_today) if not _bought_today.is_empty() else "-"])
+		"・".join(levels), str(GameState.hired_staff.size()), "・".join(_bought_today) if not _bought_today.is_empty() else "-"])
 	var unlocked: PackedStringArray = PackedStringArray()
-	for dish: DishData in GameState.get_unlocked_dishes():
+	for dish: DishData in GameState.get_unlocked_items():
 		unlocked.append(dish.id)
+	var topping_sold: int = 0
+	for dish: DishData in Database.toppings:
+		topping_sold += int(s.dish_sold.get(dish.id, 0))
 	var date: Dictionary = GameCalendar.date_for_business_day(GameState.day)
-	_csv_rows.append("%d,%04d-%02d-%02d,%d,%d,%d,%d,%d,%d,%d,%d,%d,%s,%s,%d,%s,%s" % [
+	_csv_rows.append("%d,%04d-%02d-%02d,%d,%d,%d,%d,%d,%d,%d,%d,%d,%s,%s,%d,%s,%s,%d,%d,%s,%d" % [
 		GameState.day, int(date["year"]), int(date["month"]), int(date["day"]), GameState.reputation, s.reputation_change,
 		GameState.rank, GameState.money, s.profit(), s.visitors, s.completed_orders, s.left_angry, missed, stars,
-		",".join(levels), unlocked.size(), "|".join(unlocked), "|".join(_bought_today)])
+		",".join(levels), unlocked.size(), "|".join(unlocked), "|".join(_bought_today), s.sales, s.labor_cost,
+		"|".join(GameState.hired_staff), topping_sold])
 
 
 ## 表の「設備」の列の並び（卓・棚・コンロ・フライヤー・炊飯器）
@@ -245,6 +274,27 @@ func _buy_equipment() -> void:
 			_bought_today.append("%s→Lv%d" % [e.display_name, GameState.get_equipment_level(id)])
 			bought = true
 			break
+
+
+## 雇える人数に空きがあれば、日給が最近の売上に見合う人のうち、いちばん速い人を雇う
+func _hire_staff() -> void:
+	if _recent_sales.is_empty():
+		return
+	var average: float = 0.0
+	for v: int in _recent_sales:
+		average += v
+	average /= _recent_sales.size()
+	while GameState.hired_staff.size() < GameState.get_staff_limit():
+		var best: StaffData = null
+		for data: StaffData in Database.staff:
+			if GameState.can_hire(data.id) and data.daily_wage <= average * HIRE_WAGE_RATIO \
+					and (best == null or data.walk_speed > best.walk_speed):
+				best = data
+		if best == null:
+			return
+		GameState.hire_staff(best.id)
+		# CSV に入れるので、金額にカンマを入れない
+		_bought_today.append("%s（日給%d）" % [best.display_name, best.daily_wage])
 
 
 func _finish() -> void:

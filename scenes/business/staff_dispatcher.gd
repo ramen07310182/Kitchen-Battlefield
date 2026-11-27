@@ -2,7 +2,8 @@ class_name StaffDispatcher
 extends Node
 ## ホールスタッフに仕事を割り当てる（営業画面の部品）。
 ##   - 手の空いたスタッフは、注文の古いお客さんから順に「まだ出していない料理・トッピング」を見て、
-##     置き場に同じものがあれば（プレイヤーが持っている枠・ほかのスタッフが予約した枠は除く）その枠を予約して取りに行く
+##     置き場に同じものがあれば（プレイヤーが持っている枠・ほかのスタッフが予約した枠は除く）その枠を予約して取りに行く。
+##     同じお客さんの料理とトッピングが両方あれば、1回で両方運ぶ
 ##   - 同じお客さんの同じ料理を、2人以上が運ばない（取り合いにならない）
 ##   - 取り終えたら枠から外して席まで運び、まだ待っていれば配膳する（配膳と記録は営業画面の deliver に任せる）
 ##   - 運び先のお客さんが帰った・もう要らなくなったら、料理を持って戻り、置き場に返す
@@ -10,8 +11,6 @@ extends Node
 ## プレイヤーの操作は変えない。プレイヤーが持っている料理には手を出さない。
 
 const STAFF_SCENE: PackedScene = preload("res://scenes/business/hall_staff.tscn")
-## 待機場所の間隔（2人目からは左に並ぶ）
-const HOME_SPACING := 28.0
 
 var _staff: Array[HallStaff] = []
 var _dining: DiningArea
@@ -44,12 +43,12 @@ func get_staff() -> Array[HallStaff]:
 	return _staff
 
 
-## 料理を持って置き場へ戻る途中・置き場の空きを待っている数（厨房が作れる数から引く）
+## 置き場へ返そうとしている料理の数（戻る途中・置き場の空きを待っている分。厨房が作れる数から引く）
 func get_returning_count() -> int:
 	var count: int = 0
 	for s: HallStaff in _staff:
 		if s.state == HallStaff.State.RETURNING or s.state == HallStaff.State.WAITING_SHELF:
-			count += 1
+			count += s.items.size()
 	return count
 
 
@@ -59,10 +58,11 @@ func on_customer_left(customer: Customer) -> void:
 		if s.target != customer:
 			continue
 		if s.state == HallStaff.State.PICKING:
-			_shelf.unreserve_slot(s.slot_index)
+			for slot: int in s.slots:
+				_shelf.unreserve_slot(slot)
 			s.cancel_pick()
 		elif s.state == HallStaff.State.CARRYING:
-			s.return_with_item()
+			s.go_home()
 
 
 func _process(_delta: float) -> void:
@@ -78,55 +78,62 @@ func _process(_delta: float) -> void:
 			_assign(s)
 
 
-## 待機場所: 客席エリアの下の端。置き場（画面の下）に近い位置
+## 待機場所: 客席エリアの下の端（置き場に近い側）。イスと重ならない所（DiningArea が決める）
 func _home_for(index: int) -> Vector2:
-	var shelf_center: float = _shelf.get_global_rect().get_center().x - _dining.get_global_rect().position.x
-	var x: float = clampf(shelf_center - HallStaff.SIZE.x * 0.5 - HOME_SPACING * index, 4.0, _dining.size.x - HallStaff.SIZE.x - 4.0)
-	return Vector2(x, _dining.size.y - HallStaff.SIZE.y - 2.0).round()
+	return _dining.get_staff_home(index, HallStaff.SIZE)
 
 
 func _assign(s: HallStaff) -> void:
 	var customers: Array[Customer] = _waiting_customers.call()
 	for c: Customer in customers:
+		var pick_slots: Array[int] = []
+		var pick_items: Array[String] = []
 		for item_id: String in c.get_needed_items():
-			if _is_taken_care_of(c, item_id):
+			if pick_items.size() >= HallStaff.MAX_CARRY or _is_taken_care_of(c, item_id):
 				continue
 			var slot: int = _shelf.find_available_slot(item_id)
 			if slot < 0:
 				continue
 			_shelf.reserve_slot(slot)
-			s.begin_pick(slot, item_id, c)
+			pick_slots.append(slot)
+			pick_items.append(item_id)
+		if not pick_items.is_empty():
+			s.begin_pick(pick_slots, pick_items, c)
 			return
 
 
 ## ほかのスタッフが、そのお客さんのその料理を取りに行っている・運んでいる
 func _is_taken_care_of(customer: Customer, item_id: String) -> bool:
 	for s: HallStaff in _staff:
-		if s.target == customer and s.item_id == item_id \
-				and (s.state == HallStaff.State.PICKING or s.state == HallStaff.State.CARRYING):
+		if s.is_handling(customer, item_id):
 			return true
 	return false
 
 
 func _on_picked(s: HallStaff) -> void:
 	var c: Customer = s.target
-	if c == null or not is_instance_valid(c) or not c.needs_item(s.item_id):
-		_shelf.unreserve_slot(s.slot_index)
+	var carried: Array[String] = []
+	for i: int in s.slots.size():
+		var slot: int = s.slots[i]
+		if c != null and is_instance_valid(c) and c.needs_item(s.items[i]):
+			var taken: String = _shelf.take_reserved(slot)
+			if taken != "":
+				carried.append(taken)
+		else:
+			_shelf.unreserve_slot(slot)
+	if carried.is_empty():
 		s.cancel_pick()
 		return
-	var taken: String = _shelf.take_reserved(s.slot_index)
-	if taken != s.item_id:
-		s.cancel_pick()
-		return
-	s.carry_to(_serve_position(c))
+	s.carry_to(carried, _serve_position(c))
 
 
 func _on_arrived(s: HallStaff) -> void:
 	var c: Customer = s.target
-	if c != null and is_instance_valid(c) and c.needs_item(s.item_id) and bool(_deliver.call(c, s.item_id)):
-		s.go_home()
-	else:
-		s.return_with_item()
+	for item_id: String in s.items.duplicate():
+		if c != null and is_instance_valid(c) and c.needs_item(item_id) and bool(_deliver.call(c, item_id)):
+			s.remove_item(item_id)
+	# 渡せなかった料理（お客さんが帰った・もう出してあった）は持ったまま戻る
+	s.go_home()
 
 
 func _on_arrived_home(s: HallStaff) -> void:
@@ -136,10 +143,11 @@ func _on_arrived_home(s: HallStaff) -> void:
 
 ## 持っている料理を置き場に返す（厨房が作っている分の枠は空けておく）
 func _try_return_to_shelf(s: HallStaff) -> void:
-	if _shelf.free_count() <= _kitchen.get_pending_count():
-		return
-	if _shelf.add_dish(s.item_id):
-		s.clear_item()
+	for item_id: String in s.items.duplicate():
+		if _shelf.free_count() <= _kitchen.get_pending_count():
+			return
+		if _shelf.add_dish(item_id):
+			s.returned_item(item_id)
 
 
 ## お客さんのそばに立つ位置（お客さんの横）

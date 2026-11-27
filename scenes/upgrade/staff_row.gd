@@ -99,11 +99,11 @@ func _on_pressed() -> void:
 
 ## 歩く速さの呼び方（ゆっくり・ふつう・速い・とても速い）
 static func speed_name(data: StaffData) -> String:
-	if data.walk_speed < 60.0:
+	if data.walk_speed < 105.0:
 		return UIText.UPGRADE_STAFF_SPEED_NAMES[0]
-	if data.walk_speed < 85.0:
+	if data.walk_speed < 135.0:
 		return UIText.UPGRADE_STAFF_SPEED_NAMES[1]
-	if data.walk_speed < 110.0:
+	if data.walk_speed < 165.0:
 		return UIText.UPGRADE_STAFF_SPEED_NAMES[2]
 	return UIText.UPGRADE_STAFF_SPEED_NAMES[3]
 

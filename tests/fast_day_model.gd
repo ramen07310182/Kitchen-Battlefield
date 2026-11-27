@@ -1,12 +1,16 @@
 class_name FastDayModel
 extends RefCounted
 ## 営業1日分を、画面を出さずに短時間で計算する（365日分のバランス確認用の近似）。
-## 実際の営業画面と同じルール（来店間隔・席・注文の選び方・仕込み数と確保・店主1人の調理・置き場・待てる時間）を
+## 実際の営業画面と同じルール（来店間隔・席・注文の選び方・トッピング・仕込み数と確保・店主1人の調理・置き場・待てる時間）を
 ## 時刻の計算でまねて、結果は GameState の記録の関数（record_visit など）に入れる。
 ## 歩く時間やボットの操作の細かい動きは、平均的な値で置き換えている。
+## 配膳: ボット（1回に reaction 秒）とホールスタッフ（取る時間＋歩く時間。戻るまで次を運べない）を
+## それぞれ1人ずつの「運ぶ人」として、いちばん早く届けられる人が運ぶ（スタッフが運んだ分はミスにならない）。
 
 ## 入口から席まで・席から出口までの歩く時間（秒、近似）
 const WALK_TIME := 1.5
+## ホールスタッフが置き場から席まで歩く距離（px、640×360基準の客席エリアでの平均の近似）
+const STAFF_DISTANCE := 220.0
 
 var _config: GameConfig
 ## ボットの設定（reaction: 操作の間隔の秒数、wrong_rate: 違う料理を出す割合、precook: 手が空いたら先に作る）
@@ -24,9 +28,13 @@ func run_day(opening: Dictionary) -> void:
 	var shelf_items: Array[String] = opening["shelf"]
 	var supply: DishSupply = DishSupply.new(prep, shelf_items)
 	var menu: Array[DishData] = []
-	for dish: DishData in Database.dishes:
+	var toppings: Array[DishData] = []
+	for dish: DishData in Database.items:
 		if int(prep.get(dish.id, 0)) > 0:
-			menu.append(dish)
+			if dish.is_topping():
+				toppings.append(dish)
+			else:
+				menu.append(dish)
 	# 置き場にある料理の数（開店時の置き場と、先に作った分）
 	var buffer: Dictionary = {}
 	for dish_id: String in shelf_items:
@@ -36,6 +44,11 @@ func run_day(opening: Dictionary) -> void:
 	for i: int in GameState.get_seat_count():
 		tables_free_at.append(0.0)
 	var reaction: float = float(_skill["reaction"])
+	# 運ぶ人ごとの、次に手が空く時刻（0番目がボット、1番目からスタッフ）
+	var server_free: Array[float] = [0.0]
+	var staff_list: Array[StaffData] = GameState.get_hired_staff()
+	for s: StaffData in staff_list:
+		server_free.append(0.0)
 	var interval_scale: float = _config.get_spawn_interval_scale(GameState.reputation)
 	var chef_free: float = 0.0
 	var t: float = _config.first_spawn_delay
@@ -46,51 +59,82 @@ func run_day(opening: Dictionary) -> void:
 			var customer_type: CustomerTypeData = _pick_customer_type()
 			var wanted: DishData = OrderChooser.choose(customer_type, menu, _config)
 			var dish: DishData = wanted
-			var missed_id: String = ""
+			var missed: Array[String] = []
 			if wanted != null and supply.get_orderable(wanted.id) <= 0:
-				missed_id = wanted.id
+				missed.append(wanted.id)
 				var available: Array[DishData] = supply.filter_orderable(menu)
 				dish = OrderChooser.choose(customer_type, available, _config) if not available.is_empty() else null
 			if dish != null and supply.reserve(dish.id):
+				var items: Array[DishData] = [dish]
+				if not toppings.is_empty() and OrderChooser.wants_topping(customer_type):
+					var topping: DishData = OrderChooser.choose_topping(customer_type, toppings, _config)
+					if topping != null and supply.reserve(topping.id):
+						items.append(topping)
+					elif topping != null:
+						missed.append(topping.id)
 				GameState.record_visit()
-				if missed_id != "":
+				for missed_id: String in missed:
 					GameState.record_missed(missed_id, 1)
 				var order_time: float = t + WALK_TIME + _config.order_delay
 				# 上手なボットは、手が空いているあいだに残りの多い料理を先に作って置き場に並べる
 				if bool(_skill["precook"]):
 					chef_free = _precook(supply, buffer, shelf_capacity, chef_free, order_time)
-				var ready: float
-				if int(buffer.get(dish.id, 0)) > 0:
-					buffer[dish.id] = int(buffer[dish.id]) - 1
-					ready = order_time + reaction
-				else:
-					supply.take_for_cooking(dish.id)
-					var start: float = maxf(order_time + reaction, chef_free)
-					chef_free = start + GameState.get_cook_time(dish)
-					ready = chef_free + reaction
-				var wait: float = ready - order_time
-				if randf() < float(_skill["wrong_rate"]):
-					GameState.record_mistake()
-					wait += reaction
+				var done: float = order_time
+				for item: DishData in items:
+					var ready: float
+					if int(buffer.get(item.id, 0)) > 0:
+						buffer[item.id] = int(buffer[item.id]) - 1
+						ready = order_time
+					else:
+						supply.take_for_cooking(item.id)
+						var start: float = maxf(order_time + reaction, chef_free)
+						chef_free = start + GameState.get_cook_time(item)
+						ready = chef_free
+					# 届くまで: いちばん早く届けられる人が運ぶ
+					var best: int = 0
+					var best_time: float = maxf(ready, server_free[0]) + reaction
+					for i: int in staff_list.size():
+						var arrive: float = maxf(ready, server_free[i + 1]) + _staff_one_way(staff_list[i])
+						if arrive < best_time:
+							best = i + 1
+							best_time = arrive
+					if best == 0:
+						if randf() < float(_skill["wrong_rate"]):
+							GameState.record_mistake()
+							best_time += reaction
+						server_free[0] = best_time
+					else:
+						var s2: StaffData = staff_list[best - 1]
+						server_free[best] = best_time + STAFF_DISTANCE / maxf(s2.walk_speed, 1.0)
+					done = maxf(done, best_time)
+				var wait: float = done - order_time
 				if wait >= customer_type.patience:
 					# 待ちきれずに帰った。作った料理は置き場に残る
 					GameState.record_angry()
-					supply.release(dish.id)
-					DayStats.add_to(buffer, dish.id, 1)
+					for item: DishData in items:
+						supply.release(item.id)
+						DayStats.add_to(buffer, item.id, 1)
 					tables_free_at[table] = order_time + customer_type.patience + WALK_TIME
 				else:
 					var level: Satisfaction.Level = Satisfaction.from_wait(wait, customer_type.patience, _config)
-					supply.serve(dish.id)
-					GameState.record_served(dish.id, level)
-					GameState.record_payment(dish.id, dish.price)
+					for item: DishData in items:
+						supply.serve(item.id)
+						GameState.record_item_served(item.id)
+						GameState.record_payment(item.id, item.price)
+					GameState.record_order_completed(level)
 					tables_free_at[table] = order_time + wait + customer_type.eat_time + WALK_TIME
 			# 注文できる料理がなくなったら、売り切れで閉店。残りの時間に来たはずの客は売り逃し
 			if not supply.has_orderable(menu):
 				GameState.record_sold_out()
-				_count_missed_after(menu, next_t, interval_scale)
+				_count_missed_after(menu, toppings, next_t, interval_scale)
 				break
 		t = next_t
 	GameState.record_waste(supply.get_leftover())
+
+
+## ホールスタッフが料理を取って席まで運ぶ時間
+func _staff_one_way(s: StaffData) -> float:
+	return s.pick_time + STAFF_DISTANCE / maxf(s.walk_speed, 1.0)
 
 
 func _free_table(tables_free_at: Array[float], t: float) -> int:
@@ -111,7 +155,7 @@ func _precook(supply: DishSupply, buffer: Dictionary, capacity: int, chef_free: 
 		if stocked >= capacity - 2:
 			break
 		var best: DishData = null
-		for dish: DishData in Database.dishes:
+		for dish: DishData in Database.items:
 			if supply.get_remaining(dish.id) > 0 and (best == null or supply.get_remaining(dish.id) > supply.get_remaining(best.id)):
 				best = dish
 		if best == null or free_at + GameState.get_cook_time(best) > until:
@@ -122,12 +166,17 @@ func _precook(supply: DishSupply, buffer: Dictionary, capacity: int, chef_free: 
 	return maxf(free_at, chef_free)
 
 
-func _count_missed_after(menu: Array[DishData], from_t: float, interval_scale: float) -> void:
+func _count_missed_after(menu: Array[DishData], toppings: Array[DishData], from_t: float, interval_scale: float) -> void:
 	var t: float = from_t
 	while t < _config.business_duration:
-		var wanted: DishData = OrderChooser.choose(_pick_customer_type(), menu, _config)
+		var customer_type: CustomerTypeData = _pick_customer_type()
+		var wanted: DishData = OrderChooser.choose(customer_type, menu, _config)
 		if wanted != null:
 			GameState.record_missed(wanted.id, 1)
+			if not toppings.is_empty() and OrderChooser.wants_topping(customer_type):
+				var topping: DishData = OrderChooser.choose_topping(customer_type, toppings, _config)
+				if topping != null:
+					GameState.record_missed(topping.id, 1)
 		t += randf_range(_config.spawn_interval_min, _config.spawn_interval_max) * interval_scale
 
 

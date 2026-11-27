@@ -49,6 +49,11 @@ func _ready() -> void:
 	_check_rules()
 	await _check_seat_layouts()
 	_check_unlock_schedule()
+	var topping_staff: ToppingStaffChecks = ToppingStaffChecks.new()
+	add_child(topping_staff)
+	await topping_staff.run(_check)
+	_check("トッピングと従業員の確認が最後まで進んだ（途中でエラーが出ていない）", topping_staff.completed)
+	topping_staff.queue_free()
 	GameState.use_save_path(TEST_SAVE_PATH)
 	Engine.time_scale = 8.0
 	_main = MAIN_SCENE.instantiate()

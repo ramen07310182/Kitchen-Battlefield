@@ -108,6 +108,9 @@ func _refresh_buttons() -> void:
 		var remaining: int = _supply.get_remaining(dish.id)
 		button.disabled = not _can_cook(dish)
 		button.text = UIText.COOK_BUTTON % [_button_name(dish), remaining]
+		# 名前が長いときは文字を小さくして、残りの数が切れないようにする
+		if button.size.x > 0.0:
+			button.add_theme_font_size_override("font_size", UIUtil.fit_font_size(button.text, button.size.x - 22.0, 13, 9))
 	_full = full
 
 

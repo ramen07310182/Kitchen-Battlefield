@@ -2,6 +2,7 @@ class_name HallStaff
 extends Control
 ## ホールスタッフ1人。置き場の前（待機場所）で待ち、StaffDispatcher の指示で
 ## 料理・トッピングを置き場から取り（pick_time 秒）、お客さんの席まで運ぶ。
+## 1回に運べるのは、同じお客さんの料理とトッピング（最大2皿）。
 ## 自分では判断しない（どの料理を誰に運ぶか・運べなかったときどうするかは StaffDispatcher が決める）。
 ## 絵は staff/<id>.png（なければ図形で代用）。
 
@@ -28,13 +29,15 @@ enum State {
 }
 
 const SIZE := Vector2(24, 32)
+## 1回に運べる皿の数
+const MAX_CARRY := 2
 
 var data: StaffData
 var state: State = State.IDLE
-## 運んでいる（取っている）料理・トッピングのid
-var item_id: String = ""
-## 取っている置き場の枠
-var slot_index: int = -1
+## 取っている・運んでいる料理・トッピングのid（取っている間は slots と同じ順）
+var items: Array[String] = []
+## 予約している置き場の枠（取っている間だけ）
+var slots: Array[int] = []
 ## 運び先のお客さん
 var target: Customer = null
 ## 待機場所（客席エリアの座標。左上）
@@ -45,8 +48,8 @@ var _tween: Tween
 
 @onready var _figure: SpriteView = %Figure
 @onready var _body: ColorRect = %Body
-@onready var _carry: ColorRect = %Carry
-@onready var _carry_label: Label = %CarryLabel
+@onready var _carry_boxes: Array[ColorRect] = [%Carry, %Carry2]
+@onready var _carry_labels: Array[Label] = [%CarryLabel, %CarryLabel2]
 
 
 ## add_child の後に呼ぶ
@@ -56,16 +59,17 @@ func setup(staff_data: StaffData, home_position: Vector2) -> void:
 	position = home
 	_body.color = data.color
 	_figure.set_sprite(SpriteKeys.staff(data.id), SpriteKeys.ANIM_IDLE)
-	_set_item("")
+	_show_items()
 
 
 func is_idle() -> bool:
 	return state == State.IDLE
 
 
-## 料理（またはトッピング）を持っているか
-func is_holding_item() -> bool:
-	return state == State.CARRYING or state == State.RETURNING or state == State.WAITING_SHELF
+## その料理を取りに行っている・運んでいるか
+func is_handling(customer: Customer, item_id: String) -> bool:
+	return target == customer and items.has(item_id) \
+		and (state == State.PICKING or state == State.CARRYING)
 
 
 ## 待機場所が変わった（画面の大きさが変わったとき）。待機中ならその場所へ移す
@@ -75,53 +79,51 @@ func set_home(home_position: Vector2) -> void:
 		position = home
 
 
-## 置き場の slot の料理を取り始める（取り終えたら picked）
-func begin_pick(slot: int, item: String, customer: Customer) -> void:
+## 置き場の枠（予約済み）の料理を取り始める（取り終えたら picked）
+func begin_pick(pick_slots: Array[int], pick_items: Array[String], customer: Customer) -> void:
 	state = State.PICKING
-	slot_index = slot
-	item_id = item
+	slots = pick_slots.duplicate()
+	items = pick_items.duplicate()
 	target = customer
 	_pick_left = data.pick_time
 	_figure.animation = SpriteKeys.ANIM_IDLE
 
 
 ## 取った料理を持って、destination（客席エリアの座標）まで歩く（着いたら arrived）
-func carry_to(destination: Vector2) -> void:
+func carry_to(carried: Array[String], destination: Vector2) -> void:
 	state = State.CARRYING
-	slot_index = -1
-	_set_item(item_id)
+	slots.clear()
+	items = carried.duplicate()
+	_show_items()
 	_walk(destination, func() -> void: arrived.emit(self))
 
 
-## 料理を渡し終えたので、何も持たずに待機場所へ戻る
+## 渡した料理を手から外す
+func remove_item(item_id: String) -> void:
+	items.erase(item_id)
+	_show_items()
+
+
+## 何も持たずに待機場所へ戻る（持っている料理が残っていれば、持ったまま戻る）
 func go_home() -> void:
-	state = State.GOING_HOME
 	target = null
-	_set_item("")
-	_walk(home, _on_home)
-
-
-## 料理を持ったまま待機場所へ戻る（戻ったら置き場に返す）
-func return_with_item() -> void:
-	state = State.RETURNING
-	target = null
+	state = State.RETURNING if not items.is_empty() else State.GOING_HOME
 	_walk(home, _on_home)
 
 
 ## 取るのをやめる（予約していた枠は StaffDispatcher が戻す）
 func cancel_pick() -> void:
 	state = State.IDLE
-	slot_index = -1
-	item_id = ""
+	slots.clear()
+	items.clear()
 	target = null
 
 
-## 置き場に返し終えた
-func clear_item() -> void:
-	item_id = ""
-	target = null
-	_set_item("")
-	if state == State.WAITING_SHELF:
+## 料理を1皿、置き場に返し終えた
+func returned_item(item_id: String) -> void:
+	items.erase(item_id)
+	_show_items()
+	if items.is_empty() and state == State.WAITING_SHELF:
 		state = State.IDLE
 
 
@@ -135,7 +137,7 @@ func _process(delta: float) -> void:
 func _on_home() -> void:
 	_figure.animation = SpriteKeys.ANIM_IDLE
 	_figure.flip_h = false
-	state = State.WAITING_SHELF if item_id != "" else State.IDLE
+	state = State.WAITING_SHELF if not items.is_empty() else State.IDLE
 	arrived_home.emit(self)
 
 
@@ -150,11 +152,14 @@ func _walk(destination: Vector2, on_done: Callable) -> void:
 	_tween.finished.connect(on_done)
 
 
-## 頭の上に、持っている料理の色と短い名前を出す
-func _set_item(id: String) -> void:
-	var item: DishData = Database.get_dish(id) if id != "" else null
-	_carry.visible = item != null
-	if item != null:
-		_carry.color = item.color
-		_carry_label.text = item.short_name
-		_carry_label.add_theme_font_size_override("font_size", UIUtil.fit_font_size(item.short_name, _carry.size.x - 2.0, 10))
+## 頭の上に、持っている料理の色と短い名前を出す（2皿なら2段）
+func _show_items() -> void:
+	for i: int in _carry_boxes.size():
+		var shown: bool = state != State.PICKING and i < items.size()
+		var item: DishData = Database.get_dish(items[i]) if shown else null
+		_carry_boxes[i].visible = item != null
+		if item != null:
+			_carry_boxes[i].color = item.color
+			_carry_labels[i].text = item.short_name
+			_carry_labels[i].add_theme_font_size_override("font_size",
+				UIUtil.fit_font_size(item.short_name, _carry_boxes[i].size.x - 2.0, 10))

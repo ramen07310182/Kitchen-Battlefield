@@ -179,6 +179,29 @@ func release_seat(seat_index: int) -> void:
 	_seats[seat_index].set_highlight(false)
 
 
+## ホールスタッフの待機場所（左上の座標）。下の端の、テーブルとテーブルの間（イスと重ならない所）に、
+## 入口に近い右から順に並べる。テーブルがないときは下の端の右から並べる
+func get_staff_home(index: int, staff_size: Vector2) -> Vector2:
+	var x0: float = 8.0
+	var x1: float = _entrance.position.x - 10.0
+	var width: float = maxf(60.0, x1 - x0)
+	var y: float = size.y - staff_size.y - 2.0
+	var spots: Array[float] = []
+	if _table_nodes.is_empty():
+		for i: int in 4:
+			spots.append(x1 - staff_size.x * 0.5 - 6.0 - i * (staff_size.x + 6.0))
+	else:
+		var table_pitch: float = width / TABLE_COUNT
+		var right_of_tables: float = x0 + table_pitch * (_table_nodes.size() - 0.5) + TABLE_SEAT_PITCH + 2.0
+		spots.append((right_of_tables + x1) * 0.5)
+		for t: int in range(_table_nodes.size() - 1, 0, -1):
+			spots.append(x0 + table_pitch * t)
+		while spots.size() < 4:
+			spots.append(spots[spots.size() - 1] - staff_size.x - 4.0)
+	var cx: float = spots[clampi(index, 0, spots.size() - 1)]
+	return Vector2(clampf(cx - staff_size.x * 0.5, 2.0, size.x - staff_size.x - 2.0), y).round()
+
+
 ## ホールスタッフを置く（お客さんと同じ層。家具より手前）
 func add_staff(staff: HallStaff) -> void:
 	_customers_layer.add_child(staff)

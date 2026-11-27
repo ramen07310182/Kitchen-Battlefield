@@ -3,6 +3,8 @@ extends Node
 ## 実行（ウィンドウが開く。--headless では撮れない）:
 ##   Godot --path . --resolution 1280x720 res://tests/screenshot.tscn -- --out=<保存先フォルダ> --name=16x9
 ## 保存先を省略すると user://screenshots/ に保存する。
+## オプション: --seat-level=N（席の拡張のレベル）、--all-dishes（料理とトッピングをすべて解放）、
+##   --staff=N（ランクを最大にして、従業員を N 人雇った状態で撮る。営業画面ではスタッフが運んでいるところを撮る）
 ## 本物のセーブ（user://save.json）は読み書きしない。テスト用のファイルを使い、終わったら消す。
 
 const MAIN_SCENE: PackedScene = preload("res://scenes/main/main.tscn")
@@ -14,6 +16,7 @@ var _out_dir: String = "user://screenshots"
 var _shot_name: String = "shot"
 var _seat_level: int = 0
 var _all_dishes: bool = false
+var _staff_count: int = 0
 
 
 func _ready() -> void:
@@ -26,6 +29,8 @@ func _ready() -> void:
 			_seat_level = int(arg.trim_prefix("--seat-level="))
 		elif arg == "--all-dishes":
 			_all_dishes = true
+		elif arg.begins_with("--staff="):
+			_staff_count = int(arg.trim_prefix("--staff="))
 	DirAccess.make_dir_recursive_absolute(_out_dir)
 	GameState.use_save_path(TEST_SAVE_PATH)
 	GameState.delete_save()
@@ -36,9 +41,14 @@ func _ready() -> void:
 	# -- --all-dishes で、料理25品をすべて解放して撮る（料理が多いときの画面の確認用）
 	if _all_dishes:
 		GameState.rank = Database.get_max_rank()
-		for dish: DishData in Database.dishes:
+		for dish: DishData in Database.items:
 			if not GameState.is_unlocked(dish.id):
 				GameState.unlocked_dishes.append(dish.id)
+	if _staff_count > 0:
+		GameState.rank = Database.get_max_rank()
+		for data: StaffData in Database.staff:
+			if GameState.hired_staff.size() < _staff_count:
+				GameState.hire_staff(data.id)
 	_run()
 
 
@@ -52,8 +62,21 @@ func _run() -> void:
 	GameState.change_prep("karaage", 5)
 	GameState.change_prep("yakizakana", 2)
 	GameState.change_prep("shogayaki", 2)
+	GameState.change_prep("tamagoyaki", 3)
+	if _all_dishes:
+		GameState.change_prep("karaage_extra", 2)
 	await _wait_frames(3)
 	await _shot("prep1")
+	# トッピングの区切りが見えるところまでスクロールして撮る
+	var menu_step: PrepMenuStep = prep.get("_menu_step")
+	var header: Label = menu_step.get("_topping_header")
+	if header != null:
+		var scroll: ScrollContainer = menu_step.get_node("%MenuScroll")
+		var rows: Array[MenuRow] = menu_step.get("_menu_rows")
+		scroll.ensure_control_visible(rows[rows.size() - 1])
+		await _wait_frames(3)
+		await _shot("prep1_toppings")
+		scroll.scroll_vertical = 0
 	prep.call("_show_dish_detail", "karaage")
 	await _wait_frames(4)
 	await _shot("prep1_detail")
@@ -80,6 +103,7 @@ func _run() -> void:
 	(prep.get("_next_button") as Button).pressed.emit()
 	GameState.add_to_shelf_plan("karaage")
 	GameState.add_to_shelf_plan("yakizakana")
+	GameState.add_to_shelf_plan("tamagoyaki")
 	await _wait_frames(3)
 	await _shot("prep3")
 
@@ -118,6 +142,13 @@ func _run() -> void:
 	await _wait_frames(5)
 	await _shot("upgrade")
 	var upgrade: Node = _current_screen(main)
+	# 従業員の区切りまでスクロールして撮る
+	var staff_header: Label = upgrade.get("_staff_header")
+	var staff_rows: Array[StaffRow] = upgrade.get("_staff_rows")
+	(upgrade.get_node("%Scroll") as ScrollContainer).ensure_control_visible(staff_rows[staff_rows.size() - 1])
+	await _wait_frames(4)
+	await _shot("upgrade_staff")
+	(upgrade.get_node("%Scroll") as ScrollContainer).scroll_vertical = 0
 	upgrade.call("_show_detail", "seats")
 	await _wait_frames(4)
 	await _shot("upgrade_detail")
@@ -147,13 +178,47 @@ func _run() -> void:
 	prep2.call("_on_start_pressed")
 	await _wait_frames(2)
 	Engine.time_scale = 6.0
-	await get_tree().create_timer(BUSINESS_SHOT_TIME, true, false, false).timeout
+	var business_max: Node = _current_screen(main)
+	var waited: float = 0.0
+	while waited < BUSINESS_SHOT_TIME:
+		_auto_cook(business_max)
+		await get_tree().create_timer(0.1, true, false, false).timeout
+		waited += 0.1
+	# スタッフがいれば、料理を運んでいるところを撮る（少し待っても運ばなければそのまま撮る）
+	var staff: StaffDispatcher = business_max.get("_staff")
+	var tries: int = 0
+	while _staff_count > 0 and tries < 800 and not _any_staff_carrying(staff):
+		_auto_cook(business_max)
+		await get_tree().create_timer(0.05, true, false, false).timeout
+		tries += 1
 	Engine.time_scale = 1.0
 	await _wait_frames(3)
 	await _shot("business_max")
 
 	GameState.delete_save()
 	get_tree().quit()
+
+
+func _any_staff_carrying(staff: StaffDispatcher) -> bool:
+	for s2: HallStaff in staff.get_staff():
+		if s2.state == HallStaff.State.CARRYING:
+			return true
+	return false
+
+
+## 待っている客の料理・トッピングで、置き場にないものを作る（配膳はスタッフに任せる）
+func _auto_cook(business: Node) -> void:
+	var shelf: ReadyShelf = business.get("_shelf")
+	var kitchen: Kitchen = business.get("_kitchen")
+	var slots: Array[String] = shelf.get("_slots")
+	var cook_buttons: Dictionary = kitchen.get("_buttons")
+	if kitchen.get_pending_count() > 0:
+		return
+	for c: Customer in (business.get("_customers") as Array[Customer]):
+		for item_id: String in c.get_needed_items():
+			if not slots.has(item_id) and cook_buttons.has(item_id) and not (cook_buttons[item_id] as Button).disabled:
+				(cook_buttons[item_id] as Button).pressed.emit()
+				return
 
 
 ## 待っている客の料理が置き場にあれば出し、なければ作る（見た目の確認用の簡単な自動操作）
@@ -165,17 +230,20 @@ func _auto_serve(business: Node) -> void:
 	var shelf_buttons: Array[Button] = shelf.get("_buttons")
 	var cook_buttons: Dictionary = kitchen.get("_buttons")
 	for c: Customer in (business.get("_customers") as Array[Customer]):
-		if not c.is_waiting_food():
-			continue
-		var slot: int = slots.find(c.dish.id)
-		if slot >= 0:
-			if int(shelf.get("_held_index")) != slot:
-				shelf_buttons[slot].pressed.emit()
-			(dining.get_seat(c.seat_index).get("_tap_button") as Button).pressed.emit()
-			return
-		if kitchen.get_pending_count() == 0 and cook_buttons.has(c.dish.id):
-			(cook_buttons[c.dish.id] as Button).pressed.emit()
-			return
+		for item_id: String in c.get_needed_items():
+			var slot: int = -1
+			for i: int in slots.size():
+				if slots[i] == item_id and not shelf.is_reserved(i):
+					slot = i
+					break
+			if slot >= 0:
+				if int(shelf.get("_held_index")) != slot:
+					shelf_buttons[slot].pressed.emit()
+				(dining.get_seat(c.seat_index).get("_tap_button") as Button).pressed.emit()
+				return
+			if kitchen.get_pending_count() == 0 and cook_buttons.has(item_id):
+				(cook_buttons[item_id] as Button).pressed.emit()
+				return
 
 
 func _current_screen(main: Node) -> Node:
