@@ -6,7 +6,7 @@ extends Node
 ##   --no-buy       : 設備を買わず、従業員も雇わない
 ##   --no-toppings  : トッピングを仕込まない（比べる用）
 ## ボットは、営業結果のあとに「手元に一定のお金を残して」優先順位に沿って設備を買う（BUY_PRIORITY）。
-## 従業員: 雇える人数に空きがあれば、日給が「最近7日の売上の平均 × HIRE_WAGE_RATIO」以下の人のうち、いちばん速い人を雇う。
+## 従業員: 人手が足りないとき（怒って帰る客が多い・評価が低い）に、日給が売上に見合う人を1日1人ずつ雇う（_hire_staff）。
 ## 仕込み: 解放済みの料理とトッピングを、注文の目安 × 倍率だけ仕込む。
 ##   --skill=good   : 上手なボット（目安どおりに仕込み、すぐに作って出す。ミスをしない）
 ##   --skill=normal : ふつうのボット（仕込みは目安より少し少なめ、動きは少し遅い、たまに違う料理を出す）
@@ -19,16 +19,18 @@ const SIM_SAVE_PATH := "user://save_reputation_sim.json"
 ## 設備を買う優先順位（上から順に、買えるものを買う）と、買ったあとに手元に残すお金
 const BUY_PRIORITY: PackedStringArray = ["seats", "fryer", "stove", "shelf", "rice_cooker"]
 const BUY_RESERVE := 10000
-## 雇う人の日給の上限（最近の売上の平均に対する割合）
-const HIRE_WAGE_RATIO := 0.12
 const RECENT_DAYS := 7
+## 人手が足りないとみなす目安（最近7日の平均）
+const HIRE_ANGRY := 0.5
+const HIRE_STARS := 4.2
 const DEFAULT_CSV := "user://reputation_sim.csv"
 
 ## ボットの設定（上手／ふつう／ミスが多い）
 const SKILLS: Dictionary = {
-	"good": { "prep_factor": 1.1, "reaction": 0.4, "wrong_rate": 0.0, "precook": true },
-	"normal": { "prep_factor": 0.9, "reaction": 2.0, "wrong_rate": 0.05, "precook": false },
-	"sloppy": { "prep_factor": 0.6, "reaction": 5.0, "wrong_rate": 0.25, "precook": false },
+	"good": { "prep_factor": 1.1, "reaction": 0.4, "wrong_rate": 0.0, "precook": true, "hire_ratio": 0.12 },
+	"normal": { "prep_factor": 0.9, "reaction": 2.0, "wrong_rate": 0.05, "precook": false, "hire_ratio": 0.12 },
+	# 操作の遅いボットは、配膳を手伝ってもらうため、売上が少なくても早めに安い人を雇う
+	"sloppy": { "prep_factor": 0.6, "reaction": 5.0, "wrong_rate": 0.25, "precook": false, "hire_ratio": 0.15, "hire_cheap": true },
 }
 
 var _skill_name: String = "good"
@@ -49,6 +51,8 @@ var _toppings: bool = true
 var _bought_today: PackedStringArray = PackedStringArray()
 ## 最近の売上（雇うかどうかの判断）
 var _recent_sales: Array[int] = []
+var _recent_angry: Array[int] = []
+var _recent_stars: Array[float] = []
 
 
 func _ready() -> void:
@@ -222,8 +226,12 @@ func _do_result(screen: Node) -> void:
 func _record_day() -> void:
 	_bought_today.clear()
 	_recent_sales.append(GameState.today.sales)
+	_recent_angry.append(GameState.today.left_angry)
+	_recent_stars.append(GameState.today.average_stars() if GameState.today.has_ratings() else 3.0)
 	if _recent_sales.size() > RECENT_DAYS:
 		_recent_sales.pop_front()
+		_recent_angry.pop_front()
+		_recent_stars.pop_front()
 	if _buy:
 		_buy_equipment()
 		_hire_staff()
@@ -276,25 +284,42 @@ func _buy_equipment() -> void:
 			break
 
 
-## 雇える人数に空きがあれば、日給が最近の売上に見合う人のうち、いちばん速い人を雇う
+## 人手が足りない（最近7日で、怒って帰る客が1日 HIRE_ANGRY 人以上か、評価の平均が HIRE_STARS 未満）ときに、
+## 雇える人数に空きがあれば1日1人ずつ雇う。日給は「最近7日の売上の平均 × hire_ratio」以下の人から選ぶ
+## （操作の遅いボットは安い人、ほかはいちばん速い人）
 func _hire_staff() -> void:
-	if _recent_sales.is_empty():
+	if _recent_sales.is_empty() or GameState.hired_staff.size() >= GameState.get_staff_limit():
 		return
 	var average: float = 0.0
 	for v: int in _recent_sales:
 		average += v
 	average /= _recent_sales.size()
-	while GameState.hired_staff.size() < GameState.get_staff_limit():
-		var best: StaffData = null
-		for data: StaffData in Database.staff:
-			if GameState.can_hire(data.id) and data.daily_wage <= average * HIRE_WAGE_RATIO \
-					and (best == null or data.walk_speed > best.walk_speed):
-				best = data
+	var angry: float = 0.0
+	for v: int in _recent_angry:
+		angry += v
+	angry /= maxi(1, _recent_angry.size())
+	var stars: float = 0.0
+	for v: float in _recent_stars:
+		stars += v
+	stars /= maxi(1, _recent_stars.size())
+	if angry < HIRE_ANGRY and stars >= HIRE_STARS:
+		return
+	var best: StaffData = null
+	for data: StaffData in Database.staff:
+		if not GameState.can_hire(data.id) or data.daily_wage > average * float(_skill["hire_ratio"]):
+			continue
 		if best == null:
-			return
-		GameState.hire_staff(best.id)
-		# CSV に入れるので、金額にカンマを入れない
-		_bought_today.append("%s（日給%d）" % [best.display_name, best.daily_wage])
+			best = data
+		elif bool(_skill.get("hire_cheap", false)):
+			if data.daily_wage < best.daily_wage:
+				best = data
+		elif data.walk_speed > best.walk_speed:
+			best = data
+	if best == null:
+		return
+	GameState.hire_staff(best.id)
+	# CSV に入れるので、金額にカンマを入れない
+	_bought_today.append("%s（日給%d）" % [best.display_name, best.daily_wage])
 
 
 func _finish() -> void:

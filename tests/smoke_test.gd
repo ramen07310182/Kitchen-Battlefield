@@ -49,6 +49,7 @@ func _ready() -> void:
 	_check_rules()
 	await _check_seat_layouts()
 	_check_unlock_schedule()
+	_check_regulars()
 	var topping_staff: ToppingStaffChecks = ToppingStaffChecks.new()
 	add_child(topping_staff)
 	await topping_staff.run(_check)
@@ -199,8 +200,9 @@ func _check_rules() -> void:
 		GameState.record_angry()
 	GameState.record_missed("karaage", 5)
 	GameState.finish_business()
-	_check("怒って帰る客や売り逃しが多い日は、評判が少し下がる",
-		GameState.today.reputation_change < 0 and GameState.today.reputation_change >= -5,
+	_check("無名店では、怒って帰る客や売り逃しが多い日も評判は下がらない（常連さんの分に置き換わる。人気店からは少し下がる）",
+		GameState.today.reputation_change >= 0 and GameState.today.reputation_change <= 1 and GameState.today.regular_applied
+		and Database.get_reputation_delta(GameState.get_day_reputation_points(), 3) < 0,
 		"change=%d" % GameState.today.reputation_change)
 
 	# 店舗ランクと料理の解放
@@ -380,6 +382,11 @@ func _check_migration() -> void:
 		GameState.hired_staff.is_empty() and GameState.is_unlocked("tamagoyaki") and GameState.is_unlocked("potato_salad")
 		and not GameState.is_unlocked("karaage_extra") and GameState.get_equipment_level("seats") == 1 and GameState.is_unlocked("oyakodon"),
 		"unlocked=%s" % [GameState.unlocked_dishes])
+	_write_test_save({"version": 10, "money": 9000, "day": 50, "reputation": 40,
+		"inventory": {"rice": 4}, "unlocked": ["karaage"], "rank": 2, "history": [], "equipment": {}, "staff": ["sato"]})
+	GameState.use_save_path(TEST_SAVE_PATH)
+	_check("セーブ移行 v10 -> v11（常連さんの小数の持ち越しは 0 から。評判と従業員はそのまま）",
+		GameState.reputation == 40 and is_zero_approx(GameState.reputation_progress) and GameState.is_hired("sato"))
 	_check("セーブ移行 v8 -> v9（テーブル8卓→10席、7卓→6席。ほかの設備はそのまま）",
 		converted_8 == 2 and converted_7 == 1, "8卓→Lv%d 7卓→Lv%d" % [converted_8, converted_7])
 	_write_test_save({"version": 6, "money": 9000, "day": 8, "reputation": 20,
@@ -445,6 +452,39 @@ func _check_seat_layouts() -> void:
 		await get_tree().process_frame
 	GameState.equipment_levels.clear()
 	_check("「席の拡張」は 4→6→10→14→18席", e != null and e.get_max_level() == 4 and int(e.get_value(4)) == 18)
+
+
+## 常連さん: 無名店・知る人ぞ知る店では、評判の増え方が少ない日（マイナスの日も）は常連さんの分（小数は持ち越し）に置き換わる。
+## 人気店からは常連さんの分がなく、マイナスの日は少し下がる
+func _check_regulars() -> void:
+	GameState.use_save_path(TEST_SAVE_PATH)
+	GameState.rank = 1
+	GameState.reputation = 10
+	GameState.reputation_progress = 0.0
+	var regular: float = Database.get_regular_reputation(1)
+	var steps: Array[int] = []
+	for i: int in 4:
+		GameState.today = DayStats.new()
+		GameState.today.reputation_points = -10.0
+		GameState.finish_business()
+		steps.append(GameState.reputation)
+	var expected: int = 10 + floori(regular * 4.0 + 0.0001)
+	_check("常連さん: 無名店では悪い日でも評判が下がらず、1日 %.2f ずつ育つ（4日で %d → %d）" % [regular, 10, GameState.reputation],
+		regular > 0.0 and steps[0] >= 10 and GameState.reputation == expected and GameState.today.regular_applied,
+		"steps=%s progress=%.2f" % [steps, GameState.reputation_progress])
+	GameState.today = DayStats.new()
+	GameState.today.reputation_points = 10.0
+	var before_good: int = GameState.reputation
+	GameState.finish_business()
+	_check("常連さん: よい日はいつもどおり（点数 × 倍率）",
+		GameState.reputation - before_good == Database.get_reputation_delta(10.0, 1) and not GameState.today.regular_applied)
+	GameState.rank = 3
+	GameState.reputation = 70
+	GameState.today = DayStats.new()
+	GameState.today.reputation_points = -10.0
+	GameState.finish_business()
+	_check("常連さん: 人気店からは常連さんの分がなく、マイナスの日は少し下がる",
+		GameState.reputation == 70 + Database.get_reputation_delta(-10.0, 3) and GameState.reputation < 70)
 
 
 ## 料理の解放日: 新しい20品が15〜340日目に順に散らばり、店主のおまかせ定食が最後（1年目の最後のほう）
@@ -885,8 +925,8 @@ func _do_result(screen: Node) -> void:
 	if _days_done >= DAYS_TO_RUN:
 		var saved: String = FileAccess.get_file_as_string(GameState.save_path)
 		print("[smoke] save: ", saved.replace("\n", " "))
-		_check("セーブは version 10 で、前回の置き場・売れた数・売り逃し・解放済みの料理・ランク・履歴・設備・従業員を含む",
-			saved.contains("\"version\": 10") and saved.contains("\"staff\"") and saved.contains("\"history\"") and saved.contains("\"equipment\"") and saved.contains("last_shelf") and saved.contains("last_sold")
+		_check("セーブは version 11 で、前回の置き場・売れた数・売り逃し・解放済みの料理・ランク・履歴・設備・従業員・常連さんの持ち越しを含む",
+			saved.contains("\"version\": 11") and saved.contains("reputation_progress") and saved.contains("\"staff\"") and saved.contains("\"history\"") and saved.contains("\"equipment\"") and saved.contains("last_shelf") and saved.contains("last_sold")
 			and saved.contains("last_missed") and saved.contains("\"unlocked\"") and saved.contains("\"rank\""))
 		_finish()
 

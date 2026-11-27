@@ -154,6 +154,20 @@ func get_rank_name(rank: int) -> String:
 	return data.display_name if data != null else ""
 
 
+## そのランクの常連さんの分の評判（1営業日あたり）
+func get_regular_reputation(rank: int) -> float:
+	var data: RankData = _rank_data(rank)
+	return data.regular_reputation if data != null else 0.0
+
+
+## その日の点数を、倍率をかけた評判の増減（丸める前の小数）に直す
+func get_reputation_value(points: float, rank: int) -> float:
+	if points > 0.0:
+		var data: RankData = _rank_data(rank)
+		return points * (data.reputation_gain_scale if data != null else 0.5)
+	return points * config.reputation_loss_scale
+
+
 ## そのランクで雇えるホールスタッフの人数
 func get_staff_limit(rank: int) -> int:
 	var data: RankData = _rank_data(rank)

@@ -8,4 +8,5 @@ rank = 3
 display_name = "人気店"
 reputation_threshold = 60
 reputation_gain_scale = 0.35
-staff_limit = 2
+staff_limit = 3
+regular_reputation = 0.0

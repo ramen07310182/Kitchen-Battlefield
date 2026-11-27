@@ -9,3 +9,4 @@ display_name = "有名店"
 reputation_threshold = 110
 reputation_gain_scale = 0.3
 staff_limit = 3
+regular_reputation = 0.0

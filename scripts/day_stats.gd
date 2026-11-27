@@ -14,6 +14,8 @@ var left_angry: int = 0
 var mistakes: int = 0
 ## その日の評判の増減（営業結果のときにまとめて反映した値）
 var reputation_change: int = 0
+## 常連さんの分の評判に置き換えた日（その日の増え方が少なかった）
+var regular_applied: bool = false
 ## 客ごとの評判の点数の合計（売り逃しの分は含まない。GameState.get_day_reputation_points で合計する）
 var reputation_points: float = 0.0
 ## この営業のあとに上がったランク（上がらなければ 0）

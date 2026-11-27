@@ -8,4 +8,5 @@ rank = 2
 display_name = "知る人ぞ知る店"
 reputation_threshold = 30
 reputation_gain_scale = 0.4
-staff_limit = 1
+staff_limit = 2
+regular_reputation = 0.1

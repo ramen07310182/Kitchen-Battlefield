@@ -11,3 +11,6 @@ extends Resource
 @export var reputation_gain_scale: float = 0.5
 ## このランクで雇えるホールスタッフの人数
 @export var staff_limit: int = 0
+## 常連さんの分の評判（1営業日あたり。小数でよい）。その日の評判の増え方がこれより少ない日（下手な日・マイナスの日）は、
+## 増減をこの値に置き換える（常連さんが来てくれるので、悪い日でも少しずつ育つ）。小数の分は持ち越して足していく
+@export var regular_reputation: float = 0.0

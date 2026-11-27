@@ -18,11 +18,13 @@ signal inventory_changed
 signal reputation_changed(value: int)
 
 const DEFAULT_SAVE_PATH := "user://save.json"
-const SAVE_VERSION := 10
+const SAVE_VERSION := 11
 
 var money: int = 0
 var day: int = 1
 var reputation: int = 0
+## 常連さんの分で、まだ評判1に満たない小数の分（次の営業日に持ち越す。セーブする）
+var reputation_progress: float = 0.0
 ## 確定した在庫 { 食材id: 個数 }
 var inventory: Dictionary = {}
 ## 仕入れ予定 { 食材id: 個数 }（「仕入れる」で確定するまで、お金も在庫も変わらない。保存しない）
@@ -84,6 +86,7 @@ func _new_game() -> void:
 	money = cfg.start_money
 	day = 1
 	reputation = 0
+	reputation_progress = 0.0
 	inventory.clear()
 	for ing: IngredientData in Database.ingredients:
 		inventory[ing.id] = int(cfg.start_inventory.get(ing.id, 0))
@@ -692,7 +695,7 @@ func finish_business() -> void:
 		last_missed_counts[dish_id] = int(today.dish_missed.get(dish_id, 0))
 	# その日の評判をまとめて反映する（点数 × 今のランクの倍率。マイナスの日は少しだけ下がる）
 	var before: int = reputation
-	add_reputation(Database.get_reputation_delta(get_day_reputation_points(), rank))
+	add_reputation(_day_reputation_delta(get_day_reputation_points()))
 	today.reputation_change = reputation - before
 	# 評判が届いていればランクを上げ、そのランクの料理を解放する
 	today.rank_up = _update_rank()
@@ -700,6 +703,20 @@ func finish_business() -> void:
 	for dish: DishData in _unlock_by_rank(day + 1):
 		today.new_unlocks.append(dish.id)
 	_record_history()
+
+
+## その日の評判の増減。ふつうは「点数 × ランクの倍率」を丸めた値。
+## ただし、その値が常連さんの分（ランクごと）より少ない日は、常連さんの分に置き換える
+## （小数の分は reputation_progress に持ち越し、1以上になったら評判に足す）。悪い日でも評判は下がらず、少しずつ育つ
+func _day_reputation_delta(points: float) -> int:
+	var regular: float = Database.get_regular_reputation(rank)
+	if regular <= 0.0 or Database.get_reputation_value(points, rank) >= regular:
+		return Database.get_reputation_delta(points, rank)
+	today.regular_applied = true
+	reputation_progress += regular
+	var whole: int = floori(reputation_progress)
+	reputation_progress -= whole
+	return whole
 
 
 # ---------------------------------------------------------------
@@ -899,6 +916,7 @@ func save_game() -> bool:
 		"money": money,
 		"day": day,
 		"reputation": reputation,
+		"reputation_progress": reputation_progress,
 		"inventory": inventory.duplicate(),
 		"last_prep": last_prep_counts.duplicate(),
 		"last_shelf": Array(last_shelf_plan),
@@ -939,6 +957,7 @@ func load_game() -> bool:
 	money = int(data.get("money", money))
 	day = maxi(1, int(data.get("day", day)))
 	reputation = maxi(0, int(data.get("reputation", reputation)))
+	reputation_progress = clampf(float(data.get("reputation_progress", 0.0)), 0.0, 0.999)
 	var saved_inventory: Variant = data.get("inventory", {})
 	if saved_inventory is Dictionary:
 		for ing: IngredientData in Database.ingredients:
@@ -1082,5 +1101,9 @@ func _migrate(data: Dictionary) -> Dictionary:
 		# （トッピングの解放は、読み込んだあとにランクと日数で決まる）
 		data["staff"] = []
 		version = 10
+	if version == 10:
+		# v11 で常連さんの分の評判（小数の持ち越し）を追加。古いセーブは 0 から始める
+		data["reputation_progress"] = 0.0
+		version = 11
 	data["version"] = version
 	return data
