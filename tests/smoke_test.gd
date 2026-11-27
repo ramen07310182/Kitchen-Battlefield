@@ -7,6 +7,12 @@ extends Node
 ##   2日目（5品を解放）: 「前回と同じ仕込み」・不足分を予定に入れる・確定式の仕入れ・仕入れ予定が残ったままの営業開始・廃棄
 
 const MAIN_SCENE: PackedScene = preload("res://scenes/main/main.tscn")
+const DINING_SCENE: PackedScene = preload("res://scenes/business/dining_area.tscn")
+const CUSTOMER_SCENE: PackedScene = preload("res://scenes/business/customer.tscn")
+## 16:9 の画面での客席エリアのおよその大きさ（640×360基準）
+const DINING_SIZE_16X9 := Vector2(500, 216)
+## タップできる範囲の最小（640×360基準のpx。iPhoneでは約1.08倍のptになる）
+const MIN_TAP := Vector2(40, 40)
 const DAYS_TO_RUN := 2
 const TEST_SAVE_PATH := "user://save_smoke_test.json"
 
@@ -41,6 +47,8 @@ func _ready() -> void:
 	GameState.delete_save()
 	GameState.use_save_path(TEST_SAVE_PATH)
 	_check_rules()
+	await _check_seat_layouts()
+	_check_unlock_schedule()
 	GameState.use_save_path(TEST_SAVE_PATH)
 	Engine.time_scale = 8.0
 	_main = MAIN_SCENE.instantiate()
@@ -345,10 +353,100 @@ func _check_migration() -> void:
 		"inventory": {"rice": 4}, "last_prep": {}, "last_shelf": [], "last_sold": {}, "last_missed": {},
 		"unlocked": ["karaage", "yakizakana", "shogayaki", "oyakodon"]})
 	GameState.use_save_path(TEST_SAVE_PATH)
+	_write_test_save({"version": 8, "money": 9000, "day": 9, "reputation": 40,
+		"inventory": {"rice": 4}, "last_prep": {}, "last_shelf": [], "last_sold": {}, "last_missed": {},
+		"unlocked": ["karaage", "yakizakana", "shogayaki"], "rank": 2, "history": [], "equipment": {"tables": 4, "fryer": 1}})
+	GameState.use_save_path(TEST_SAVE_PATH)
+	var converted_8: int = GameState.get_equipment_level("seats")
+	_write_test_save({"version": 8, "money": 9000, "day": 9, "reputation": 40,
+		"inventory": {"rice": 4}, "unlocked": [], "rank": 2, "history": [], "equipment": {"tables": 3}})
+	GameState.use_save_path(TEST_SAVE_PATH)
+	var converted_7: int = GameState.get_equipment_level("seats")
+	_check("セーブ移行 v8 -> v9（テーブル8卓→10席、7卓→6席。ほかの設備はそのまま）",
+		converted_8 == 2 and converted_7 == 1, "8卓→Lv%d 7卓→Lv%d" % [converted_8, converted_7])
+	_write_test_save({"version": 6, "money": 9000, "day": 8, "reputation": 20,
+		"inventory": {"rice": 4}, "last_prep": {}, "last_shelf": [], "last_sold": {}, "last_missed": {},
+		"unlocked": ["karaage", "yakizakana", "shogayaki", "oyakodon"]})
+	GameState.use_save_path(TEST_SAVE_PATH)
 	_check("セーブ移行 v6 -> v7（評判を換算してランクを決め、解放済みの料理はそのまま）",
 		GameState.rank == 1 and GameState.reputation == roundi(20 * cfg.legacy_reputation_scale)
 		and GameState.is_unlocked("oyakodon") and not GameState.is_unlocked("yasaiitame"),
 		"rep=%d rank=%d unlocked=%s" % [GameState.reputation, GameState.rank, GameState.unlocked_dishes])
+
+
+## 席の拡張（4→6→10→14→18席）: 席とテーブルの数、席の番号、タップの範囲が重ならず客席エリアに収まること、相席
+func _check_seat_layouts() -> void:
+	var expected_seats: Array[int] = [4, 6, 10, 14, 18]
+	var expected_tables: Array[int] = [0, 0, 1, 2, 3]
+	var e: EquipmentData = Database.get_equipment("seats")
+	for level: int in expected_seats.size():
+		GameState.equipment_levels["seats"] = level
+		var count: int = GameState.get_seat_count()
+		var dining: DiningArea = DINING_SCENE.instantiate() as DiningArea
+		dining.size = DINING_SIZE_16X9
+		add_child(dining)
+		dining.size = DINING_SIZE_16X9
+		dining.setup(count)
+		await get_tree().process_frame
+		var inside: bool = true
+		var overlap: bool = false
+		var min_size: Vector2 = Vector2(9999, 9999)
+		var area: Rect2 = Rect2(Vector2.ZERO, dining.size)
+		for i: int in dining.get_seat_count():
+			var a: Rect2 = Rect2(dining.get_seat(i).position, dining.get_seat(i).size)
+			min_size = Vector2(minf(min_size.x, a.size.x), minf(min_size.y, a.size.y))
+			if not area.encloses(a):
+				inside = false
+			for j: int in range(i + 1, dining.get_seat_count()):
+				var b: Rect2 = Rect2(dining.get_seat(j).position, dining.get_seat(j).size)
+				if a.intersection(b).get_area() > 1.0:
+					overlap = true
+		var labels_ok: bool = dining.get_seat_label(0) == "C1" \
+			and (count < 7 or dining.get_seat_label(6) == "T1-1") and (count < 18 or dining.get_seat_label(17) == "T3-4")
+		_check("席の拡張 Lv%d: %d席・テーブル%d卓で、タップの範囲が重ならず収まる（最小 %dx%d）" % [level, count, dining.get_table_count(), int(min_size.x), int(min_size.y)],
+			count == expected_seats[level] and dining.get_seat_count() == count and dining.get_table_count() == expected_tables[level]
+			and inside and not overlap and labels_ok and min_size.x >= MIN_TAP.x and min_size.y >= MIN_TAP.y,
+			"inside=%s overlap=%s labels=%s" % [inside, overlap, labels_ok])
+		if count == 10:
+			# 相席: テーブル1の4席は同じテーブル。3席に座っていても、4席目に次のお客さんが座れる
+			var dummy: Customer = CUSTOMER_SCENE.instantiate() as Customer
+			var target: int = -1
+			for i: int in dining.get_seat_count():
+				if dining.get_seat_label(i) == "T1-4":
+					target = i
+				else:
+					dining.get_seat(i).occupant = dummy
+			var same_table: bool = true
+			for i: int in range(6, 10):
+				if dining.get_seat(i).table_index != 0:
+					same_table = false
+			_check("相席: 同じテーブルの席に、別々のお客さんが座れる（空いている席は T1-4 だけ）",
+				same_table and target >= 0 and dining.find_free_seat() == target)
+			dummy.free()
+		dining.queue_free()
+		await get_tree().process_frame
+	GameState.equipment_levels.clear()
+	_check("「席の拡張」は 4→6→10→14→18席", e != null and e.get_max_level() == 4 and int(e.get_value(4)) == 18)
+
+
+## 料理の解放日: 新しい20品が15〜340日目に順に散らばり、店主のおまかせ定食が最後（1年目の最後のほう）
+func _check_unlock_schedule() -> void:
+	var days: Array[int] = []
+	var last_id: String = ""
+	var last_day: int = -1
+	for dish: DishData in Database.dishes:
+		if dish.unlock_day > 0:
+			days.append(dish.unlock_day)
+			if dish.unlock_day > last_day:
+				last_day = dish.unlock_day
+				last_id = dish.id
+	days.sort()
+	var max_gap: int = 0
+	for i: int in range(1, days.size()):
+		max_gap = maxi(max_gap, days[i] - days[i - 1])
+	_check("料理の解放日が1年に散らばる（20品・%d〜%d日目・間隔は最大%d日・最後はおまかせ定食）" % [days.front(), days.back(), max_gap],
+		days.size() == 20 and days.front() >= 10 and days.back() >= 300 and days.back() <= 365 and max_gap <= 45
+		and last_id == "omakase")
 
 
 func _write_test_save(data: Dictionary) -> void:
@@ -454,6 +552,16 @@ func _do_prep_day2(screen: Node, dialog: ConfirmDialog) -> void:
 			last_ok = false
 		print("[smoke] %s: %s" % [row.dish.id, label.text])
 	_check("2日目の準備画面に「前回 ○食売れた」が出る", last_ok and not GameState.last_sold_counts.is_empty())
+
+	# 所持金がマイナスのときは、上部バーの所持金が赤
+	var top_bar: TopBar = screen.get_node("SafeArea/VBox/TopBar")
+	var money_keep: int = GameState.money
+	GameState.add_money(-money_keep - 12300)
+	var money_label: Label = top_bar.get("_money_label")
+	var red: bool = money_label.text == "-¥12,300" and money_label.get_theme_color("font_color") == UIText.COLOR_NEGATIVE_MONEY
+	GameState.add_money(money_keep + 12300)
+	_check("所持金がマイナスのとき、上部バーに「-¥12,300」と赤で出る（プラスに戻ると白）",
+		red and money_label.get_theme_color("font_color") == Color.WHITE, money_label.text)
 
 	(menu_step.get("_repeat_button") as Button).pressed.emit()
 	_check("「前回と同じ仕込み」で仕込み数と置き場が前回と同じになる",

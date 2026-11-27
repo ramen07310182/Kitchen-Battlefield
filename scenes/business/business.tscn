@@ -3,12 +3,11 @@
 [ext_resource type="Script" path="res://scenes/business/business.gd" id="1_business"]
 [ext_resource type="Script" path="res://scripts/ui/safe_area_container.gd" id="2_safe"]
 [ext_resource type="PackedScene" path="res://scenes/common/top_bar.tscn" id="3_top"]
-[ext_resource type="Script" path="res://scenes/business/dining_area.gd" id="4_dining"]
 [ext_resource type="PackedScene" path="res://scenes/business/kitchen.tscn" id="5_kitchen"]
 [ext_resource type="PackedScene" path="res://scenes/business/ready_shelf.tscn" id="6_shelf"]
 [ext_resource type="PackedScene" path="res://scenes/business/order_panel.tscn" id="7_orders"]
 [ext_resource type="Script" path="res://scenes/business/customer_spawner.gd" id="8_spawner"]
-[ext_resource type="Script" path="res://scripts/sprites/sprite_view.gd" id="9_sprite"]
+[ext_resource type="PackedScene" path="res://scenes/business/dining_area.tscn" id="10_dining"]
 
 [node name="Business" type="Control"]
 layout_mode = 3
@@ -56,123 +55,10 @@ layout_mode = 2
 size_flags_horizontal = 3
 theme_override_constants/separation = 4
 
-[node name="Dining" type="Control" parent="SafeArea/VBox/Main/LeftColumn"]
+[node name="Dining" parent="SafeArea/VBox/Main/LeftColumn" instance=ExtResource("10_dining")]
 unique_name_in_owner = true
-clip_contents = true
 layout_mode = 2
 size_flags_vertical = 3
-mouse_filter = 2
-script = ExtResource("4_dining")
-
-[node name="Floor" type="Control" parent="SafeArea/VBox/Main/LeftColumn/Dining"]
-layout_mode = 1
-anchors_preset = 15
-anchor_right = 1.0
-anchor_bottom = 1.0
-grow_horizontal = 2
-grow_vertical = 2
-mouse_filter = 2
-script = ExtResource("9_sprite")
-sprite_key = "shop/floor"
-mode = 1
-
-[node name="FloorShape" type="ColorRect" parent="SafeArea/VBox/Main/LeftColumn/Dining/Floor"]
-layout_mode = 1
-anchors_preset = 15
-anchor_right = 1.0
-anchor_bottom = 1.0
-grow_horizontal = 2
-grow_vertical = 2
-mouse_filter = 2
-color = Color(0.42, 0.36, 0.3, 1)
-
-[node name="Wall" type="Control" parent="SafeArea/VBox/Main/LeftColumn/Dining"]
-layout_mode = 1
-anchors_preset = 10
-anchor_right = 1.0
-offset_bottom = 24.0
-grow_horizontal = 2
-mouse_filter = 2
-script = ExtResource("9_sprite")
-sprite_key = "shop/wall"
-mode = 1
-
-[node name="WallShape" type="ColorRect" parent="SafeArea/VBox/Main/LeftColumn/Dining/Wall"]
-layout_mode = 1
-anchors_preset = 15
-anchor_right = 1.0
-anchor_bottom = 1.0
-grow_horizontal = 2
-grow_vertical = 2
-mouse_filter = 2
-color = Color(0.55, 0.45, 0.35, 1)
-
-[node name="Entrance" type="Control" parent="SafeArea/VBox/Main/LeftColumn/Dining"]
-unique_name_in_owner = true
-layout_mode = 1
-anchors_preset = 11
-anchor_left = 1.0
-anchor_right = 1.0
-anchor_bottom = 1.0
-offset_left = -38.0
-offset_top = 28.0
-offset_right = -4.0
-offset_bottom = -8.0
-grow_horizontal = 0
-grow_vertical = 2
-mouse_filter = 2
-script = ExtResource("9_sprite")
-sprite_key = "shop/entrance"
-
-[node name="EntranceShape" type="ColorRect" parent="SafeArea/VBox/Main/LeftColumn/Dining/Entrance"]
-layout_mode = 1
-anchors_preset = 15
-anchor_right = 1.0
-anchor_bottom = 1.0
-grow_horizontal = 2
-grow_vertical = 2
-mouse_filter = 2
-color = Color(0.25, 0.2, 0.18, 1)
-
-[node name="EntranceLabel" type="Label" parent="SafeArea/VBox/Main/LeftColumn/Dining/Entrance/EntranceShape"]
-layout_mode = 1
-anchors_preset = 10
-anchor_right = 1.0
-offset_bottom = 16.0
-grow_horizontal = 2
-theme_type_variation = &"SmallLabel"
-text = "入口"
-horizontal_alignment = 1
-
-[node name="Furniture" type="Control" parent="SafeArea/VBox/Main/LeftColumn/Dining"]
-unique_name_in_owner = true
-layout_mode = 1
-anchors_preset = 15
-anchor_right = 1.0
-anchor_bottom = 1.0
-grow_horizontal = 2
-grow_vertical = 2
-mouse_filter = 2
-
-[node name="Seats" type="Control" parent="SafeArea/VBox/Main/LeftColumn/Dining"]
-unique_name_in_owner = true
-layout_mode = 1
-anchors_preset = 15
-anchor_right = 1.0
-anchor_bottom = 1.0
-grow_horizontal = 2
-grow_vertical = 2
-mouse_filter = 2
-
-[node name="Customers" type="Control" parent="SafeArea/VBox/Main/LeftColumn/Dining"]
-unique_name_in_owner = true
-layout_mode = 1
-anchors_preset = 15
-anchor_right = 1.0
-anchor_bottom = 1.0
-grow_horizontal = 2
-grow_vertical = 2
-mouse_filter = 2
 
 [node name="KitchenRow" type="HBoxContainer" parent="SafeArea/VBox/Main/LeftColumn"]
 layout_mode = 2

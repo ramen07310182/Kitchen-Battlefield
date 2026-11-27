@@ -54,6 +54,10 @@ func _add_row() -> void:
 	box.content_margin_left = 9
 	row.add_theme_stylebox_override("panel", box)
 	var label: Label = Label.new()
+	# 料理名が長くても注文状況の幅を広げない（入りきらない分は「…」）
+	label.clip_text = true
+	label.text_overrun_behavior = TextServer.OVERRUN_TRIM_ELLIPSIS
+	label.custom_minimum_size = Vector2(60, 0)
 	row.add_child(label)
 	_list.add_child(row)
 	_rows.append(row)

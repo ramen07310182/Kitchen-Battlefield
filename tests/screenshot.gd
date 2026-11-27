@@ -13,6 +13,7 @@ const BUSINESS_SHOT_TIME := 24.0
 var _out_dir: String = "user://screenshots"
 var _shot_name: String = "shot"
 var _seat_level: int = 0
+var _all_dishes: bool = false
 
 
 func _ready() -> void:
@@ -23,6 +24,8 @@ func _ready() -> void:
 			_shot_name = arg.trim_prefix("--name=")
 		elif arg.begins_with("--seat-level="):
 			_seat_level = int(arg.trim_prefix("--seat-level="))
+		elif arg == "--all-dishes":
+			_all_dishes = true
 	DirAccess.make_dir_recursive_absolute(_out_dir)
 	GameState.use_save_path(TEST_SAVE_PATH)
 	GameState.delete_save()
@@ -30,6 +33,12 @@ func _ready() -> void:
 	# -- --seat-level=N で、1日目から「席の拡張」をそのレベルにして撮る（見た目の確認用）
 	if _seat_level > 0:
 		GameState.equipment_levels["seats"] = _seat_level
+	# -- --all-dishes で、料理25品をすべて解放して撮る（料理が多いときの画面の確認用）
+	if _all_dishes:
+		GameState.rank = Database.get_max_rank()
+		for dish: DishData in Database.dishes:
+			if not GameState.is_unlocked(dish.id):
+				GameState.unlocked_dishes.append(dish.id)
 	_run()
 
 
