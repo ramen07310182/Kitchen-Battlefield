@@ -6,7 +6,7 @@
 script = ExtResource("1_train")
 speed_scales = PackedFloat32Array(1.0, 1.1, 1.2, 1.3, 1.45)
 pick_scales = PackedFloat32Array(1.0, 0.9, 0.8, 0.7, 0.6)
-cook_scales = PackedFloat32Array(1.0, 1.1, 1.2, 1.3, 1.4)
+cook_scales = PackedFloat32Array(1.0, 1.05, 1.1, 1.15, 1.2)
 cook_difficulties = PackedInt32Array(1, 1, 2, 2, 3)
 wage_adds = PackedInt32Array(0, 300, 600, 1000, 1500)
 prices = PackedInt32Array(8000, 15000, 25000, 40000)
