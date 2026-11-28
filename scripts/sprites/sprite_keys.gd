@@ -34,7 +34,7 @@ const ANIM_EAT := "eat"
 const ANIM_COOK := "cook"
 
 const CUSTOMER_ANIMS: PackedStringArray = ["walk", "sit", "eat"]
-const STAFF_ANIMS: PackedStringArray = ["idle", "walk"]
+const STAFF_ANIMS: PackedStringArray = ["idle", "walk", "cook"]
 const CHEF_ANIMS: PackedStringArray = ["idle", "cook"]
 const STOVE_ANIMS: PackedStringArray = ["idle", "cook"]
 
