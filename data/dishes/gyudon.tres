@@ -15,3 +15,4 @@ sort_order = 8
 cook_category = "simmer"
 unlock_rank = 1
 unlock_day = 60
+difficulty = 1

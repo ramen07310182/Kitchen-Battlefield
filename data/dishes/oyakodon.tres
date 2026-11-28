@@ -14,3 +14,4 @@ color = Color(1, 0.88, 0.4, 1)
 sort_order = 3
 unlock_rank = 2
 cook_category = "simmer"
+difficulty = 2

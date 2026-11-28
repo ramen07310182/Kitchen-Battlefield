@@ -64,6 +64,8 @@ extends Resource
 @export var staff_rehire_wait_days: int = 30
 ## 退職の予告を出す残りの日数（この日数より少なくなったら準備③に予告を出す）
 @export var staff_retire_notice_days: int = 7
+## 厨房担当にした日に、日給に上乗せする厨房手当（円）
+@export var staff_kitchen_allowance: int = 500
 
 @export_group("満足度")
 ## 待ち時間 ÷ 待てる時間 がこの値以下なら大満足

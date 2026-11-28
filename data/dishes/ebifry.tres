@@ -15,3 +15,4 @@ sort_order = 16
 cook_category = "fry"
 unlock_rank = 2
 unlock_day = 180
+difficulty = 2

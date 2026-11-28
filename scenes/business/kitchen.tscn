@@ -28,15 +28,26 @@ theme_override_constants/v_separation = 3
 columns = 2
 
 [node name="Status" type="VBoxContainer" parent="HBox"]
+unique_name_in_owner = true
 custom_minimum_size = Vector2(118, 0)
 layout_mode = 2
 theme_override_constants/separation = 2
 
-[node name="ChefRow" type="HBoxContainer" parent="HBox/Status"]
+[node name="CooksRow" type="HBoxContainer" parent="HBox/Status"]
+unique_name_in_owner = true
+layout_mode = 2
+theme_override_constants/separation = 6
+
+[node name="ChefBox" type="VBoxContainer" parent="HBox/Status/CooksRow"]
+layout_mode = 2
+size_flags_horizontal = 3
+theme_override_constants/separation = 2
+
+[node name="ChefRow" type="HBoxContainer" parent="HBox/Status/CooksRow/ChefBox"]
 layout_mode = 2
 theme_override_constants/separation = 4
 
-[node name="ChefFigure" type="Control" parent="HBox/Status/ChefRow"]
+[node name="ChefFigure" type="Control" parent="HBox/Status/CooksRow/ChefBox/ChefRow"]
 unique_name_in_owner = true
 custom_minimum_size = Vector2(32, 32)
 layout_mode = 2
@@ -45,7 +56,7 @@ script = ExtResource("2_sprite")
 sprite_key = "kitchen/chef"
 animation = "idle"
 
-[node name="ChefShape" type="ColorRect" parent="HBox/Status/ChefRow/ChefFigure"]
+[node name="ChefShape" type="ColorRect" parent="HBox/Status/CooksRow/ChefBox/ChefRow/ChefFigure"]
 layout_mode = 0
 offset_left = 9.0
 offset_top = 14.0
@@ -54,7 +65,7 @@ offset_bottom = 32.0
 mouse_filter = 2
 color = Color(0.95, 0.95, 0.95, 1)
 
-[node name="Stove" type="Control" parent="HBox/Status/ChefRow"]
+[node name="Stove" type="Control" parent="HBox/Status/CooksRow/ChefBox/ChefRow"]
 unique_name_in_owner = true
 custom_minimum_size = Vector2(32, 32)
 layout_mode = 2
@@ -64,27 +75,27 @@ sprite_key = "kitchen/stove"
 animation = "idle"
 collapse_when_missing = true
 
-[node name="ChefTexts" type="VBoxContainer" parent="HBox/Status/ChefRow"]
+[node name="ChefTexts" type="VBoxContainer" parent="HBox/Status/CooksRow/ChefBox/ChefRow"]
 layout_mode = 2
 size_flags_horizontal = 3
 size_flags_vertical = 4
 theme_override_constants/separation = 0
 
-[node name="ChefLabel" type="Label" parent="HBox/Status/ChefRow/ChefTexts"]
+[node name="ChefLabel" type="Label" parent="HBox/Status/CooksRow/ChefBox/ChefRow/ChefTexts"]
 unique_name_in_owner = true
 layout_mode = 2
 theme_type_variation = &"SmallLabel"
 theme_override_colors/font_color = Color(0.75, 0.75, 0.75, 1)
 text = "店主"
 
-[node name="StatusLabel" type="Label" parent="HBox/Status/ChefRow/ChefTexts"]
+[node name="StatusLabel" type="Label" parent="HBox/Status/CooksRow/ChefBox/ChefRow/ChefTexts"]
 unique_name_in_owner = true
 layout_mode = 2
 text = "待機中"
 clip_text = true
 text_overrun_behavior = 3
 
-[node name="CookProgress" type="ProgressBar" parent="HBox/Status"]
+[node name="CookProgress" type="ProgressBar" parent="HBox/Status/CooksRow/ChefBox"]
 unique_name_in_owner = true
 custom_minimum_size = Vector2(0, 6)
 layout_mode = 2

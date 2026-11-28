@@ -61,8 +61,13 @@ func _ready() -> void:
 	var staff_shift: StaffShiftChecks = StaffShiftChecks.new()
 	add_child(staff_shift)
 	await staff_shift.run(_check)
-	_check("スタッフの出勤・満足度の確認が最後まで進んだ（途中でエラーが出ていない）", staff_shift.completed)
+	_check("スタッフの出勤・在籍日数・研修の確認が最後まで進んだ（途中でエラーが出ていない）", staff_shift.completed)
 	staff_shift.queue_free()
+	var kitchen_staff: KitchenStaffChecks = KitchenStaffChecks.new()
+	add_child(kitchen_staff)
+	await kitchen_staff.run(_check)
+	_check("厨房スタッフの確認が最後まで進んだ（途中でエラーが出ていない）", kitchen_staff.completed)
+	kitchen_staff.queue_free()
 	GameState.use_save_path(TEST_SAVE_PATH)
 	Engine.time_scale = 8.0
 	_main = MAIN_SCENE.instantiate()
@@ -422,6 +427,15 @@ func _check_migration() -> void:
 		and not sato_state.has("mood") and GameState.get_staff_level("sato") == 1
 		and GameState.get_staff_days_left("sato") == Database.get_staff("sato").tenure_days
 		and not GameState.is_on_shift("sato") and GameState.is_on_shift("suzuki"), "state=%s" % [sato_state])
+	_write_test_save({"version": 14, "money": 9000, "day": 20, "reputation": 40, "inventory": {"rice": 4}, "unlocked": [],
+		"rank": 2, "equipment": {}, "staff": ["sato"], "history": [], "staff_levels": {"sato": 2}, "staff_rehire_day": {},
+		"staff_states": {"sato": {"enrolled": 5, "last_shift": true, "absent_day": 0}}})
+	GameState.use_save_path(TEST_SAVE_PATH)
+	_check("セーブ移行 v14 -> v15（今いるスタッフの担当はホール。在籍日数とレベルはそのまま）",
+		GameState.is_hired("sato") and GameState.get_staff_role("sato") == GameState.ROLE_HALL and GameState.get_kitchen_staff() == null
+		and str(GameState.get_staff_state("sato").get("last_role")) == GameState.ROLE_HALL
+		and int(GameState.get_staff_state("sato").get("enrolled")) == 5 and GameState.get_staff_level("sato") == 2,
+		"state=%s" % [GameState.get_staff_state("sato")])
 	_check("セーブ移行 v8 -> v9（テーブル8卓→10席、7卓→6席。ほかの設備はそのまま）",
 		converted_8 == 2 and converted_7 == 1, "8卓→Lv%d 7卓→Lv%d" % [converted_8, converted_7])
 	_write_test_save({"version": 6, "money": 9000, "day": 8, "reputation": 20,
@@ -904,11 +918,10 @@ func _do_business(screen: Node) -> void:
 			return
 		needed[c.dish.id] = int(needed.get(c.dish.id, 0)) + 1
 	var queue: Array[DishData] = kitchen.get("_queue")
-	var current: DishData = kitchen.get("_current")
 	for d: DishData in queue:
 		needed[d.id] = int(needed.get(d.id, 0)) - 1
-	if current != null:
-		needed[current.id] = int(needed.get(current.id, 0)) - 1
+	for d: DishData in kitchen.get_cooking():
+		needed[d.id] = int(needed.get(d.id, 0)) - 1
 	var buttons: Dictionary = kitchen.get("_buttons")
 	for dish_id: String in needed:
 		if int(needed[dish_id]) > 0 and buttons.has(dish_id):
@@ -1027,8 +1040,8 @@ func _do_result(screen: Node) -> void:
 	if _days_done >= DAYS_TO_RUN:
 		var saved: String = FileAccess.get_file_as_string(GameState.save_path)
 		print("[smoke] save: ", saved.replace("\n", " "))
-		_check("セーブは version 14 で、前回の置き場・売れた数・売り逃し・解放済みの料理・ランク・履歴・設備・従業員・常連さんの持ち越しを含む",
-			saved.contains("\"version\": 14") and saved.contains("staff_states") and saved.contains("staff_levels") and saved.contains("reputation_progress") and saved.contains("\"staff\"") and saved.contains("\"history\"") and saved.contains("\"equipment\"") and saved.contains("last_shelf") and saved.contains("last_sold")
+		_check("セーブは version 15 で、前回の置き場・売れた数・売り逃し・解放済みの料理・ランク・履歴・設備・従業員・常連さんの持ち越しを含む",
+			saved.contains("\"version\": 15") and saved.contains("staff_states") and saved.contains("staff_levels") and saved.contains("reputation_progress") and saved.contains("\"staff\"") and saved.contains("\"history\"") and saved.contains("\"equipment\"") and saved.contains("last_shelf") and saved.contains("last_sold")
 			and saved.contains("last_missed") and saved.contains("\"unlocked\"") and saved.contains("\"rank\""))
 		_finish()
 

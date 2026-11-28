@@ -15,3 +15,4 @@ sort_order = 5
 cook_category = "grill"
 unlock_rank = 1
 unlock_day = 15
+difficulty = 1

@@ -355,6 +355,7 @@ func _show_dish_detail(dish_id: String) -> void:
 		lines.append(UIText.DETAIL_DISH_COOK_EQUIPPED % [GameState.get_cook_time(dish), roundi((1.0 - scale) * 100.0)])
 	else:
 		lines.append(UIText.DETAIL_DISH_COOK % roundi(dish.cook_time))
+	lines.append(UIText.DETAIL_DISH_DIFFICULTY % UIText.DIFFICULTY_NAMES[clampi(dish.difficulty, 1, 3) - 1])
 	lines.append(UIText.DETAIL_DISH_INGREDIENTS % _ingredient_list_text(dish))
 	lines.append(UIText.DETAIL_DISH_EXPECTED % ceili(float(expected.get(dish_id, 0.0))))
 	lines.append(UIText.DETAIL_DISH_PREP % [GameState.get_prep_count(dish_id), GameState.get_shelf_plan_count(dish_id)])

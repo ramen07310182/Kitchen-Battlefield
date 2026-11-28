@@ -13,3 +13,4 @@ cook_time = 7.0
 color = Color(0.55, 0.75, 0.95, 1)
 sort_order = 1
 cook_category = "grill"
+difficulty = 2

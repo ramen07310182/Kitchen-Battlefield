@@ -1,6 +1,6 @@
 class_name StaffRow
 extends PanelContainer
-## 強化画面の「従業員」の1行: 名前（と研修のレベル）・配膳の速さ・毎週の休み・在籍日数・日給と、ボタン。
+## 強化画面の「従業員」の1行: 名前（と研修のレベル）・配膳の速さ・毎週の休み・在籍日数・調理の速さと作れる料理・日給と、ボタン。
 ##   雇っていない人: 「雇う」（面接代がかかる）。人数の上限・退職したばかり（○日後から雇える）・面接代が足りないときは押せない
 ##   雇っている人:   「研修」（レベルを上げる。速くなり、日給も少し上がる）。最大レベル・代金が足りないときは押せない。退職までの残りの日数を出す
 ## ボタン以外の所を長押しで詳細（今と次のレベルの比較など）。
@@ -16,6 +16,7 @@ var _icon: TextureRect
 var _name_label: Label
 var _speed_label: Label
 var _info_label: Label
+var _cook_label: Label
 var _wage_label: Label
 var _note_label: Label
 ## 研修の代金（雇っている人だけ）
@@ -54,6 +55,12 @@ func _init() -> void:
 	_info_label.clip_text = true
 	_info_label.text_overrun_behavior = TextServer.OVERRUN_TRIM_ELLIPSIS
 	texts.add_child(_info_label)
+	_cook_label = Label.new()
+	_cook_label.theme_type_variation = &"SmallLabel"
+	_cook_label.add_theme_color_override("font_color", UIColors.TEXT_SUB)
+	_cook_label.clip_text = true
+	_cook_label.text_overrun_behavior = TextServer.OVERRUN_TRIM_ELLIPSIS
+	texts.add_child(_cook_label)
 	var right: VBoxContainer = VBoxContainer.new()
 	right.custom_minimum_size = Vector2(170, 0)
 	right.alignment = BoxContainer.ALIGNMENT_CENTER
@@ -93,6 +100,8 @@ func refresh() -> void:
 	_name_label.text = "%s　%s" % [staff.display_name, UIText.UPGRADE_STAFF_LEVEL % level]
 	_speed_label.text = UIText.UPGRADE_STAFF_SPEED % [StaffRow.speed_name(GameState.get_staff_walk_speed(staff)), GameState.get_staff_pick_time(staff)]
 	_info_label.text = "%s　%s" % [StaffRow.days_off_text(staff), UIText.UPGRADE_STAFF_TENURE % staff.tenure_days]
+	_cook_label.text = UIText.UPGRADE_STAFF_COOK % [StaffRow.cook_percent(GameState.get_staff_cook_speed(staff)),
+		UIText.COOK_RANGE_NAMES[GameState.get_staff_cook_difficulty(staff) - 1]]
 	_wage_label.text = UIText.UPGRADE_STAFF_WAGE % UIText.money(GameState.get_staff_wage(staff))
 	if GameState.is_hired(staff.id):
 		_refresh_hired(level)
@@ -167,14 +176,36 @@ static func detail_lines(data: StaffData) -> PackedStringArray:
 		lines.append(UIText.UPGRADE_STAFF_DETAIL_WAIT % GameState.get_rehire_wait(data.id))
 	lines.append(UIText.UPGRADE_STAFF_DETAIL_LEVEL_NOW % [level, roundi(data.walk_speed * training.get_speed_scale(level)),
 		data.pick_time * training.get_pick_scale(level), UIText.money(data.daily_wage + training.get_wage_add(level))])
+	lines.append(StaffRow._detail_cook_line(data, level))
 	if training.get_price(level) >= 0:
 		var next: int = level + 1
 		lines.append(UIText.UPGRADE_STAFF_DETAIL_LEVEL_NEXT % [next, roundi(data.walk_speed * training.get_speed_scale(next)),
 			data.pick_time * training.get_pick_scale(next), UIText.money(data.daily_wage + training.get_wage_add(next)),
 			UIText.money(training.get_price(level))])
+		lines.append(StaffRow._detail_cook_line(data, next))
 	else:
 		lines.append(UIText.UPGRADE_STAFF_DETAIL_LEVEL_MAX)
+	lines.append(UIText.UPGRADE_STAFF_DETAIL_KITCHEN % UIText.money(Database.config.staff_kitchen_allowance))
 	return lines
+
+
+## 詳細の「調理：店主の○%・作れる料理：…」の行（そのレベルのとき）
+static func _detail_cook_line(data: StaffData, level: int) -> String:
+	var training: StaffTrainingData = Database.staff_training
+	return UIText.UPGRADE_STAFF_DETAIL_COOK % [StaffRow.cook_percent(data.cook_speed * training.get_cook_scale(level)),
+		UIText.COOK_RANGE_NAMES[training.get_cook_difficulty(level) - 1]]
+
+
+## 調理の速さ（店主 = 1.0）を「店主の○%」の数にする
+static func cook_percent(cook_speed: float) -> int:
+	return roundi(cook_speed * 100.0)
+
+
+## 準備③の行の「配膳 ゆっくり・調理 店主の75%・かんたんだけ」
+static func ability_text(data: StaffData) -> String:
+	return UIText.PREP_STAFF_ABILITY % [StaffRow.speed_name(GameState.get_staff_walk_speed(data)),
+		StaffRow.cook_percent(GameState.get_staff_cook_speed(data)),
+		UIText.COOK_RANGE_SHORT[GameState.get_staff_cook_difficulty(data) - 1]]
 
 
 static func days_off_text(data: StaffData) -> String:

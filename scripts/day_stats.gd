@@ -10,6 +10,11 @@ var labor_cost: int = 0
 var staff_count: int = 0
 ## その日に出勤した従業員のid
 var staff_worked: Array[String] = []
+## 厨房担当で出勤した従業員のid（いなければ ""。厨房手当がかかる）
+var staff_kitchen: String = ""
+## 調理した数（店主・厨房のスタッフ）
+var cooked_by_chef: int = 0
+var cooked_by_staff: int = 0
 ## 従業員ごとの配膳の皿数 { 従業員id: 皿数 }
 var staff_deliveries: Dictionary = {}
 ## 営業結果のときに在籍日数が終わって退職した従業員のid
@@ -43,6 +48,9 @@ var dish_sales: Dictionary = {}
 var dish_missed: Dictionary = {}
 ## この営業のあとに新しく解放した料理のid
 var new_unlocks: Array[String] = []
+## 店主・厨房のスタッフが調理していた時間の合計（秒。バランス確認用）
+var chef_cook_seconds: float = 0.0
+var staff_cook_seconds: float = 0.0
 ## その日の準備を始めた時点の所持金と、その日の仕入れ代（所持金の増減の説明用）
 var day_start_money: int = 0
 var purchase_cost: int = 0

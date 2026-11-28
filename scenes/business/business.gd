@@ -1,5 +1,5 @@
 extends Control
-## 営業画面。各部品（客席・厨房・置き場・注文状況・来店・ホールスタッフ）をつなぎ、
+## 営業画面。各部品（客席・厨房（店主と厨房担当のスタッフ）・置き場・注文状況・来店・ホールスタッフ）をつなぎ、
 ## 営業時間・売り切れと配膳の判定を受け持つ。
 ## 料理・トッピングの数（残り・確保）は DishSupply で管理する。注文できる料理がなくなったら売り切れで閉店する
 ## （トッピングだけ残っていても閉店する）。
@@ -60,7 +60,7 @@ func _ready() -> void:
 	_shelf.setup(GameState.get_shelf_capacity())
 	for dish_id: String in shelf_items:
 		_shelf.add_dish(dish_id)
-	_kitchen.setup(items, _supply)
+	_kitchen.setup(items, _supply, GameState.get_kitchen_staff())
 
 	_dining.seat_tapped.connect(_on_seat_tapped)
 	_shelf.contents_changed.connect(_update_kitchen_slots)
@@ -73,7 +73,8 @@ func _ready() -> void:
 	_spawner.start(_config, _menu, GameState.reputation, _supply, _toppings)
 	# 画面の大きさが決まってから、スタッフを待機場所に置く
 	await get_tree().process_frame
-	_staff.setup(_dining, _shelf, _kitchen, GameState.get_working_staff(), _get_waiting_customers, deliver)
+	# 厨房担当のスタッフは配膳しない（ホール担当だけ）
+	_staff.setup(_dining, _shelf, _kitchen, GameState.get_hall_staff(), _get_waiting_customers, deliver)
 
 
 func _process(delta: float) -> void:

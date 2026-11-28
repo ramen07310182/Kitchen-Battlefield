@@ -90,6 +90,13 @@ const PREP_STAFF_DAYS_LEFT := "あと%d日"
 const PREP_STAFF_ON := "出勤"
 const PREP_STAFF_OFF := "休み"
 const PREP_STAFF_WAGE := "日給 %s"
+const PREP_STAFF_WAGE_KITCHEN := "日給 %s（厨房手当 %s を含む）"
+## 担当（ホール／厨房）
+const PREP_STAFF_HALL := "ホール"
+const PREP_STAFF_KITCHEN := "厨房"
+const PREP_STAFF_ROLE_HELP := "担当：ホールは配膳、厨房は店主と並んで調理（厨房は1日1人まで・厨房手当 %s）"
+## 配膳の速さ・調理の速さ・作れる料理（準備③のスタッフの行）
+const PREP_STAFF_ABILITY := "配膳 %s・調理 店主の%d%%・%s"
 const PREP_STAFF_OFF_FIXED := "休み（定休：%s）"
 const PREP_STAFF_OFF_SUDDEN := "休み（急用）"
 ## 退職の予告（残りの日数が少なくなったとき）
@@ -103,6 +110,12 @@ const PREP_PACE := "評判 %d：お客さんが来るペース ×%.2f（平均 %
 const DETAIL_DISH_PRICE := "価格 %s　原価 %s　利益 %s"
 const DETAIL_DISH_COOK := "調理時間 %d秒"
 const DETAIL_DISH_COOK_EQUIPPED := "調理時間 %.1f秒（設備で %d%% 短い）"
+const DETAIL_DISH_DIFFICULTY := "調理の難しさ：%s（厨房のスタッフは研修のレベルで作れる難しさが決まる）"
+## 料理の調理の難しさ（1〜3）の呼び方
+const DIFFICULTY_NAMES: Array[String] = ["かんたん", "ふつう", "むずかしい"]
+## スタッフが厨房で作れる料理の範囲（作れる難しさの上限 1〜3）。短い形は狭い所で使う
+const COOK_RANGE_NAMES: Array[String] = ["かんたんな料理だけ", "ふつうの料理まで", "すべての料理"]
+const COOK_RANGE_SHORT: Array[String] = ["かんたんだけ", "ふつうまで", "すべて"]
 const DETAIL_DISH_INGREDIENTS := "必要な食材: %s"
 const DETAIL_DISH_EXPECTED := "注文の目安 %d食（すべての料理を出したとき）"
 const DETAIL_DISH_PREP := "今日の仕込み数 %d（開店時の置き場 %d）"
@@ -125,6 +138,9 @@ const COOK_QUEUE := "次: %s"
 const COOK_QUEUE_EMPTY := "次: なし"
 const COOK_BUTTON := "%s 残%d"
 const COOK_FULL := "置き場が満杯"
+const COOK_FULL_SHORT := "満杯"
+## 厨房のスタッフが作れない料理の印
+const COOK_CHEF_ONLY := "店主のみ"
 const COOK_RETURN := "残りに戻す"
 const SHELF_TITLE := "置き場"
 const HOLDING := "持っている: %s"
@@ -220,8 +236,9 @@ const UPGRADE_DETAIL_ALL := "すべての定食・丼（トッピングは対象
 # --- お店の強化（従業員） ---
 const UPGRADE_SECTION_EQUIPMENT := "設備"
 const UPGRADE_SECTION_STAFF := "従業員（ホールスタッフ）　雇っている %d / %d人"
-const UPGRADE_STAFF_HELP := "置き場の料理を自分で取って、お客さんに運びます。雇うときに面接代がかかり、出勤した日ごとに日給がかかります"
+const UPGRADE_STAFF_HELP := "ホールでは置き場の料理を自分で取って運び、厨房では店主と並んで調理します（担当は準備③で決めます）。雇うときに面接代、出勤した日ごとに日給がかかります"
 const UPGRADE_STAFF_SPEED := "歩く速さ %s・料理を取るまで %.1f秒"
+const UPGRADE_STAFF_COOK := "調理 店主の%d%%・作れる料理：%s"
 const UPGRADE_STAFF_SPEED_NAMES: Array[String] = ["ゆっくり", "ふつう", "速い", "とても速い"]
 const UPGRADE_STAFF_WAGE := "日給 %s"
 const UPGRADE_STAFF_HIRED := "雇っています（あと%d日）"
@@ -247,7 +264,9 @@ const UPGRADE_STAFF_DETAIL_WAIT := "雇い直せるまで：あと%d日"
 const UPGRADE_STAFF_DETAIL_LEVEL_NOW := "今：Lv%d　速さ %d・取るまで %.1f秒・日給 %s"
 const UPGRADE_STAFF_DETAIL_LEVEL_NEXT := "研修後：Lv%d　速さ %d・取るまで %.1f秒・日給 %s（研修 %s）"
 const UPGRADE_STAFF_DETAIL_LEVEL_MAX := "これ以上は研修できません"
-const UPGRADE_STAFF_HELP2 := "在籍日数が終わると退職します（研修のレベルは残り、しばらくすると雇い直せます）。研修で速くなり、日給も少し上がります。行を長押しで詳細"
+const UPGRADE_STAFF_DETAIL_COOK := "　　調理：店主の%d%%・作れる料理：%s"
+const UPGRADE_STAFF_DETAIL_KITCHEN := "厨房に入れた日は、日給に厨房手当 %s がかかります（厨房では配膳しません）"
+const UPGRADE_STAFF_HELP2 := "在籍日数が終わると退職します（研修のレベルは残り、しばらくすると雇い直せます）。研修で配膳と調理が速くなり、作れる料理も増え、日給も少し上がります。行を長押しで詳細"
 const UPGRADE_STAFF_NEED_RANK := "%sで雇えます"
 const UPGRADE_STAFF_FULL := "雇える人数がいっぱい"
 const UPGRADE_STAFF_HIRE_CONFIRM := "%sを雇います。\n面接代 %s がかかります。雇いますか？"

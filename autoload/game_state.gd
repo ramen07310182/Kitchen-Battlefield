@@ -18,7 +18,7 @@ signal inventory_changed
 signal reputation_changed(value: int)
 
 const DEFAULT_SAVE_PATH := "user://save.json"
-const SAVE_VERSION := 14
+const SAVE_VERSION := 15
 
 var money: int = 0
 var day: int = 1
@@ -55,7 +55,8 @@ var equipment_levels: Dictionary = {}
 var unlocked_dishes: Array[String] = []
 ## 雇っているホールスタッフのid（雇った順。セーブする）
 var hired_staff: Array[String] = []
-## 雇っているスタッフの状態 { 従業員id: { "enrolled": 在籍した営業日数, "last_shift": 前回出勤したか, "absent_day": 急な休みの営業日 } }（セーブする）
+## 雇っているスタッフの状態 { 従業員id: { "enrolled": 在籍した営業日数, "last_shift": 前回出勤したか, "absent_day": 急な休みの営業日,
+##   "last_role": 前回出勤したときの担当（"hall" / "kitchen"） } }（セーブする）
 var staff_states: Dictionary = {}
 ## スタッフの研修のレベル { 従業員id: レベル }（辞めても残る。セーブする。ないときは Lv1）
 var staff_levels: Dictionary = {}
@@ -63,6 +64,8 @@ var staff_levels: Dictionary = {}
 var staff_rehire_day: Dictionary = {}
 ## 今日の出勤 { 従業員id: 出勤するか }（準備画面③で決める。はじめは前回と同じ。保存しない）
 var shift_plan: Dictionary = {}
+## 今日の担当 { 従業員id: "hall" / "kitchen" }（準備画面③で決める。はじめは前回と同じ。厨房は出勤する人のうち1人まで。保存しない）
+var role_plan: Dictionary = {}
 ## その日の準備を始めた時点の所持金と、その日に仕入れに使ったお金（結果画面の「所持金の増減」用。保存しない）
 var day_start_money: int = 0
 var day_purchase_cost: int = 0
@@ -604,6 +607,8 @@ func begin_business() -> Dictionary:
 	for data: StaffData in get_working_staff():
 		today.staff_worked.append(data.id)
 	today.staff_count = today.staff_worked.size()
+	var cook: StaffData = get_kitchen_staff()
+	today.staff_kitchen = cook.id if cook != null else ""
 	today.day_start_money = day_start_money
 	today.purchase_cost = day_purchase_cost
 	today.day_start_stock_value = day_start_stock_value
@@ -703,7 +708,7 @@ func finish_business() -> void:
 	for staff_id: String in today.staff_worked:
 		var worker: StaffData = Database.get_staff(staff_id)
 		if worker != null:
-			today.labor_cost += get_staff_wage(worker)
+			today.labor_cost += get_staff_day_wage(worker, staff_id == today.staff_kitchen)
 	today.staff_count = today.staff_worked.size()
 	add_money(-today.labor_cost)
 	# 次の準備画面で「前回 ○食売れた」と出すため、仕込んだ料理ごとに売れた数を覚える（0食も含める）
@@ -794,11 +799,12 @@ func hire_staff(staff_id: String) -> bool:
 	staff_states[staff_id] = _new_staff_state()
 	staff_rehire_day.erase(staff_id)
 	shift_plan[staff_id] = is_staff_available(staff_id)
+	role_plan[staff_id] = ROLE_HALL
 	return true
 
 
 func _new_staff_state() -> Dictionary:
-	return { "enrolled": 0, "last_shift": true, "absent_day": 0 }
+	return { "enrolled": 0, "last_shift": true, "absent_day": 0, "last_role": ROLE_HALL }
 
 
 ## 退職する（在籍日数が終わったとき）。退職した人は候補に戻り、決まった日数のあとでまた雇える
@@ -808,6 +814,7 @@ func dismiss_staff(staff_id: String) -> bool:
 	hired_staff.erase(staff_id)
 	staff_states.erase(staff_id)
 	shift_plan.erase(staff_id)
+	role_plan.erase(staff_id)
 	# 雇うのは営業結果のあと（働くのは次の日から）なので、退職した日から staff_rehire_wait_days 日目の営業結果のあとから雇える
 	# （その間の staff_rehire_wait_days 営業日は、その人がいない）
 	staff_rehire_day[staff_id] = day + Database.config.staff_rehire_wait_days
@@ -851,6 +858,31 @@ func get_staff_wage(data: StaffData) -> int:
 	return data.daily_wage + Database.staff_training.get_wage_add(get_staff_level(data.id))
 
 
+## 研修のレベルを入れた、その日の日給（厨房担当なら厨房手当を足す）
+func get_staff_day_wage(data: StaffData, in_kitchen: bool) -> int:
+	return get_staff_wage(data) + (Database.config.staff_kitchen_allowance if in_kitchen else 0)
+
+
+## 研修のレベルを入れた調理の速さ（店主 = 1.0）
+func get_staff_cook_speed(data: StaffData) -> float:
+	return data.cook_speed * Database.staff_training.get_cook_scale(get_staff_level(data.id))
+
+
+## 厨房で作れる料理の難しさの上限（研修のレベルで決まる）
+func get_staff_cook_difficulty(data: StaffData) -> int:
+	return Database.staff_training.get_cook_difficulty(get_staff_level(data.id))
+
+
+## そのスタッフが厨房でその料理を作れるか
+func can_staff_cook(data: StaffData, dish: DishData) -> bool:
+	return dish.difficulty <= get_staff_cook_difficulty(data)
+
+
+## 設備の効果と研修のレベルを入れた、スタッフが料理1つを作る時間（秒）
+func get_staff_cook_time(data: StaffData, dish: DishData) -> float:
+	return get_cook_time(dish) / maxf(get_staff_cook_speed(data), 0.05)
+
+
 ## 研修できない理由
 enum TrainBlock { NONE, NOT_HIRED, MAX_LEVEL, MONEY }
 
@@ -879,8 +911,9 @@ func train_staff(staff_id: String) -> bool:
 ## 今日出勤するスタッフの日給の合計（休みの人はかからない）
 func get_daily_wage_total() -> int:
 	var total: int = 0
+	var cook: StaffData = get_kitchen_staff()
 	for data: StaffData in get_working_staff():
-		total += get_staff_wage(data)
+		total += get_staff_day_wage(data, data == cook)
 	return total
 
 
@@ -917,6 +950,9 @@ func set_shift(staff_id: String, on: bool) -> bool:
 	if not is_hired(staff_id) or (on and not is_staff_available(staff_id)):
 		return false
 	shift_plan[staff_id] = on
+	# 出勤にした人が厨房担当で、ほかに厨房の人がいれば、ホールにする（厨房は1人まで）
+	if on and get_staff_role(staff_id) == ROLE_KITCHEN and _other_kitchen_staff(staff_id) != null:
+		role_plan[staff_id] = ROLE_HALL
 	inventory_changed.emit()
 	return true
 
@@ -930,11 +966,88 @@ func get_working_staff() -> Array[StaffData]:
 	return result
 
 
-## 今日の出勤を「前回と同じ」にする（出られない日の人は休み）
+## 今日の出勤と担当を「前回と同じ」にする（出られない日の人は休み。厨房は前回厨房だった人のうち、先に雇った1人だけ）
 func _reset_shift_plan() -> void:
 	shift_plan.clear()
+	role_plan.clear()
+	var kitchen_taken: bool = false
 	for staff_id: String in hired_staff:
 		shift_plan[staff_id] = bool(get_staff_state(staff_id).get("last_shift", true)) and is_staff_available(staff_id)
+		var role: String = ROLE_HALL
+		if str(get_staff_state(staff_id).get("last_role", ROLE_HALL)) == ROLE_KITCHEN and not kitchen_taken:
+			role = ROLE_KITCHEN
+			kitchen_taken = bool(shift_plan[staff_id])
+		role_plan[staff_id] = role
+
+
+# --- 担当（ホール／厨房） ---
+
+const ROLE_HALL := "hall"
+const ROLE_KITCHEN := "kitchen"
+
+## 厨房担当にできない理由
+enum KitchenBlock { NONE, NOT_ON_SHIFT, TAKEN }
+
+
+## 今日の担当（"hall" / "kitchen"）
+func get_staff_role(staff_id: String) -> String:
+	return ROLE_KITCHEN if str(role_plan.get(staff_id, ROLE_HALL)) == ROLE_KITCHEN else ROLE_HALL
+
+
+## 今日厨房で調理するスタッフ（出勤する人のうち厨房担当の1人。いなければ null）
+func get_kitchen_staff() -> StaffData:
+	for data: StaffData in get_working_staff():
+		if get_staff_role(data.id) == ROLE_KITCHEN:
+			return data
+	return null
+
+
+## 今日ホールで配膳するスタッフ（出勤する人のうち、厨房担当でない人。雇った順）
+func get_hall_staff() -> Array[StaffData]:
+	var result: Array[StaffData] = []
+	var cook: StaffData = get_kitchen_staff()
+	for data: StaffData in get_working_staff():
+		if data != cook:
+			result.append(data)
+	return result
+
+
+## staff_id 以外で、今日厨房に入る人（出勤する人のうち）
+func _other_kitchen_staff(staff_id: String) -> StaffData:
+	for data: StaffData in get_working_staff():
+		if data.id != staff_id and get_staff_role(data.id) == ROLE_KITCHEN:
+			return data
+	return null
+
+
+## 厨房担当にできるか。できなければ理由（休みの人・ほかの人がもう厨房にいる）
+func get_kitchen_block(staff_id: String) -> KitchenBlock:
+	if not is_on_shift(staff_id):
+		return KitchenBlock.NOT_ON_SHIFT
+	if _other_kitchen_staff(staff_id) != null:
+		return KitchenBlock.TAKEN
+	return KitchenBlock.NONE
+
+
+## 担当を決める（"hall" / "kitchen"）。厨房にできないときは変えない。変えられたら true
+func set_staff_role(staff_id: String, role: String) -> bool:
+	if not is_hired(staff_id):
+		return false
+	if role == ROLE_KITCHEN and get_kitchen_block(staff_id) != KitchenBlock.NONE:
+		return false
+	role_plan[staff_id] = ROLE_KITCHEN if role == ROLE_KITCHEN else ROLE_HALL
+	inventory_changed.emit()
+	return true
+
+
+## 料理が1つできた（厨房の調理の記録）。by_staff: 厨房のスタッフが作った、seconds: かかった時間
+func record_cooked(by_staff: bool, seconds: float) -> void:
+	if by_staff:
+		today.cooked_by_staff += 1
+		today.staff_cook_seconds += seconds
+	else:
+		today.cooked_by_chef += 1
+		today.chef_cook_seconds += seconds
 
 
 ## スタッフの状態（在籍日数など）。雇っていなければ空
@@ -964,6 +1077,8 @@ func _update_staff_after_business() -> void:
 		state["enrolled"] = int(state.get("enrolled", 0)) + 1
 		if is_staff_available(staff_id):
 			state["last_shift"] = today.staff_worked.has(staff_id)
+		if today.staff_worked.has(staff_id):
+			state["last_role"] = ROLE_KITCHEN if today.staff_kitchen == staff_id else ROLE_HALL
 		var data: StaffData = Database.get_staff(staff_id)
 		if data != null and int(state["enrolled"]) >= data.tenure_days:
 			today.staff_retired.append(staff_id)
@@ -1247,6 +1362,7 @@ func load_game() -> bool:
 			state["enrolled"] = maxi(0, int(saved_state.get("enrolled", 0)))
 			state["last_shift"] = bool(saved_state.get("last_shift", true))
 			state["absent_day"] = int(saved_state.get("absent_day", 0))
+			state["last_role"] = ROLE_KITCHEN if str(saved_state.get("last_role", ROLE_HALL)) == ROLE_KITCHEN else ROLE_HALL
 		staff_states[staff_id] = state
 	staff_levels.clear()
 	var saved_levels: Variant = data.get("staff_levels", {})
@@ -1379,5 +1495,14 @@ func _migrate(data: Dictionary) -> Dictionary:
 		data["staff_levels"] = {}
 		data["staff_rehire_day"] = {}
 		version = 14
+	if version == 14:
+		# v15 でスタッフの担当（ホール／厨房）を追加。今いるスタッフの担当はホール
+		var raw_states15: Variant = data.get("staff_states", {})
+		if raw_states15 is Dictionary:
+			for staff_id: Variant in raw_states15:
+				var state15: Variant = (raw_states15 as Dictionary)[staff_id]
+				if state15 is Dictionary:
+					(state15 as Dictionary)["last_role"] = ROLE_HALL
+		version = 15
 	data["version"] = version
 	return data

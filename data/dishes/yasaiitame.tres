@@ -14,3 +14,4 @@ color = Color(0.5, 0.82, 0.45, 1)
 sort_order = 4
 unlock_rank = 3
 cook_category = "grill"
+difficulty = 1

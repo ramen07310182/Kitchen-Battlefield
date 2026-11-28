@@ -1,12 +1,14 @@
 class_name FastDayModel
 extends RefCounted
 ## 営業1日分を、画面を出さずに短時間で計算する（365日分のバランス確認用の近似）。
-## 実際の営業画面と同じルール（来店間隔・席・注文の選び方・トッピング・仕込み数と確保・店主1人の調理・置き場・待てる時間）を
+## 実際の営業画面と同じルール（来店間隔・席・注文の選び方・トッピング・仕込み数と確保・調理（店主と厨房担当のスタッフ）・置き場・待てる時間）を
 ## 時刻の計算でまねて、結果は GameState の記録の関数（record_visit など）に入れる。
 ## 歩く時間やボットの操作の細かい動きは、平均的な値で置き換えている。
 ## 調理ボタンを押すのもボットの操作（1回に reaction 秒）として順に数える（配膳とは別の列。料理を待つあいだに押せるため）。
 ## 配膳: ボット（1回に reaction 秒）とホールスタッフ（取る時間＋歩く時間。戻るまで次を運べない）を
-## それぞれ1人ずつの「運ぶ人」として、いちばん早く届けられる人が運ぶ（スタッフが運んだ分はミスにならない）。
+## それぞれ1人ずつの「運ぶ人」として、いちばん早く届けられる人が運ぶ（スタッフが運んだ分はミスにならない）。厨房担当のスタッフは運ばない。
+## 調理: 店主と厨房担当のスタッフ（いる日だけ）が並行して作る。調理ボタンを押した料理は、作れる人のうち先に手が空く人が作る
+## （同じなら店主。スタッフは作れる難しさの料理だけ。スタッフの調理時間は「調理時間 ÷ 調理の速さ」）。
 
 ## 入口から席まで・席から出口までの歩く時間（秒、近似）
 const WALK_TIME := 1.5
@@ -16,6 +18,9 @@ const STAFF_DISTANCE := 220.0
 var _config: GameConfig
 ## ボットの設定（reaction: 操作の間隔の秒数、wrong_rate: 違う料理を出す割合、precook: 手が空いたら先に作る）
 var _skill: Dictionary
+## 今日の厨房担当のスタッフ（いなければ null）と、調理する人ごとの次に手が空く時刻（0番目が店主）
+var _kitchen_staff: StaffData = null
+var _cook_free: Array[float] = []
 
 
 func _init(skill: Dictionary) -> void:
@@ -49,11 +54,15 @@ func run_day(opening: Dictionary) -> void:
 	var server_free: Array[float] = [0.0]
 	# ボットが次に調理ボタンを押せる時刻
 	var press_free: float = 0.0
-	var staff_list: Array[StaffData] = GameState.get_working_staff()
+	var staff_list: Array[StaffData] = GameState.get_hall_staff()
 	for s: StaffData in staff_list:
 		server_free.append(0.0)
 	var interval_scale: float = _config.get_spawn_interval_scale(GameState.reputation)
-	var chef_free: float = 0.0
+	# 調理する人ごとの、次に手が空く時刻（0番目が店主、1番目が厨房担当のスタッフ）
+	_kitchen_staff = GameState.get_kitchen_staff()
+	_cook_free = [0.0]
+	if _kitchen_staff != null:
+		_cook_free.append(0.0)
 	var t: float = _config.first_spawn_delay
 	while t < _config.business_duration:
 		var next_t: float = t + randf_range(_config.spawn_interval_min, _config.spawn_interval_max) * interval_scale
@@ -81,7 +90,7 @@ func run_day(opening: Dictionary) -> void:
 				var order_time: float = t + WALK_TIME + _config.order_delay
 				# 上手なボットは、手が空いているあいだに残りの多い料理を先に作って置き場に並べる
 				if bool(_skill["precook"]):
-					chef_free = _precook(supply, buffer, shelf_capacity, chef_free, order_time)
+					_precook(supply, buffer, shelf_capacity, order_time)
 				var done: float = order_time
 				for item: DishData in items:
 					var ready: float
@@ -93,9 +102,7 @@ func run_day(opening: Dictionary) -> void:
 						# 調理ボタンを押すのもボットの操作（1回に reaction 秒）。料理を待つあいだに押せるので、配膳とは別に順に数える
 						var press: float = maxf(order_time, press_free) + reaction
 						press_free = press
-						var start: float = maxf(press, chef_free)
-						chef_free = start + GameState.get_cook_time(item)
-						ready = chef_free
+						ready = _cook(item, press)
 					# 届くまで: いちばん早く届けられる人が運ぶ
 					var best: int = 0
 					var best_time: float = maxf(ready, server_free[0]) + reaction
@@ -139,6 +146,27 @@ func run_day(opening: Dictionary) -> void:
 	GameState.record_waste(supply.get_leftover())
 
 
+## 料理を1つ作る: 作れる人のうち、いちばん早く始められる人（同じなら店主）が作る。できあがる時刻を返す
+func _cook(item: DishData, earliest: float) -> float:
+	var who: int = _pick_cook(item, earliest)
+	var start: float = maxf(earliest, _cook_free[who])
+	var seconds: float = _cook_seconds(who, item)
+	_cook_free[who] = start + seconds
+	GameState.record_cooked(who > 0, seconds)
+	return _cook_free[who]
+
+
+func _pick_cook(item: DishData, earliest: float) -> int:
+	var who: int = 0
+	if _cook_free.size() > 1 and GameState.can_staff_cook(_kitchen_staff, item) 			and maxf(earliest, _cook_free[1]) < maxf(earliest, _cook_free[0]):
+		who = 1
+	return who
+
+
+func _cook_seconds(who: int, item: DishData) -> float:
+	return GameState.get_cook_time(item) if who == 0 else GameState.get_staff_cook_time(_kitchen_staff, item)
+
+
 ## ホールスタッフが料理を取って席まで運ぶ時間
 func _staff_one_way(s: StaffData) -> float:
 	return GameState.get_staff_pick_time(s) + STAFF_DISTANCE / maxf(GameState.get_staff_walk_speed(s), 1.0)
@@ -152,8 +180,8 @@ func _free_table(tables_free_at: Array[float], t: float) -> int:
 	return free.pick_random() if not free.is_empty() else -1
 
 
-func _precook(supply: DishSupply, buffer: Dictionary, capacity: int, chef_free: float, until: float) -> float:
-	var free_at: float = chef_free
+## 手が空いている人が、until までに作り終えられる分だけ、残りの多い料理を先に作って置き場に並べる
+func _precook(supply: DishSupply, buffer: Dictionary, capacity: int, until: float) -> void:
 	while true:
 		var stocked: int = 0
 		for dish_id: String in buffer:
@@ -165,12 +193,14 @@ func _precook(supply: DishSupply, buffer: Dictionary, capacity: int, chef_free: 
 		for dish: DishData in Database.items:
 			if supply.get_remaining(dish.id) > 0 and (best == null or supply.get_remaining(dish.id) > supply.get_remaining(best.id)):
 				best = dish
-		if best == null or free_at + GameState.get_cook_time(best) > until:
+		if best == null:
+			break
+		var who: int = _pick_cook(best, 0.0)
+		if _cook_free[who] + _cook_seconds(who, best) > until:
 			break
 		supply.take_for_cooking(best.id)
-		free_at += GameState.get_cook_time(best)
+		_cook(best, 0.0)
 		DayStats.add_to(buffer, best.id, 1)
-	return maxf(free_at, chef_free)
 
 
 ## 売り切れのあとに来たはずの客（営業画面と同じく、席が空いていない時に来た客は数えない）
