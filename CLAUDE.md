@@ -45,7 +45,7 @@ Godot 4.x（GDScript）で作る iPhone / iPad 向けの2Dドット絵の定食�
 
 ## ビルド
 - GitHub Actionsのmacランナーで、Godotのヘッドレス書き出し → `xcodebuild`（`CODE_SIGNING_ALLOWED=NO`）→ 署名なしの .ipa を作る
-- 配布と署名はSideStoreで行う（開発者はMacを持っていない。手元はWindows）
+- 配布と署名は、PC の iloader の「Import IPA」で .ipa を入れて行う（7日ごとに PC から入れ直す。開発者はMacを持っていない。手元はWindows）。SideStore はサインインで落ちる問題があり、今は使っていない。詳しくは `docs/ios_build.md`
 
 ## 画面・操作
 - 画面の向き: **横向き（landscape）で固定**
