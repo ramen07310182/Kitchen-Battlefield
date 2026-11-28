@@ -1,7 +1,11 @@
 # iOS ビルドと配布の手順
 
-方針は `docs/distribution.md` のとおりです（Macなし・無料・SideStoreで署名とインストール）。
-GitHub Actions のmacランナーで**署名なしの .ipa** を作り、SideStore が無料 Apple ID で署名して端末に入れます。
+方針は `docs/distribution.md` のとおりです（Macなし・無料）。
+GitHub Actions のmacランナーで**署名なしの .ipa** を作り、無料 Apple ID で署名して端末に入れます。
+
+> **今の運用（2026-11-28）**：ビルドは成功しています（.ipa は約30MB。iPad に入れて起動できました）。
+> SideStore はサインインで落ちて使えないため、**PC の iloader の「Import IPA」**で入れています（下の「3. iloader でインストールする」）。
+> SideStore の手順（4・5）は、使えるようになったときのために残しています。
 
 ## 仕組み
 | もの | 場所 | 内容 |
@@ -41,7 +45,20 @@ GitHub Actions のmacランナーで**署名なしの .ipa** を作り、SideSto
 - タグで作ったときは、そのタグのリリース（`.../releases/tag/v0.1.0`）
 - **Artifacts**（予備）: Actions の実行結果のページの下の「Artifacts」にある `OneOpeShokudo-ipa`。30日で消えます。中身は zip に包まれ、ダウンロードには GitHub へのログインが必要なので、端末から直接入れるときは Releases を使います
 
-## 3. SideStore でインストールする（初回）
+## 3. iloader でインストールする（今の方法）
+Windows PC の iloader で、無料 Apple ID の署名をして端末に入れます。端末は USB で PC につなぎます。
+1. PC で、上の Releases（または Artifacts）から `OneOpeShokudo.ipa` をダウンロードする（Artifacts のときは zip を展開する）
+2. iPad / iPhone を USB で PC につなぐ（初めてのときは端末側で「このコンピュータを信頼」する）
+3. iloader を開き、Apple ID でサインインする
+4. **Import IPA** を押し、ダウンロードした `OneOpeShokudo.ipa` を選ぶ
+5. 署名とインストールが終わると、ホーム画面にアプリが出る（初回は端末の「設定」→「一般」→「VPNとデバイス管理」で、開発元の Apple ID を信頼する必要があることがある）
+
+### 更新と7日の期限
+- 新しい .ipa も、同じ手順で **アプリを消さずに** 入れます。バンドルIDが同じなので上書きされ、セーブは残ります
+- 署名の期限は7日です。iloader には自動の再署名がないので、**7日ごとに PC につないで同じ手順で入れ直します**
+- 期限が切れてもアプリを**消さない**でください。入れ直せば、セーブはそのまま遊べます
+
+## 4. SideStore でインストールする（初回・今は使っていない）
 SideStore 自体の導入（Windows PC が1回必要）は済んでいるものとします。
 1. iPad / iPhone の Safari で、上の直接リンクから `OneOpeShokudo.ipa` をダウンロードする（「ファイル」アプリの「ダウンロード」に入る）
 2. 接続用の VPN アプリ（LocalDevVPN など、SideStore の案内にあるもの）をオンにする
@@ -49,7 +66,7 @@ SideStore 自体の導入（Windows PC が1回必要）は済んでいるもの�
 4. ダウンロードした `OneOpeShokudo.ipa` を選ぶ
 5. Apple ID での署名が終わると、ホーム画面にアプリが出る
 
-## 4. SideStore で更新する（2回目から）
+## 5. SideStore で更新する（2回目から・今は使っていない）
 **アプリを消さずに、上から入れます**。消すとセーブも消えます。
 1. 新しい .ipa を、同じリンクからダウンロードする（古いファイルは消しておくと選び間違えない）
 2. VPN アプリをオンにして、SideStore の **My Apps** → **＋** → 新しい `OneOpeShokudo.ipa` を選ぶ
@@ -59,7 +76,7 @@ SideStore 自体の導入（Windows PC が1回必要）は済んでいるもの�
 - SideStore は期限の前に自動で再署名します。ときどき SideStore を開き、My Apps の残り日数を確かめます
 - 期限が切れても、アプリを**消さない**でください。SideStore で **Refresh** すれば、セーブはそのまま遊べます
 
-## 5. 失敗したとき
+## 6. 失敗したとき
 ### どこを見るか
 1. Actions タブで、赤い × の実行を開く → **build** を押す → 赤い × の手順を開くと、ログが出ます
 2. 実行結果のページの下の Artifacts に **build-logs** があれば、ダウンロードして中のファイルを見ます
@@ -72,8 +89,9 @@ SideStore 自体の導入（Windows PC が1回必要）は済んでいるもの�
 |---|---|---|
 | ダウンロードする | Godot のバージョンを変えたのに、その版がない／URLが変わった | `ios-build.yml` の `GODOT_VERSION` と `GODOT_STATUS` を確かめる |
 | Xcode プロジェクトを書き出す | `Cannot export project with preset "iOS" due to configuration errors` | 続けて出る理由を読む。空の理由のときは、ETC2/ASTC の設定が外れていないか見る |
+| SideStore で入れる | サインインで落ちる | 今は直し方がわかっていない。iloader の「Import IPA」で入れる（3） |
 | 署名なしでビルドする | Xcode が古くて Godot のテンプレートと合わない | `runs-on` を新しい macOS（例: `macos-26`）にする |
 | Releases に添付する | `Resource not accessible by integration` | リポジトリの Settings → Actions → General → Workflow permissions を「Read and write permissions」にする |
-| SideStore で入れる | 「3つまで」の制限 | 使っていないサイドロードアプリを消す（`docs/distribution.md` の制限を参照） |
+| iloader / SideStore で入れる | 「3つまで」の制限 | 使っていないサイドロードアプリを消す（`docs/distribution.md` の制限を参照） |
 
 - Godot 本体とテンプレートは Actions のキャッシュに入ります。壊れたと思ったら、`ios-build.yml` のキャッシュのキー（`...-macos-ios-v1`）の数字を上げると、ダウンロードし直します
