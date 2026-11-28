@@ -12,7 +12,7 @@ Godot 4.x（GDScript）で作る iPhone / iPad 向けの2Dドット絵の定食�
 - git: コミットは機能の区切りごとにしてよい。**pushはしない**（開発者がGitHub Desktopで行う）
 
 ## 絶対に守ること
-- **バンドルIDは固定し、変更しない**: `com.XXXX.oneopeshokudo`（変えるとセーブが引き継がれない。設定は `export_presets.cfg` の `application/bundle_identifier`）
+- **バンドルIDは固定し、変更しない**: `com.ramen07310182.oneopeshokudo`（変えるとセーブが引き継がれない。設定は `export_presets.cfg` の `application/bundle_identifier`）
 - アプリ拡張（ウィジェットなど）を追加しない
 - セーブデータは `user://` に保存する。ブラウザ／Web向けの保存方法に依存しない
 - 有料のサービスやApple Developer Programを前提にした実装をしない

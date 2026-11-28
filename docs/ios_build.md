@@ -11,7 +11,7 @@ GitHub Actions のmacランナーで**署名なしの .ipa** を作り、SideSto
 | アイコン（仮） | `icon.svg` → `assets/icon/icon_1024.png` | 作り直すときは `godot --headless --path . --script res://tests/tools/make_ios_icon.gd` |
 
 ### 書き出しの設定
-- **バンドルID**: `com.XXXX.oneopeshokudo`。**今後変えない**（変えると別のアプリになり、セーブが引き継がれない）
+- **バンドルID**: `com.ramen07310182.oneopeshokudo`。**今後変えない**（変えると別のアプリになり、セーブが引き継がれない）
 - アプリ名: 「ワンオペ！食堂は戦場に！？」（`project.godot` の `config/name`）
 - 対応端末: iPhone と iPad（`targeted_device_family=2`）。向きは横向きで固定（`project.godot` の `window/handheld/orientation`）
 - iOS 15.0 以上
