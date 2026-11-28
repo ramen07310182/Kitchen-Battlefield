@@ -1,0 +1,163 @@
+# iOS 用の署名なし .ipa を作る（Macなし・無料。署名とインストールは SideStore で行う）
+# 手順の説明: docs/ios_build.md
+#
+# - 手動実行（Actions タブの「Run workflow」）: Releases の「latest」（プレリリース）を毎回作り直して .ipa を添付する
+# - v で始まるタグの push（例: v0.1.0）: そのタグのリリースに .ipa を添付する
+# - どちらも Artifacts にも .ipa を上げる
+name: iOS Build
+
+on:
+  workflow_dispatch:
+  push:
+    tags:
+      - "v*"
+
+permissions:
+  contents: write # Releases を作る・ファイルを添付するため
+
+concurrency:
+  group: ios-build-${{ github.ref }}
+  cancel-in-progress: false
+
+env:
+  GODOT_VERSION: "4.7.2"
+  GODOT_STATUS: "stable"
+  # 書き出しプリセットの名前（export_presets.cfg の name）と、出来上がるファイルの名前
+  EXPORT_PRESET: "iOS"
+  PROJECT_NAME: "OneOpeShokudo"
+  IPA_NAME: "OneOpeShokudo.ipa"
+
+jobs:
+  build:
+    runs-on: macos-latest
+    timeout-minutes: 60
+    steps:
+      - name: リポジトリを取り出す
+        uses: actions/checkout@v4
+
+      - name: Godot 本体と iOS テンプレートのキャッシュを読む
+        id: godot-cache
+        uses: actions/cache@v4
+        with:
+          path: ~/godot-cache
+          key: godot-${{ env.GODOT_VERSION }}-${{ env.GODOT_STATUS }}-macos-ios-v1
+
+      - name: Godot 本体と iOS テンプレートをダウンロードする（キャッシュがないときだけ）
+        if: steps.godot-cache.outputs.cache-hit != 'true'
+        run: |
+          set -euo pipefail
+          TAG="${GODOT_VERSION}-${GODOT_STATUS}"
+          BASE="https://github.com/godotengine/godot/releases/download/${TAG}"
+          mkdir -p ~/godot-cache
+          cd ~/godot-cache
+          curl -fL --retry 3 -o godot.zip "${BASE}/Godot_v${TAG}_macos.universal.zip"
+          curl -fL --retry 3 -o templates.tpz "${BASE}/Godot_v${TAG}_export_templates.tpz"
+          # テンプレートは全部で大きいので、iOS の分（templates/ios.zip）だけ取り出して残す
+          unzip -q -j templates.tpz "templates/ios.zip" -d .
+          rm templates.tpz
+          ls -la
+
+      - name: Godot と iOS テンプレートを置く
+        run: |
+          set -euo pipefail
+          cd ~/godot-cache
+          rm -rf "$RUNNER_TEMP/godot" && mkdir -p "$RUNNER_TEMP/godot"
+          unzip -q godot.zip -d "$RUNNER_TEMP/godot"
+          TEMPLATE_DIR="$HOME/Library/Application Support/Godot/export_templates/${GODOT_VERSION}.${GODOT_STATUS}"
+          mkdir -p "$TEMPLATE_DIR"
+          cp ios.zip "$TEMPLATE_DIR/ios.zip"
+          echo "GODOT=$RUNNER_TEMP/godot/Godot.app/Contents/MacOS/Godot" >> "$GITHUB_ENV"
+
+      - name: Godot と Xcode のバージョンを出す
+        run: |
+          "$GODOT" --version
+          xcodebuild -version
+
+      - name: 素材を読み込む（import）
+        run: |
+          mkdir -p build/logs
+          # 初回の import は終了コードが 0 でないことがあるので、結果は次の書き出しで確かめる
+          "$GODOT" --headless --path . --import 2>&1 | tee build/logs/godot_import.log || true
+
+      - name: Xcode プロジェクトを書き出す（Godot ヘッドレス）
+        run: |
+          set -euo pipefail
+          mkdir -p build/ios
+          "$GODOT" --headless --path . --export-release "$EXPORT_PRESET" "build/ios/${PROJECT_NAME}.xcodeproj" 2>&1 | tee build/logs/godot_export.log
+          if [ ! -d "build/ios/${PROJECT_NAME}.xcodeproj" ] || [ ! -f "build/ios/${PROJECT_NAME}.pck" ]; then
+            echo "::error::Godot の書き出しに失敗しました。build/logs/godot_export.log を見てください"
+            exit 1
+          fi
+          ls -la build/ios
+
+      - name: 署名なしでビルドする（xcodebuild）
+        run: |
+          set -euo pipefail
+          xcodebuild \
+            -project "build/ios/${PROJECT_NAME}.xcodeproj" \
+            -scheme "${PROJECT_NAME}" \
+            -configuration Release \
+            -sdk iphoneos \
+            -destination "generic/platform=iOS" \
+            -derivedDataPath build/derived \
+            CODE_SIGNING_ALLOWED=NO \
+            CODE_SIGNING_REQUIRED=NO \
+            CODE_SIGN_IDENTITY="" \
+            build 2>&1 | tee build/logs/xcodebuild.log
+
+      - name: Payload を zip にして .ipa を作る
+        run: |
+          set -euo pipefail
+          APP="build/derived/Build/Products/Release-iphoneos/${PROJECT_NAME}.app"
+          if [ ! -d "$APP" ]; then
+            echo "::error::.app が見つかりません。build/logs/xcodebuild.log を見てください"
+            ls -R build/derived/Build/Products || true
+            exit 1
+          fi
+          rm -rf build/ipa && mkdir -p build/ipa/Payload
+          cp -R "$APP" build/ipa/Payload/
+          (cd build/ipa && zip -qry "$IPA_NAME" Payload)
+          ls -la build/ipa
+          /usr/libexec/PlistBuddy -c "Print :CFBundleIdentifier" "$APP/Info.plist"
+
+      - name: .ipa を Artifacts に上げる
+        uses: actions/upload-artifact@v4
+        with:
+          name: ${{ env.PROJECT_NAME }}-ipa
+          path: build/ipa/${{ env.IPA_NAME }}
+          if-no-files-found: error
+          retention-days: 30
+
+      - name: 手動実行のとき、Releases の「latest」を作り直して .ipa を添付する
+        if: github.event_name == 'workflow_dispatch'
+        env:
+          GH_TOKEN: ${{ secrets.GITHUB_TOKEN }}
+        run: |
+          set -euo pipefail
+          gh release delete latest --yes --cleanup-tag || true
+          gh release create latest "build/ipa/${IPA_NAME}" \
+            --prerelease \
+            --target "$GITHUB_SHA" \
+            --title "latest（手動ビルド）" \
+            --notes "手動で作った最新の .ipa です（コミット ${GITHUB_SHA::7}、$(date -u '+%Y-%m-%d %H:%M') UTC）。SideStore でインストール・上書き更新してください。"
+
+      - name: タグのとき、そのタグのリリースに .ipa を添付する
+        if: startsWith(github.ref, 'refs/tags/v')
+        env:
+          GH_TOKEN: ${{ secrets.GITHUB_TOKEN }}
+        run: |
+          set -euo pipefail
+          if ! gh release view "$GITHUB_REF_NAME" > /dev/null 2>&1; then
+            gh release create "$GITHUB_REF_NAME" --verify-tag --title "$GITHUB_REF_NAME" \
+              --notes "SideStore でインストール・上書き更新してください。"
+          fi
+          gh release upload "$GITHUB_REF_NAME" "build/ipa/${IPA_NAME}" --clobber
+
+      - name: 失敗したときにログを上げる
+        if: failure()
+        uses: actions/upload-artifact@v4
+        with:
+          name: build-logs
+          path: build/logs/
+          if-no-files-found: ignore
+          retention-days: 14
