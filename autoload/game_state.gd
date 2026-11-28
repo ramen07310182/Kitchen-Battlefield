@@ -18,7 +18,7 @@ signal inventory_changed
 signal reputation_changed(value: int)
 
 const DEFAULT_SAVE_PATH := "user://save.json"
-const SAVE_VERSION := 13
+const SAVE_VERSION := 14
 
 var money: int = 0
 var day: int = 1
@@ -55,8 +55,12 @@ var equipment_levels: Dictionary = {}
 var unlocked_dishes: Array[String] = []
 ## 雇っているホールスタッフのid（雇った順。セーブする）
 var hired_staff: Array[String] = []
-## 雇っているスタッフの状態 { 従業員id: StaffMood の状態（満足度・連勤・急な休みなど） }（セーブする）
+## 雇っているスタッフの状態 { 従業員id: { "enrolled": 在籍した営業日数, "last_shift": 前回出勤したか, "absent_day": 急な休みの営業日 } }（セーブする）
 var staff_states: Dictionary = {}
+## スタッフの研修のレベル { 従業員id: レベル }（辞めても残る。セーブする。ないときは Lv1）
+var staff_levels: Dictionary = {}
+## 退職したスタッフを雇い直せるようになる営業日 { 従業員id: 営業日 }（セーブする）
+var staff_rehire_day: Dictionary = {}
 ## 今日の出勤 { 従業員id: 出勤するか }（準備画面③で決める。はじめは前回と同じ。保存しない）
 var shift_plan: Dictionary = {}
 ## その日の準備を始めた時点の所持金と、その日に仕入れに使ったお金（結果画面の「所持金の増減」用。保存しない）
@@ -109,6 +113,8 @@ func _new_game() -> void:
 	unlocked_dishes.clear()
 	hired_staff.clear()
 	staff_states.clear()
+	staff_levels.clear()
+	staff_rehire_day.clear()
 	_unlock_by_rank()
 	_start_day_accounting()
 
@@ -697,7 +703,7 @@ func finish_business() -> void:
 	for staff_id: String in today.staff_worked:
 		var worker: StaffData = Database.get_staff(staff_id)
 		if worker != null:
-			today.labor_cost += worker.daily_wage
+			today.labor_cost += get_staff_wage(worker)
 	today.staff_count = today.staff_worked.size()
 	add_money(-today.labor_cost)
 	# 次の準備画面で「前回 ○食売れた」と出すため、仕込んだ料理ごとに売れた数を覚える（0食も含める）
@@ -715,7 +721,7 @@ func finish_business() -> void:
 	today.new_unlocks.clear()
 	for dish: DishData in _unlock_by_rank(day + 1):
 		today.new_unlocks.append(dish.id)
-	# 従業員の満足度を更新し、満足度が低い人は辞めることがある
+	# スタッフの在籍日数を数え、在籍日数に達した人は退職する
 	_update_staff_after_business()
 	_record_history()
 
@@ -757,28 +763,116 @@ func get_hired_staff() -> Array[StaffData]:
 	return result
 
 
-## 雇えるか（候補にいて、まだ雇っておらず、ランクの人数の上限に空きがある）
+## 雇えない理由
+enum HireBlock { NONE, HIRED, LIMIT, WAIT, MONEY }
+
+
+## 雇えるか。雇えなければ理由（雇っている・人数の上限・退職したばかり・面接代が足りない）
+func get_hire_block(staff_id: String) -> HireBlock:
+	if Database.get_staff(staff_id) == null or is_hired(staff_id):
+		return HireBlock.HIRED
+	if hired_staff.size() >= get_staff_limit():
+		return HireBlock.LIMIT
+	if get_rehire_wait(staff_id) > 0:
+		return HireBlock.WAIT
+	if money < Database.config.staff_interview_fee:
+		return HireBlock.MONEY
+	return HireBlock.NONE
+
+
 func can_hire(staff_id: String) -> bool:
-	return Database.get_staff(staff_id) != null and not is_hired(staff_id) and hired_staff.size() < get_staff_limit()
+	return get_hire_block(staff_id) == HireBlock.NONE
 
 
-## 雇う（費用はかからない。日給は出勤した日ごとにかかる）。満足度は「ふつう」から始まる。雇えたら true
+## 雇う（面接代を払う。日給は出勤した日ごとにかかる）。在籍日数は0から数える。研修のレベルは前のまま。雇えたら true
+## 面接代は設備の購入と同じく、その日の利益には入れない（営業結果のあとに払うので、次の日の所持金から数える）
 func hire_staff(staff_id: String) -> bool:
 	if not can_hire(staff_id):
 		return false
+	add_money(-Database.config.staff_interview_fee)
 	hired_staff.append(staff_id)
-	staff_states[staff_id] = StaffMood.new_state(Database.config)
+	staff_states[staff_id] = _new_staff_state()
+	staff_rehire_day.erase(staff_id)
 	shift_plan[staff_id] = is_staff_available(staff_id)
 	return true
 
 
-## 辞める（プレイヤーからは辞めさせられない。満足度が低いと営業結果で辞めることがある）。辞めた人は候補に戻り、また雇える
+func _new_staff_state() -> Dictionary:
+	return { "enrolled": 0, "last_shift": true, "absent_day": 0 }
+
+
+## 退職する（在籍日数が終わったとき）。退職した人は候補に戻り、決まった日数のあとでまた雇える
 func dismiss_staff(staff_id: String) -> bool:
 	if not is_hired(staff_id):
 		return false
 	hired_staff.erase(staff_id)
 	staff_states.erase(staff_id)
 	shift_plan.erase(staff_id)
+	# 雇うのは営業結果のあと（働くのは次の日から）なので、退職した日から staff_rehire_wait_days 日目の営業結果のあとから雇える
+	# （その間の staff_rehire_wait_days 営業日は、その人がいない）
+	staff_rehire_day[staff_id] = day + Database.config.staff_rehire_wait_days
+	return true
+
+
+## 雇い直せるようになるまでの営業日数（0 なら今日から雇える）
+func get_rehire_wait(staff_id: String) -> int:
+	return maxi(0, int(staff_rehire_day.get(staff_id, 0)) - day)
+
+
+## 在籍日数の残り（今日を含む。1 なら今日の営業で退職する）
+func get_staff_days_left(staff_id: String) -> int:
+	var data: StaffData = Database.get_staff(staff_id)
+	if data == null or not is_hired(staff_id):
+		return 0
+	return maxi(1, data.tenure_days - int(get_staff_state(staff_id).get("enrolled", 0)))
+
+
+## 退職の予告を出すか（残りが staff_retire_notice_days より少ない）
+func is_staff_retiring_soon(staff_id: String) -> bool:
+	return is_hired(staff_id) and get_staff_days_left(staff_id) < Database.config.staff_retire_notice_days
+
+
+# --- 研修（強化） ---
+
+func get_staff_level(staff_id: String) -> int:
+	return clampi(int(staff_levels.get(staff_id, 1)), 1, Database.staff_training.get_max_level())
+
+
+## 研修を入れた歩く速さ・料理を取るまでの時間・日給
+func get_staff_walk_speed(data: StaffData) -> float:
+	return data.walk_speed * Database.staff_training.get_speed_scale(get_staff_level(data.id))
+
+
+func get_staff_pick_time(data: StaffData) -> float:
+	return data.pick_time * Database.staff_training.get_pick_scale(get_staff_level(data.id))
+
+
+func get_staff_wage(data: StaffData) -> int:
+	return data.daily_wage + Database.staff_training.get_wage_add(get_staff_level(data.id))
+
+
+## 研修できない理由
+enum TrainBlock { NONE, NOT_HIRED, MAX_LEVEL, MONEY }
+
+
+func get_train_block(staff_id: String) -> TrainBlock:
+	if not is_hired(staff_id):
+		return TrainBlock.NOT_HIRED
+	var price: int = Database.staff_training.get_price(get_staff_level(staff_id))
+	if price < 0:
+		return TrainBlock.MAX_LEVEL
+	if money < price:
+		return TrainBlock.MONEY
+	return TrainBlock.NONE
+
+
+## 研修でレベルを1つ上げる（お金を払う）。上げられたら true
+func train_staff(staff_id: String) -> bool:
+	if get_train_block(staff_id) != TrainBlock.NONE:
+		return false
+	var level: int = get_staff_level(staff_id)
+	add_money(-Database.staff_training.get_price(level))
+	staff_levels[staff_id] = level + 1
 	return true
 
 
@@ -786,7 +880,7 @@ func dismiss_staff(staff_id: String) -> bool:
 func get_daily_wage_total() -> int:
 	var total: int = 0
 	for data: StaffData in get_working_staff():
-		total += data.daily_wage
+		total += get_staff_wage(data)
 	return total
 
 
@@ -843,25 +937,9 @@ func _reset_shift_plan() -> void:
 		shift_plan[staff_id] = bool(get_staff_state(staff_id).get("last_shift", true)) and is_staff_available(staff_id)
 
 
-## スタッフの状態（満足度など）。雇っていなければ空
+## スタッフの状態（在籍日数など）。雇っていなければ空
 func get_staff_state(staff_id: String) -> Dictionary:
 	return staff_states.get(staff_id, {})
-
-
-func get_staff_mood(staff_id: String) -> float:
-	return float(get_staff_state(staff_id).get("mood", Database.config.staff_mood_start))
-
-
-func get_staff_mood_level(staff_id: String) -> StaffMood.Level:
-	return StaffMood.level(get_staff_mood(staff_id), Database.config)
-
-
-## 満足度が低いときの理由（注意を出す。低くなければ ""）
-func get_staff_warning(staff_id: String) -> String:
-	if get_staff_mood(staff_id) > Database.config.staff_mood_warn:
-		return ""
-	var reason: String = StaffMood.main_reason(get_staff_state(staff_id))
-	return reason if reason != "" else StaffMood.REASON_STREAK
 
 
 ## スタッフが1皿配膳した
@@ -876,19 +954,19 @@ func _roll_sudden_absence() -> void:
 			get_staff_state(data.id)["absent_day"] = day
 
 
-## 営業結果: 雇っているスタッフの満足度を1日分更新し、満足度が低い人は確率で辞める
+## 営業結果: 雇っているスタッフの在籍日数を1日進め（休みにした日も数える）、在籍日数に達した人は退職する
 func _update_staff_after_business() -> void:
-	var cfg: GameConfig = Database.config
-	today.staff_quits.clear()
+	today.staff_retired.clear()
 	for staff_id: String in hired_staff.duplicate():
 		if not staff_states.has(staff_id):
-			staff_states[staff_id] = StaffMood.new_state(cfg)
+			staff_states[staff_id] = _new_staff_state()
 		var state: Dictionary = staff_states[staff_id]
-		StaffMood.update_day(state, today.staff_worked.has(staff_id), is_staff_available(staff_id), today.left_angry,
-			int(today.staff_deliveries.get(staff_id, 0)), today.rank_up > 0, cfg)
-		if float(state["mood"]) < cfg.staff_mood_quit and randf() < cfg.staff_quit_chance:
-			var reason: String = StaffMood.main_reason(state)
-			today.staff_quits.append({ "id": staff_id, "reason": reason if reason != "" else StaffMood.REASON_STREAK })
+		state["enrolled"] = int(state.get("enrolled", 0)) + 1
+		if is_staff_available(staff_id):
+			state["last_shift"] = today.staff_worked.has(staff_id)
+		var data: StaffData = Database.get_staff(staff_id)
+		if data != null and int(state["enrolled"]) >= data.tenure_days:
+			today.staff_retired.append(staff_id)
 			dismiss_staff(staff_id)
 
 
@@ -1070,6 +1148,8 @@ func save_game() -> bool:
 		"equipment": equipment_levels.duplicate(),
 		"staff": Array(hired_staff),
 		"staff_states": staff_states.duplicate(true),
+		"staff_levels": staff_levels.duplicate(),
+		"staff_rehire_day": staff_rehire_day.duplicate(),
 		"history": _history_for_save(),
 	}
 	var file: FileAccess = FileAccess.open(save_path, FileAccess.WRITE)
@@ -1161,19 +1241,22 @@ func load_game() -> bool:
 	staff_states.clear()
 	var saved_states: Variant = data.get("staff_states", {})
 	for staff_id: String in hired_staff:
-		var state: Dictionary = StaffMood.new_state(Database.config)
+		var state: Dictionary = _new_staff_state()
 		if saved_states is Dictionary and (saved_states as Dictionary).get(staff_id) is Dictionary:
 			var saved_state: Dictionary = (saved_states as Dictionary)[staff_id]
-			state["mood"] = clampf(float(saved_state.get("mood", state["mood"])), 0.0, 100.0)
-			state["streak"] = maxi(0, int(saved_state.get("streak", 0)))
-			state["bench"] = maxi(0, int(saved_state.get("bench", 0)))
+			state["enrolled"] = maxi(0, int(saved_state.get("enrolled", 0)))
 			state["last_shift"] = bool(saved_state.get("last_shift", true))
 			state["absent_day"] = int(saved_state.get("absent_day", 0))
-			var saved_reasons: Variant = saved_state.get("reasons", {})
-			if saved_reasons is Dictionary:
-				for r: String in StaffMood.REASONS:
-					state["reasons"][r] = maxf(0.0, float((saved_reasons as Dictionary).get(r, 0.0)))
 		staff_states[staff_id] = state
+	staff_levels.clear()
+	var saved_levels: Variant = data.get("staff_levels", {})
+	staff_rehire_day.clear()
+	var saved_rehire: Variant = data.get("staff_rehire_day", {})
+	for s_data: StaffData in Database.staff:
+		if saved_levels is Dictionary and (saved_levels as Dictionary).has(s_data.id):
+			staff_levels[s_data.id] = clampi(int(saved_levels[s_data.id]), 1, Database.staff_training.get_max_level())
+		if saved_rehire is Dictionary and (saved_rehire as Dictionary).has(s_data.id):
+			staff_rehire_day[s_data.id] = int(saved_rehire[s_data.id])
 	_start_day_accounting()
 	money_changed.emit(money)
 	reputation_changed.emit(reputation)
@@ -1281,5 +1364,20 @@ func _migrate(data: Dictionary) -> Dictionary:
 		# v13 で出勤（シフト）と満足度を追加。今いるスタッフは満足度「ふつう」から（読み込むときに作る）。固定の休みはデータどおり
 		data["staff_states"] = {}
 		version = 13
+	if version == 13:
+		# v14 で満足度（機嫌）をなくし、在籍日数・研修のレベル・雇い直しの待ち日数を追加した。
+		# 今いるスタッフは、移行した日から在籍日数を数え始める（0）。レベルは1。満足度などの項目は捨てる
+		var raw_states: Variant = data.get("staff_states", {})
+		var states: Dictionary = {}
+		if raw_states is Dictionary:
+			for staff_id: Variant in raw_states:
+				var old: Variant = (raw_states as Dictionary)[staff_id]
+				if old is Dictionary:
+					states[String(staff_id)] = { "enrolled": 0, "last_shift": bool((old as Dictionary).get("last_shift", true)),
+						"absent_day": int((old as Dictionary).get("absent_day", 0)) }
+		data["staff_states"] = states
+		data["staff_levels"] = {}
+		data["staff_rehire_day"] = {}
+		version = 14
 	data["version"] = version
 	return data

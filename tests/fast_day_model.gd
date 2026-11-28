@@ -111,7 +111,7 @@ func run_day(opening: Dictionary) -> void:
 						server_free[0] = best_time
 					else:
 						var s2: StaffData = staff_list[best - 1]
-						server_free[best] = best_time + STAFF_DISTANCE / maxf(s2.walk_speed, 1.0)
+						server_free[best] = best_time + STAFF_DISTANCE / maxf(GameState.get_staff_walk_speed(s2), 1.0)
 						GameState.record_staff_delivery(s2.id)
 					done = maxf(done, best_time)
 				var wait: float = done - order_time
@@ -141,7 +141,7 @@ func run_day(opening: Dictionary) -> void:
 
 ## ホールスタッフが料理を取って席まで運ぶ時間
 func _staff_one_way(s: StaffData) -> float:
-	return s.pick_time + STAFF_DISTANCE / maxf(s.walk_speed, 1.0)
+	return GameState.get_staff_pick_time(s) + STAFF_DISTANCE / maxf(GameState.get_staff_walk_speed(s), 1.0)
 
 
 func _free_table(tables_free_at: Array[float], t: float) -> int:

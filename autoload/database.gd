@@ -3,6 +3,7 @@ extends Node
 ## 新しい料理などは、対応するフォルダに .tres を追加するだけで読み込まれる。
 
 const CONFIG_PATH := "res://data/game_config.tres"
+const STAFF_TRAINING_PATH := "res://data/staff_training.tres"
 const DISH_DIR := "res://data/dishes/"
 const TOPPING_DIR := "res://data/toppings/"
 const STAFF_DIR := "res://data/staff/"
@@ -12,6 +13,8 @@ const RANK_DIR := "res://data/ranks/"
 const EQUIPMENT_DIR := "res://data/equipment/"
 
 var config: GameConfig
+## スタッフの研修（強化）のレベルごとの表
+var staff_training: StaffTrainingData
 ## 料理（定食・丼。トッピングは含まない）
 var dishes: Array[DishData] = []
 ## トッピング（追加の1皿）
@@ -36,6 +39,10 @@ func _init() -> void:
 	if config == null:
 		push_error("設定が読み込めません: " + CONFIG_PATH)
 		config = GameConfig.new()
+	staff_training = load(STAFF_TRAINING_PATH) as StaffTrainingData
+	if staff_training == null:
+		push_error("研修のデータが読み込めません: " + STAFF_TRAINING_PATH)
+		staff_training = StaffTrainingData.new()
 
 	for res: Resource in _load_dir(DISH_DIR):
 		if res is DishData:

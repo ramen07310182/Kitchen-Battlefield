@@ -13,3 +13,4 @@ color = Color(0.4, 0.7, 0.5, 1)
 sort_order = 2
 days_off = PackedInt32Array(0)
 absence_rate = 0.06
+tenure_days = 75

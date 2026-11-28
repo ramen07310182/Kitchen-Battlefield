@@ -85,27 +85,16 @@ const PREP_REPEAT_PARTIAL := "まだ解放していない料理は、前回と�
 ## 準備③の「今日のスタッフ」
 const PREP_STAFF_TITLE := "今日のスタッフ（出勤 %d / %d人・日給 %s）"
 const PREP_STAFF_NONE := "雇っているスタッフはいません（「お店を強化」で雇えます）"
-const PREP_STAFF_NAME := "%s　%s"
+const PREP_STAFF_NAME := "%s　Lv%d"
+const PREP_STAFF_DAYS_LEFT := "あと%d日"
 const PREP_STAFF_ON := "出勤"
 const PREP_STAFF_OFF := "休み"
 const PREP_STAFF_WAGE := "日給 %s"
 const PREP_STAFF_OFF_FIXED := "休み（定休：%s）"
 const PREP_STAFF_OFF_SUDDEN := "休み（急用）"
-## スタッフの機嫌（ごきげん・ふつう・疲れ気味・限界。StaffMood.Level の順）
-const STAFF_MOOD_MARKS: Array[String] = ["◎", "○", "△", "×"]
-const STAFF_MOOD_NAMES: Array[String] = ["ごきげん", "ふつう", "疲れ気味", "限界"]
-## 満足度が低いスタッフへの注意（StaffMood の理由ごと）
-const STAFF_WARNINGS: Dictionary = {
-	"streak": "%s：最近疲れているようです（連勤が続いています）",
-	"busy": "%s：忙しすぎて参っているようです",
-	"bench": "%s：なかなか出番がなくて不満そうです",
-}
-## 辞めた理由（StaffMood の理由ごと）
-const STAFF_QUIT_REASONS: Dictionary = {
-	"streak": "連勤が続いたため",
-	"busy": "忙しすぎる日が続いたため",
-	"bench": "なかなか出勤させてもらえなかったため",
-}
+## 退職の予告（残りの日数が少なくなったとき）
+const PREP_STAFF_RETIRE_NOTICE := "%sは あと%d日で退職します"
+const PREP_STAFF_RETIRE_TODAY := "%sは 今日で退職します"
 ## 準備①のトッピングの区切り
 const PREP_TOPPING_TITLE := "トッピング（注文のときに追加で頼まれる1皿）"
 const PREP_PACE := "評判 %d：お客さんが来るペース ×%.2f（平均 %.1f秒ごと）"
@@ -191,7 +180,7 @@ const RESULT_DISH_MANY_WASTE := "廃棄多め"
 const RESULT_DISH_NONE := "今日は仕込んだ料理がありません"
 const RESULT_OTHER := "その他経費"
 const RESULT_LABOR := "人件費（従業員 %d人）"
-const RESULT_STAFF_QUIT := "%sが辞めました（%s）"
+const RESULT_STAFF_RETIRED := "%sが今日で退職しました（在籍期間が終わりました）"
 ## 内訳の表で、トッピングの名前の前に付ける印
 const RESULT_TOPPING_NAME := "＋%s"
 const RESULT_PROFIT := "利益"
@@ -231,24 +220,42 @@ const UPGRADE_DETAIL_ALL := "すべての定食・丼（トッピングは対象
 # --- お店の強化（従業員） ---
 const UPGRADE_SECTION_EQUIPMENT := "設備"
 const UPGRADE_SECTION_STAFF := "従業員（ホールスタッフ）　雇っている %d / %d人"
-const UPGRADE_STAFF_HELP := "置き場の料理を自分で取って、お客さんに運びます。雇うのは無料で、営業した日ごとに日給がかかります"
+const UPGRADE_STAFF_HELP := "置き場の料理を自分で取って、お客さんに運びます。雇うときに面接代がかかり、出勤した日ごとに日給がかかります"
 const UPGRADE_STAFF_SPEED := "歩く速さ %s・料理を取るまで %.1f秒"
 const UPGRADE_STAFF_SPEED_NAMES: Array[String] = ["ゆっくり", "ふつう", "速い", "とても速い"]
 const UPGRADE_STAFF_WAGE := "日給 %s"
-const UPGRADE_STAFF_HIRED := "雇っています（%s）"
+const UPGRADE_STAFF_HIRED := "雇っています（あと%d日）"
 const UPGRADE_STAFF_HIRE := "雇う"
+const UPGRADE_STAFF_TRAIN := "研修"
+const UPGRADE_STAFF_TENURE := "在籍 %d日"
+const UPGRADE_STAFF_LEVEL := "Lv%d"
 const UPGRADE_STAFF_DAYS_OFF := "定休：%s"
 const UPGRADE_STAFF_NO_DAYS_OFF := "定休：なし"
+const UPGRADE_STAFF_FEE := "面接代 %s"
+const UPGRADE_STAFF_WAIT := "%d日後から雇える"
+const UPGRADE_STAFF_NEED_FEE := "面接代が %s 足りません"
+const UPGRADE_STAFF_TRAIN_PRICE := "研修 %s（Lv%d → %d）"
+const UPGRADE_STAFF_TRAIN_MAX := "研修は最大レベル"
+const UPGRADE_STAFF_TRAIN_NEED_MONEY := "研修の代金が %s 足りません"
 const UPGRADE_STAFF_DETAIL_SPEED := "歩く速さ %s（%d）・料理を取るまで %.1f秒"
 const UPGRADE_STAFF_DETAIL_WAGE := "日給 %s（出勤した日だけ）"
 const UPGRADE_STAFF_DETAIL_DAYS_OFF := "毎週の休み：%s"
 const UPGRADE_STAFF_DETAIL_ABSENCE := "急な休み：ときどき（営業日の約%d%%）"
-const UPGRADE_STAFF_DETAIL_MOOD := "今の機嫌：%s %s"
-const UPGRADE_STAFF_DETAIL_NOT_HIRED := "雇うと、機嫌は「ふつう」から始まります"
+const UPGRADE_STAFF_DETAIL_TENURE := "在籍日数：%d日（雇った日から数えた営業日。定休日は数えず、休みにした日は数える）"
+const UPGRADE_STAFF_DETAIL_DAYS_LEFT := "退職まで：あと%d日"
+const UPGRADE_STAFF_DETAIL_WAIT := "雇い直せるまで：あと%d日"
+const UPGRADE_STAFF_DETAIL_LEVEL_NOW := "今：Lv%d　速さ %d・取るまで %.1f秒・日給 %s"
+const UPGRADE_STAFF_DETAIL_LEVEL_NEXT := "研修後：Lv%d　速さ %d・取るまで %.1f秒・日給 %s（研修 %s）"
+const UPGRADE_STAFF_DETAIL_LEVEL_MAX := "これ以上は研修できません"
+const UPGRADE_STAFF_HELP2 := "在籍日数が終わると退職します（研修のレベルは残り、しばらくすると雇い直せます）。研修で速くなり、日給も少し上がります。行を長押しで詳細"
 const UPGRADE_STAFF_NEED_RANK := "%sで雇えます"
 const UPGRADE_STAFF_FULL := "雇える人数がいっぱい"
+const UPGRADE_STAFF_HIRE_CONFIRM := "%sを雇います。\n面接代 %s がかかります。雇いますか？"
+const UPGRADE_STAFF_HIRE_OK := "雇う"
 const UPGRADE_STAFF_HIRE_DONE := "%sを雇いました（次の営業から働きます）"
-const UPGRADE_STAFF_HELP2 := "スタッフは自分からは辞めさせられません。連勤や忙しすぎる日が続くと、疲れて辞めてしまうことがあります（行を長押しで詳細）"
+const UPGRADE_STAFF_TRAIN_CONFIRM := "%sの研修（Lv%d → %d）を %s で行います。\nよろしいですか？"
+const UPGRADE_STAFF_TRAIN_OK := "研修する"
+const UPGRADE_STAFF_TRAIN_DONE := "%sの研修をしました（Lv%d）"
 
 # --- カレンダー ---
 const CAL_BUTTON := "カレンダー"

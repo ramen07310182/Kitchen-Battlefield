@@ -49,12 +49,13 @@ func _check_wage() -> void:
 	GameState.rank = 1
 	var full_at_rank1: bool = not GameState.can_hire("tanaka")
 	GameState.hired_staff.clear()
+	GameState.staff_rehire_day.clear()
 	_check.call("従業員: 辞めた人の日給はかからない。無名店（ランク1）でも1人まで雇える",
 		dismissed and full_at_rank1 and GameState.can_hire("sato") and GameState.hire_staff("sato")
 		and not GameState.can_hire("tanaka") and Database.get_staff_limit(3) == 3 and Database.get_staff_limit(4) == 3)
 	_check.call("従業員: 日給のいちばん安い候補は佐藤さん（¥1,500・ゆっくり）",
 		Database.staff[0].id == "sato" and Database.staff[0].daily_wage == 1500
-		and StaffRow.speed_name(Database.staff[0]) == UIText.UPGRADE_STAFF_SPEED_NAMES[0])
+		and StaffRow.speed_name(Database.staff[0].walk_speed) == UIText.UPGRADE_STAFF_SPEED_NAMES[0])
 	GameState.hired_staff.clear()
 
 

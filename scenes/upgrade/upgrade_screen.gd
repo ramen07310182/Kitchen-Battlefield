@@ -1,7 +1,7 @@
 extends Control
 ## お店の強化画面（営業結果のあと、次の日の準備の前）。設備を買って、次の営業から効果を出す。
-## 「従業員」の区切りでは、ホールスタッフを雇う（雇える人数はランクで決まる。費用は出勤した日の日給だけ）。
-## プレイヤーからは辞めさせられない（満足度が低いと、営業結果で辞めてしまうことがある）。行の長押しで詳細（毎週の休みなど）。
+## 「従業員」の区切りでは、ホールスタッフを雇う（面接代がかかる。雇える人数はランクで決まる）・研修でレベルを上げる。
+## プレイヤーからは辞めさせられない（在籍日数が終わると退職する）。どちらも確認ダイアログを出してから。行の長押しで詳細。
 ## 購入は確認ダイアログを出してから。所持金・ランクが足りないものは押せず、理由を出す。行の長押しで詳細（今と次のレベルの比較）。
 
 signal next_day_requested
@@ -12,7 +12,7 @@ var _rows: Array[EquipmentRow] = []
 var _staff_rows: Array[StaffRow] = []
 var _staff_header: Label
 var _pending_id: String = ""
-## 確認ダイアログで聞いていること（"buy" = 設備の購入、"dismiss" = 従業員にやめてもらう）
+## 確認ダイアログで聞いていること（"buy" = 設備の購入、"hire" = 従業員を雇う、"train" = 従業員の研修）
 var _pending_action: String = ""
 
 @onready var _title_label: Label = %TitleLabel
@@ -56,6 +56,7 @@ func _ready() -> void:
 		_list.add_child(staff_row)
 		staff_row.setup(data)
 		staff_row.hire_requested.connect(_on_hire_requested)
+		staff_row.train_requested.connect(_on_train_requested)
 		staff_row.detail_requested.connect(_show_staff_detail)
 		staff_row.detail_closed.connect(_detail.close)
 		_staff_rows.append(staff_row)
@@ -85,10 +86,25 @@ func _section_label(text: String) -> Label:
 	return label
 
 
+## 雇う: 面接代を伝えて確認する
 func _on_hire_requested(staff_id: String) -> void:
-	if GameState.hire_staff(staff_id):
-		_message_label.text = UIText.UPGRADE_STAFF_HIRE_DONE % Database.get_staff(staff_id).display_name
-	_refresh()
+	if not GameState.can_hire(staff_id):
+		return
+	_pending_id = staff_id
+	_pending_action = "hire"
+	_dialog.ask(UIText.UPGRADE_STAFF_HIRE_CONFIRM % [Database.get_staff(staff_id).display_name,
+		UIText.money(Database.config.staff_interview_fee)], UIText.UPGRADE_STAFF_HIRE_OK, UIText.PREP_CANCEL)
+
+
+## 研修: 価格とレベルを伝えて確認する
+func _on_train_requested(staff_id: String) -> void:
+	if GameState.get_train_block(staff_id) != GameState.TrainBlock.NONE:
+		return
+	var level: int = GameState.get_staff_level(staff_id)
+	_pending_id = staff_id
+	_pending_action = "train"
+	_dialog.ask(UIText.UPGRADE_STAFF_TRAIN_CONFIRM % [Database.get_staff(staff_id).display_name, level, level + 1,
+		UIText.money(Database.staff_training.get_price(level))], UIText.UPGRADE_STAFF_TRAIN_OK, UIText.PREP_CANCEL)
 
 
 ## 従業員の詳細: 速さ・日給・毎週の休み・急な休み・機嫌
@@ -111,9 +127,21 @@ func _on_buy_requested(equipment_id: String) -> void:
 
 func _on_dialog_answered(ok: bool) -> void:
 	var equipment_id: String = _pending_id
+	var action: String = _pending_action
 	_pending_id = ""
 	_pending_action = ""
 	if not ok or equipment_id == "":
+		return
+	if action == "hire":
+		if GameState.hire_staff(equipment_id):
+			_message_label.text = UIText.UPGRADE_STAFF_HIRE_DONE % Database.get_staff(equipment_id).display_name
+		_refresh()
+		return
+	if action == "train":
+		if GameState.train_staff(equipment_id):
+			_message_label.text = UIText.UPGRADE_STAFF_TRAIN_DONE % [Database.get_staff(equipment_id).display_name,
+				GameState.get_staff_level(equipment_id)]
+		_refresh()
 		return
 	if GameState.buy_equipment(equipment_id):
 		var e: EquipmentData = Database.get_equipment(equipment_id)

@@ -66,16 +66,15 @@ func _ready() -> void:
 	_unlock_label.visible = not names.is_empty()
 	_note_label.text = UIText.RESULT_SOLD_OUT
 	_note_label.visible = stats.sold_out
-	# 辞めたスタッフ（いちばん大きな理由を出す）
-	for quit: Dictionary in stats.staff_quits:
-		var staff: StaffData = Database.get_staff(String(quit["id"]))
-		var quit_label: Label = Label.new()
-		quit_label.text = UIText.RESULT_STAFF_QUIT % [staff.display_name if staff != null else String(quit["id"]),
-			UIText.STAFF_QUIT_REASONS.get(String(quit["reason"]), "")]
-		quit_label.add_theme_color_override("font_color", UIColors.DANGER)
-		quit_label.name = "StaffQuit"
-		_news.add_child(quit_label)
-	_news.visible = _rank_up_label.visible or _unlock_label.visible or _note_label.visible or not stats.staff_quits.is_empty()
+	# 在籍日数が終わって退職したスタッフ
+	for staff_id: String in stats.staff_retired:
+		var staff: StaffData = Database.get_staff(staff_id)
+		var retire_label: Label = Label.new()
+		retire_label.text = UIText.RESULT_STAFF_RETIRED % (staff.display_name if staff != null else staff_id)
+		retire_label.add_theme_color_override("font_color", UIColors.DANGER)
+		retire_label.name = "StaffRetired"
+		_news.add_child(retire_label)
+	_news.visible = _rank_up_label.visible or _unlock_label.visible or _note_label.visible or not stats.staff_retired.is_empty()
 
 	# 利益（大）と内訳（小）
 	var profit: int = stats.profit()

@@ -85,7 +85,7 @@ func begin_pick(pick_slots: Array[int], pick_items: Array[String], customer: Cus
 	slots = pick_slots.duplicate()
 	items = pick_items.duplicate()
 	target = customer
-	_pick_left = data.pick_time
+	_pick_left = GameState.get_staff_pick_time(data)
 	_figure.animation = SpriteKeys.ANIM_IDLE
 
 
@@ -146,7 +146,7 @@ func _walk(destination: Vector2, on_done: Callable) -> void:
 		_tween.kill()
 	_figure.animation = SpriteKeys.ANIM_WALK
 	_figure.flip_h = destination.x < position.x
-	var duration: float = maxf(0.1, position.distance_to(destination) / maxf(data.walk_speed, 1.0))
+	var duration: float = maxf(0.1, position.distance_to(destination) / maxf(GameState.get_staff_walk_speed(data), 1.0))
 	_tween = create_tween()
 	_tween.tween_property(self, "position", destination, duration)
 	_tween.finished.connect(on_done)

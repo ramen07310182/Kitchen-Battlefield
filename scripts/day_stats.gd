@@ -12,8 +12,8 @@ var staff_count: int = 0
 var staff_worked: Array[String] = []
 ## 従業員ごとの配膳の皿数 { 従業員id: 皿数 }
 var staff_deliveries: Dictionary = {}
-## 営業結果のときに辞めた従業員 [{ "id": 従業員id, "reason": StaffMood の理由 }]
-var staff_quits: Array[Dictionary] = []
+## 営業結果のときに在籍日数が終わって退職した従業員のid
+var staff_retired: Array[String] = []
 var visitors: int = 0
 var completed_orders: int = 0
 var left_angry: int = 0

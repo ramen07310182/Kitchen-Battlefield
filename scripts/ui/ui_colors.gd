@@ -69,8 +69,6 @@ const TABLE_SOLD_OUT_BG := Color("ffe9a6")
 const TABLE_SOLD_OUT := Color("8a5a00")
 const TABLE_WASTE_BG := Color("fbd2ca")
 const TABLE_WASTE := Color("b32a1d")
-## スタッフの機嫌（ごきげん・ふつう・疲れ気味・限界。StaffMood.Level の順）
-const STAFF_MOOD: Array[Color] = [Color("2e7a32"), Color("1d5fb4"), Color("b06200"), Color("bf3326")]
 ## 0（プラスでもマイナスでもない）
 const ZERO := Color("8a7a66")
 ## ポップアップの後ろを暗くする色

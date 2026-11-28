@@ -5,8 +5,10 @@ extends Node
 ##   --csv=<path>   : 日ごとの結果を CSV に書き出す（省略時は user://reputation_sim.csv。--fast では必ず書き出す）
 ##   --no-buy       : 設備を買わず、従業員も雇わない
 ##   --no-toppings  : トッピングを仕込まない（比べる用）
-##   --no-rest      : スタッフを休ませない（出られる日は毎日出勤。比べる用）
-## シフト: 出られない日は休み。連勤が game_config の staff_streak_days に届く前の日と、機嫌が「疲れ気味」以下の人は休ませる。
+##   --no-train     : スタッフの研修をしない（比べる用）
+## シフト: 出られない日は休み、出られる人は全員出勤。
+## 研修: 設備を買ったあと、手元に BUY_RESERVE を残せれば、レベルの低い人から1日1回研修する（--no-train で研修しない）。
+## 在籍日数が終わって退職したら、人手が足りないときにまた雇う（雇う条件は _hire_staff）。
 ## ボットは、営業結果のあとに「手元に一定のお金を残して」優先順位に沿って設備を買う（BUY_PRIORITY）。
 ## 従業員: 人手が足りないとき（怒って帰る客が多い・評価が低い）に、日給が売上に見合う人を1日1人ずつ雇う（_hire_staff）。
 ## 仕込み: 解放済みの料理とトッピングを、注文の目安 × 倍率だけ仕込む。
@@ -49,8 +51,8 @@ var _csv_path: String = DEFAULT_CSV
 var _fast: bool = false
 var _buy: bool = true
 var _toppings: bool = true
-## スタッフを休ませるか（--no-rest で、出られる日は毎日出勤させる。比べる用）
-var _rest: bool = true
+## スタッフの研修をするか（--no-train でしない。比べる用）
+var _train: bool = true
 ## その日に買った設備・雇った従業員（表に出す）
 var _bought_today: PackedStringArray = PackedStringArray()
 ## 最近の売上（雇うかどうかの判断）
@@ -74,8 +76,8 @@ func _ready() -> void:
 			_buy = false
 		elif arg == "--no-toppings":
 			_toppings = false
-		elif arg == "--no-rest":
-			_rest = false
+		elif arg == "--no-train":
+			_train = false
 		elif arg.begins_with("--csv="):
 			_csv_path = arg.trim_prefix("--csv=")
 	_skill = SKILLS.get(_skill_name, SKILLS["good"])
@@ -85,7 +87,7 @@ func _ready() -> void:
 	GameState.use_save_path(SIM_SAVE_PATH)
 	_rows.append("| 日 | 日付 | 来客 | 提供 | 怒って帰った | 売り逃し | ★ | 評判の増減 | 評判 | ランク | 利益 | 所持金 | 設備（卓・棚・コ・フ・炊） | 従業員 | 買った設備・雇った人 |")
 	_rows.append("|---|---|---|---|---|---|---|---|---|---|---|---|---|---|---|")
-	_csv_rows.append("day,date,reputation,reputation_change,rank,money,profit,visitors,served,angry,missed,stars,seats,shelf,stove,fryer,rice_cooker,unlocked_count,unlocked,bought,sales,labor,staff,topping_sold,worked,quits,moods")
+	_csv_rows.append("day,date,reputation,reputation_change,rank,money,profit,visitors,served,angry,missed,stars,seats,shelf,stove,fryer,rice_cooker,unlocked_count,unlocked,bought,sales,labor,staff,topping_sold,worked,retired,levels")
 	if _fast:
 		_run_fast()
 		return
@@ -142,14 +144,9 @@ func _do_prep(screen: Node) -> void:
 
 ## 今日の出勤を決める（出られない日は休み。連勤が続きそうな人・疲れている人は休ませる）
 func _plan_shift() -> void:
-	var cfg: GameConfig = Database.config
 	for data: StaffData in GameState.get_hired_staff():
-		if not GameState.is_staff_available(data.id):
-			continue
-		var state: Dictionary = GameState.get_staff_state(data.id)
-		var tired: bool = float(state.get("mood", cfg.staff_mood_start)) <= cfg.staff_mood_warn + 5.0
-		var long_streak: bool = int(state.get("streak", 0)) >= cfg.staff_streak_days - 1
-		GameState.set_shift(data.id, not _rest or not (tired or long_streak))
+		if GameState.is_staff_available(data.id):
+			GameState.set_shift(data.id, true)
 
 
 func _plan_prep() -> void:
@@ -256,6 +253,8 @@ func _record_day() -> void:
 	if _buy:
 		_buy_equipment()
 		_hire_staff()
+		if _train:
+			_train_staff()
 	var s: DayStats = GameState.today
 	var missed: int = 0
 	for dish_id: String in s.dish_missed:
@@ -277,17 +276,14 @@ func _record_day() -> void:
 	for dish: DishData in Database.toppings:
 		topping_sold += int(s.dish_sold.get(dish.id, 0))
 	var date: Dictionary = GameCalendar.date_for_business_day(GameState.day)
-	var quits: PackedStringArray = PackedStringArray()
-	for quit: Dictionary in s.staff_quits:
-		quits.append("%s:%s" % [quit["id"], quit["reason"]])
-	var moods: PackedStringArray = PackedStringArray()
+	var levels_text: PackedStringArray = PackedStringArray()
 	for staff_id: String in GameState.hired_staff:
-		moods.append("%s:%d" % [staff_id, roundi(GameState.get_staff_mood(staff_id))])
+		levels_text.append("%s:%d" % [staff_id, GameState.get_staff_level(staff_id)])
 	_csv_rows.append("%d,%04d-%02d-%02d,%d,%d,%d,%d,%d,%d,%d,%d,%d,%s,%s,%d,%s,%s,%d,%d,%s,%d,%s,%s,%s" % [
 		GameState.day, int(date["year"]), int(date["month"]), int(date["day"]), GameState.reputation, s.reputation_change,
 		GameState.rank, GameState.money, s.profit(), s.visitors, s.completed_orders, s.left_angry, missed, stars,
 		",".join(levels), unlocked.size(), "|".join(unlocked), "|".join(_bought_today), s.sales, s.labor_cost,
-		"|".join(GameState.hired_staff), topping_sold, "|".join(s.staff_worked), "|".join(quits), "|".join(moods)])
+		"|".join(GameState.hired_staff), topping_sold, "|".join(s.staff_worked), "|".join(s.staff_retired), "|".join(levels_text)])
 
 
 ## 表の「設備」の列の並び（卓・棚・コンロ・フライヤー・炊飯器）
@@ -347,6 +343,23 @@ func _hire_staff() -> void:
 	GameState.hire_staff(best.id)
 	# CSV に入れるので、金額にカンマを入れない
 	_bought_today.append("%s（日給%d）" % [best.display_name, best.daily_wage])
+
+
+## 研修: 手元に BUY_RESERVE を残せれば、レベルのいちばん低い人を1日1回だけ研修する
+func _train_staff() -> void:
+	var best: StaffData = null
+	for data: StaffData in GameState.get_hired_staff():
+		if GameState.get_train_block(data.id) != GameState.TrainBlock.NONE:
+			continue
+		if best == null or GameState.get_staff_level(data.id) < GameState.get_staff_level(best.id):
+			best = data
+	if best == null:
+		return
+	var price: int = Database.staff_training.get_price(GameState.get_staff_level(best.id))
+	if GameState.money - price < BUY_RESERVE:
+		return
+	GameState.train_staff(best.id)
+	_bought_today.append("研修 %s→Lv%d" % [best.display_name, GameState.get_staff_level(best.id)])
 
 
 func _finish() -> void:

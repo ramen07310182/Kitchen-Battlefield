@@ -1,8 +1,8 @@
 class_name StaffShiftChecks
 extends Node
-## スモークテストの一部: スタッフの出勤（シフト）・出られない日・満足度・辞めること。
+## スモークテストの一部: スタッフの出勤（シフト）・出られない日・在籍日数と退職・研修・面接代。
 ##   - 休みのスタッフは働かず日給もかからない、出られない日は出勤にできない
-##   - 連勤で満足度が下がり休みで上がる、満足度が低いと辞めることがある（理由が結果画面に出る）、辞めた人をまた雇える
+##   - 在籍日数で退職する・予告が出る・雇い直しの待ち日数、研修で速さと日給が変わる、面接代が引かれる・足りないと雇えない
 ## GameState はこのテスト用のセーブの場所で使い、終わったら消す。
 
 const BUSINESS_SCENE: PackedScene = preload("res://scenes/business/business.tscn")
@@ -20,8 +20,9 @@ func run(check: Callable) -> void:
 	_check_shift_and_wage()
 	_check_unavailable()
 	await _check_business_uses_shift()
-	_check_mood()
-	await _check_quit()
+	await _check_tenure()
+	_check_training()
+	_check_interview_fee()
 	GameState.delete_save()
 	completed = true
 
@@ -110,68 +111,105 @@ func _check_business_uses_shift() -> void:
 	await get_tree().process_frame
 
 
-func _check_mood() -> void:
+## 在籍日数: 休みにした日も数え、在籍日数に達した日の営業結果で退職する。残りが少ないと予告が出る。結果画面に退職が出る
+func _check_tenure() -> void:
 	_fresh()
-	var cfg: GameConfig = Database.config
-	var state: Dictionary = StaffMood.new_state(cfg)
-	var start: float = float(state["mood"])
-	for i: int in cfg.staff_streak_days + 1:
-		StaffMood.update_day(state, true, true, 1, 10, false, cfg)
-	var after_streak: float = float(state["mood"])
-	StaffMood.update_day(state, false, true, 0, 0, false, cfg)
-	var after_rest: float = float(state["mood"])
-	_check.call("連勤が続くと満足度が下がり、理由は「連勤」。休むと上がる",
-		after_streak < start and StaffMood.main_reason(state) == StaffMood.REASON_STREAK and after_rest > after_streak,
-		"%.0f → %.0f → %.0f" % [start, after_streak, after_rest])
-	var busy: Dictionary = StaffMood.new_state(cfg)
-	StaffMood.update_day(busy, true, true, cfg.staff_busy_angry, 0, false, cfg)
-	var calm: Dictionary = StaffMood.new_state(cfg)
-	StaffMood.update_day(calm, true, true, 0, 5, true, cfg)
-	_check.call("忙しすぎる日は下がり、落ち着いた日・ランクが上がった日は上がる",
-		float(busy["mood"]) < start and float(calm["mood"]) > start)
-	var bench: Dictionary = StaffMood.new_state(cfg)
-	for i: int in cfg.staff_bench_days + 1:
-		StaffMood.update_day(bench, false, true, 0, 0, false, cfg)
-	_check.call("出られるのに出勤させない日が続くと下がる（理由は「出番がない」）",
-		float(bench["mood"]) < start and StaffMood.main_reason(bench) == StaffMood.REASON_BENCH)
-	# 満足度が低いと注意が出る
+	var data: StaffData = Database.get_staff("sato")
 	GameState.hire_staff("sato")
-	GameState.get_staff_state("sato")["mood"] = cfg.staff_mood_warn - 1.0
-	GameState.get_staff_state("sato")["reasons"] = { StaffMood.REASON_STREAK: 10.0 }
-	_check.call("満足度が低いと「最近疲れているようです」の注意が出る",
-		GameState.get_staff_warning("sato") == StaffMood.REASON_STREAK
-		and (UIText.STAFF_WARNINGS[StaffMood.REASON_STREAK] as String).contains("疲れている"))
-
-
-func _check_quit() -> void:
-	_fresh()
-	var cfg: GameConfig = Database.config
-	var keep_chance: float = cfg.staff_quit_chance
-	cfg.staff_quit_chance = 1.0
-	GameState.hire_staff("suzuki")
-	var state: Dictionary = GameState.get_staff_state("suzuki")
-	state["mood"] = cfg.staff_mood_quit - 10.0
-	state["streak"] = cfg.staff_streak_days
-	state["reasons"] = { StaffMood.REASON_STREAK: 30.0 }
+	var start_left: int = GameState.get_staff_days_left("sato")
+	# 1日は休みにする（休みの日も在籍日数に数える）
+	GameState.set_shift("sato", false)
 	GameState.begin_business()
 	GameState.finish_business()
-	cfg.staff_quit_chance = keep_chance
-	var quits: Array[Dictionary] = GameState.today.staff_quits
-	_check.call("満足度が低いと営業結果で辞めることがあり、いちばん大きな理由が残る（連勤）",
-		quits.size() == 1 and String(quits[0]["id"]) == "suzuki" and String(quits[0]["reason"]) == StaffMood.REASON_STREAK
-		and not GameState.is_hired("suzuki"), "quits=%s" % [quits])
-	# 結果画面に「鈴木さんが辞めました（連勤が続いたため）」が出る
+	GameState.advance_day()
+	_clear_sudden_absence()
+	var after_off: int = GameState.get_staff_days_left("sato")
+	_check.call("在籍日数は雇った日から数え、休みにした日も数える（あと%d日 → %d日）" % [start_left, after_off],
+		start_left == data.tenure_days and after_off == data.tenure_days - 1)
+	# 退職の予告: 残りが staff_retire_notice_days より少ないと出る
+	var notice_days: int = Database.config.staff_retire_notice_days
+	GameState.get_staff_state("sato")["enrolled"] = data.tenure_days - notice_days
+	var no_notice: bool = not GameState.is_staff_retiring_soon("sato")
+	GameState.get_staff_state("sato")["enrolled"] = data.tenure_days - (notice_days - 1)
+	var panel: StaffShiftPanel = StaffShiftPanel.new()
+	add_child(panel)
+	panel.rebuild()
+	var notice_text: String = ""
+	for label: Node in panel.find_children("*", "Label", true, false):
+		if (label as Label).text.contains("退職します"):
+			notice_text = (label as Label).text
+	panel.queue_free()
+	_check.call("退職の予告: 残り%d日より少なくなると準備③に「あと○日で退職します」が出る" % notice_days,
+		no_notice and GameState.is_staff_retiring_soon("sato")
+		and notice_text == UIText.PREP_STAFF_RETIRE_NOTICE % [data.display_name, notice_days - 1], notice_text)
+	# 最後の日の営業結果で退職する
+	GameState.get_staff_state("sato")["enrolled"] = data.tenure_days - 1
+	GameState.begin_business()
+	GameState.finish_business()
+	var retired: bool = GameState.today.staff_retired.has("sato") and not GameState.is_hired("sato")
 	var result: Node = RESULT_SCENE.instantiate()
 	add_child(result)
 	await get_tree().process_frame
-	var found: bool = false
-	for label: Node in result.find_children("StaffQuit*", "Label", true, false):
-		if (label as Label).text == UIText.RESULT_STAFF_QUIT % ["鈴木さん", UIText.STAFF_QUIT_REASONS[StaffMood.REASON_STREAK]]:
-			found = true
-	_check.call("結果画面に「鈴木さんが辞めました（連勤が続いたため）」が出る", found)
+	var shown: bool = false
+	for label: Node in result.find_children("StaffRetired*", "Label", true, false):
+		if (label as Label).text == UIText.RESULT_STAFF_RETIRED % data.display_name:
+			shown = true
 	result.queue_free()
 	await get_tree().process_frame
-	var rehired: bool = GameState.can_hire("suzuki") and GameState.hire_staff("suzuki")
-	_check.call("辞めたスタッフはまた雇え、満足度は「ふつう」から始まる",
-		rehired and is_equal_approx(GameState.get_staff_mood("suzuki"), cfg.staff_mood_start)
-		and GameState.get_staff_mood_level("suzuki") == StaffMood.Level.NORMAL)
+	_check.call("在籍日数に達した日の営業結果で退職し、結果画面に「佐藤さんが今日で退職しました（在籍期間が終わりました）」が出る",
+		retired and shown)
+	# 雇い直しの待ち日数
+	var wait_days: int = Database.config.staff_rehire_wait_days
+	var waiting: bool = not GameState.can_hire("sato") and GameState.get_hire_block("sato") == GameState.HireBlock.WAIT
+	var wait_first: int = GameState.get_rehire_wait("sato")
+	for i: int in wait_days:
+		GameState.advance_day()
+	var can_after: bool = GameState.can_hire("sato")
+	_check.call("退職した人は、退職してから%d営業日は雇い直せず、そのあと雇える（最初は「%d日後から雇える」）" % [wait_days, wait_first],
+		waiting and wait_first == wait_days and can_after, "wait=%d" % wait_first)
+	GameState.staff_levels["sato"] = 3
+	GameState.hire_staff("sato")
+	_check.call("雇い直すと在籍日数は最初から数え直し、研修のレベルは引き継ぐ",
+		GameState.get_staff_days_left("sato") == data.tenure_days and GameState.get_staff_level("sato") == 3)
+
+
+## 研修: レベルが上がると速くなり、日給も上がる。代金が足りないと研修できない
+func _check_training() -> void:
+	_fresh()
+	var data: StaffData = Database.get_staff("suzuki")
+	var training: StaffTrainingData = Database.staff_training
+	GameState.hire_staff("suzuki")
+	var speed1: float = GameState.get_staff_walk_speed(data)
+	var pick1: float = GameState.get_staff_pick_time(data)
+	var wage1: int = GameState.get_staff_wage(data)
+	var price: int = training.get_price(1)
+	GameState.add_money(-GameState.money + price - 1)
+	var blocked: bool = GameState.get_train_block("suzuki") == GameState.TrainBlock.MONEY and not GameState.train_staff("suzuki")
+	GameState.add_money(1)
+	var before: int = GameState.money
+	var trained: bool = GameState.train_staff("suzuki")
+	_check.call("研修で速くなり（歩く速さ↑・取るまで↓）、日給が少し上がる。代金が足りないと研修できない",
+		blocked and trained and GameState.get_staff_level("suzuki") == 2 and before - GameState.money == price
+		and GameState.get_staff_walk_speed(data) > speed1 and GameState.get_staff_pick_time(data) < pick1
+		and GameState.get_staff_wage(data) == wage1 + training.get_wage_add(2),
+		"Lv%d speed %.0f→%.0f wage %d→%d" % [GameState.get_staff_level("suzuki"), speed1, GameState.get_staff_walk_speed(data),
+			wage1, GameState.get_staff_wage(data)])
+	GameState.begin_business()
+	GameState.finish_business()
+	_check.call("研修したスタッフの日給（上がった分）が人件費になる", GameState.today.labor_cost == wage1 + training.get_wage_add(2))
+	var lines: PackedStringArray = StaffRow.detail_lines(data)
+	var text: String = "\n".join(lines)
+	_check.call("従業員の詳細に、在籍日数と、今と研修後のレベル（速さ・日給）が出る",
+		text.contains(UIText.UPGRADE_STAFF_DETAIL_TENURE % data.tenure_days) and text.contains("今：Lv2") and text.contains("研修後：Lv3"))
+
+
+## 面接代: 雇うと引かれる。足りないと雇えない
+func _check_interview_fee() -> void:
+	_fresh()
+	var fee: int = Database.config.staff_interview_fee
+	GameState.add_money(-GameState.money + fee - 1)
+	var blocked: bool = GameState.get_hire_block("sato") == GameState.HireBlock.MONEY and not GameState.hire_staff("sato")
+	GameState.add_money(1)
+	var hired: bool = GameState.hire_staff("sato")
+	_check.call("雇うと面接代（¥%d）が引かれ、所持金が足りないと雇えない" % fee,
+		blocked and hired and GameState.money == 0)

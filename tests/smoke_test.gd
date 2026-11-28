@@ -412,6 +412,16 @@ func _check_migration() -> void:
 	probe.free()
 	_check("セーブ移行 v11 -> v12（履歴の売上などはそのまま、所持金は「記録なし」。グラフは所持金の線を描かない）",
 		old_rows_ok and GameState.get_history(2)[GameState.HISTORY_SALES] == 6000 and is_equal_approx(GameState.reputation_progress, 0.5))
+	_write_test_save({"version": 13, "money": 9000, "day": 20, "reputation": 40, "inventory": {"rice": 4}, "unlocked": [],
+		"rank": 2, "equipment": {}, "staff": ["sato", "suzuki"], "history": [],
+		"staff_states": {"sato": {"mood": 12.0, "streak": 5, "bench": 0, "reasons": {"streak": 9.0}, "last_shift": false, "absent_day": 0}}})
+	GameState.use_save_path(TEST_SAVE_PATH)
+	var sato_state: Dictionary = GameState.get_staff_state("sato")
+	_check("セーブ移行 v13 -> v14（今いるスタッフは移行した日から在籍日数を数え、Lv1。満足度は捨てる。出勤は前回のまま）",
+		GameState.is_hired("sato") and GameState.is_hired("suzuki") and int(sato_state.get("enrolled", -1)) == 0
+		and not sato_state.has("mood") and GameState.get_staff_level("sato") == 1
+		and GameState.get_staff_days_left("sato") == Database.get_staff("sato").tenure_days
+		and not GameState.is_on_shift("sato") and GameState.is_on_shift("suzuki"), "state=%s" % [sato_state])
 	_check("セーブ移行 v8 -> v9（テーブル8卓→10席、7卓→6席。ほかの設備はそのまま）",
 		converted_8 == 2 and converted_7 == 1, "8卓→Lv%d 7卓→Lv%d" % [converted_8, converted_7])
 	_write_test_save({"version": 6, "money": 9000, "day": 8, "reputation": 20,
@@ -1017,8 +1027,8 @@ func _do_result(screen: Node) -> void:
 	if _days_done >= DAYS_TO_RUN:
 		var saved: String = FileAccess.get_file_as_string(GameState.save_path)
 		print("[smoke] save: ", saved.replace("\n", " "))
-		_check("セーブは version 13 で、前回の置き場・売れた数・売り逃し・解放済みの料理・ランク・履歴・設備・従業員・常連さんの持ち越しを含む",
-			saved.contains("\"version\": 13") and saved.contains("staff_states") and saved.contains("reputation_progress") and saved.contains("\"staff\"") and saved.contains("\"history\"") and saved.contains("\"equipment\"") and saved.contains("last_shelf") and saved.contains("last_sold")
+		_check("セーブは version 14 で、前回の置き場・売れた数・売り逃し・解放済みの料理・ランク・履歴・設備・従業員・常連さんの持ち越しを含む",
+			saved.contains("\"version\": 14") and saved.contains("staff_states") and saved.contains("staff_levels") and saved.contains("reputation_progress") and saved.contains("\"staff\"") and saved.contains("\"history\"") and saved.contains("\"equipment\"") and saved.contains("last_shelf") and saved.contains("last_sold")
 			and saved.contains("last_missed") and saved.contains("\"unlocked\"") and saved.contains("\"rank\""))
 		_finish()
 
