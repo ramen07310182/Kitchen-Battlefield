@@ -48,6 +48,7 @@ func _check_shift_and_wage() -> void:
 		and GameState.today.profit() == GameState.today.sales - GameState.today.ingredient_cost - GameState.today.other_expense - wage_both,
 		"labor=%d" % GameState.today.labor_cost)
 	GameState.advance_day()
+	_clear_sudden_absence()
 	var kept: bool = GameState.is_on_shift("sato") and GameState.is_on_shift("suzuki")
 	var off_ok: bool = GameState.set_shift("suzuki", false)
 	GameState.begin_business()
@@ -57,8 +58,16 @@ func _check_shift_and_wage() -> void:
 		and GameState.today.labor_cost == Database.get_staff("sato").daily_wage,
 		"worked=%s labor=%d" % [GameState.today.staff_worked, GameState.today.labor_cost])
 	GameState.advance_day()
+	_clear_sudden_absence()
 	_check.call("前回休みにした人は、次の日も休みから始まる（前回と同じ出勤）",
 		not GameState.is_on_shift("suzuki") and GameState.is_on_shift("sato"))
+
+
+## 「次の日へ」で決まる急な休み（確率）がテストの結果を変えないように、急な休みをなくして出勤を決め直す
+func _clear_sudden_absence() -> void:
+	for staff_id: String in GameState.hired_staff:
+		GameState.get_staff_state(staff_id)["absent_day"] = 0
+	GameState.call("_reset_shift_plan")
 
 
 func _check_unavailable() -> void:
