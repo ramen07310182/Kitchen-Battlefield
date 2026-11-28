@@ -1,6 +1,15 @@
 extends Node
 ## 動作確認用のボット。準備 → 営業 → 結果 → 次の日 を自動で2日分まわし、主なルールを確かめる。
-## 実行: Godot --headless --path . res://tests/smoke_test.tscn
+## 実行: Godot --headless --fixed-fps 60 --path . res://tests/smoke_test.tscn [-- --only=staff,save]
+##   --fixed-fps 60: 実時間を待たずにフレームを進める（ゲーム内の時間の進み方は同じで、10倍ほど速く終わる）
+##   --only=<まとまり>: そのまとまりだけを実行する（カンマ区切りで複数。省略時は全部）。最後の「本物のセーブは変わっていない」は必ず確かめる
+## まとまり（GROUPS）:
+##   save    : セーブの移行（古い version から最新へ）
+##   rules   : 画面を使わないルール（お金・仕入れ・仕込み・評判とランク・日付・設備・料理の確保・解放の日程・常連さん・売り逃し）
+##   layout  : 客席の並び方（席の拡張の各レベル・相席）
+##   staff   : トッピングとホールスタッフ（topping）、出勤・在籍日数・研修・面接代（shift）、厨房スタッフ（kitchen）
+##             topping / shift / kitchen だけを指定してもよい
+##   days    : 準備 → 営業 → 結果 → 強化 を画面で2日分まわす（準備・営業・結果・強化・記録の画面とセーブの中身）
 ## 本物のセーブ（user://save.json）は読み書きしない。テスト用のファイルに保存し、終わったら消す。
 ## 確かめる項目は [check] で始まる行に出し、1つでも失敗したら終了コード1で終わる。
 ##   1日目: 手順の行き来・食材不足で③に進めない・少なく仕込んで売り切れで早く閉店・置き場から外した料理が残りに戻る
@@ -40,39 +49,110 @@ var _day1_shelf: Array[String] = []
 var _day1_stats: DayStats = null
 
 
+const GROUPS: PackedStringArray = ["save", "rules", "layout", "topping", "shift", "kitchen", "days"]
+## まとめて指定できる名前
+const GROUP_ALIASES: Dictionary = { "staff": ["topping", "shift", "kitchen"] }
+
+## 実行するまとまり
+var _groups: PackedStringArray = GROUPS
+## まとまりごとの開始時刻（実時間の ms。かかった時間を出す）
+var _group_started: int = 0
+var _days_started: int = 0
+
+
 func _ready() -> void:
 	_real_save_before = _read_real_save()
+	_groups = _parse_groups()
+	if not OS.get_cmdline_args().has("--fixed-fps"):
+		print("[smoke] ヒント: --fixed-fps 60 を付けると、実時間を待たずに速く終わります")
+	print("[smoke] groups: ", ",".join(_groups))
 	# 前回のテストが途中で止まって残ったファイルがあれば消してから始める
 	GameState.use_save_path(TEST_SAVE_PATH)
 	GameState.delete_save()
-	_check_migration()
+	if _wants("save"):
+		_begin_group()
+		_check_migration()
+		_end_group("save")
 	GameState.delete_save()
 	GameState.use_save_path(TEST_SAVE_PATH)
-	_check_rules()
-	await _check_seat_layouts()
-	_check_unlock_schedule()
-	_check_regulars()
-	_check_missed_per_day()
-	var topping_staff: ToppingStaffChecks = ToppingStaffChecks.new()
-	add_child(topping_staff)
-	await topping_staff.run(_check)
-	_check("トッピングと従業員の確認が最後まで進んだ（途中でエラーが出ていない）", topping_staff.completed)
-	topping_staff.queue_free()
-	var staff_shift: StaffShiftChecks = StaffShiftChecks.new()
-	add_child(staff_shift)
-	await staff_shift.run(_check)
-	_check("スタッフの出勤・在籍日数・研修の確認が最後まで進んだ（途中でエラーが出ていない）", staff_shift.completed)
-	staff_shift.queue_free()
-	var kitchen_staff: KitchenStaffChecks = KitchenStaffChecks.new()
-	add_child(kitchen_staff)
-	await kitchen_staff.run(_check)
-	_check("厨房スタッフの確認が最後まで進んだ（途中でエラーが出ていない）", kitchen_staff.completed)
-	kitchen_staff.queue_free()
+	if _wants("rules"):
+		_begin_group()
+		_check_rules()
+		_check_unlock_schedule()
+		_check_regulars()
+		_check_missed_per_day()
+		_end_group("rules")
+	if _wants("layout"):
+		_begin_group()
+		await _check_seat_layouts()
+		_end_group("layout")
+	if _wants("topping"):
+		_begin_group()
+		var topping_staff: ToppingStaffChecks = ToppingStaffChecks.new()
+		add_child(topping_staff)
+		await topping_staff.run(_check)
+		_check("トッピングと従業員の確認が最後まで進んだ（途中でエラーが出ていない）", topping_staff.completed)
+		topping_staff.queue_free()
+		_end_group("topping")
+	if _wants("shift"):
+		_begin_group()
+		var staff_shift: StaffShiftChecks = StaffShiftChecks.new()
+		add_child(staff_shift)
+		await staff_shift.run(_check)
+		_check("スタッフの出勤・在籍日数・研修の確認が最後まで進んだ（途中でエラーが出ていない）", staff_shift.completed)
+		staff_shift.queue_free()
+		_end_group("shift")
+	if _wants("kitchen"):
+		_begin_group()
+		var kitchen_staff: KitchenStaffChecks = KitchenStaffChecks.new()
+		add_child(kitchen_staff)
+		await kitchen_staff.run(_check)
+		_check("厨房スタッフの確認が最後まで進んだ（途中でエラーが出ていない）", kitchen_staff.completed)
+		kitchen_staff.queue_free()
+		_end_group("kitchen")
+	if not _wants("days"):
+		_finish()
+		return
+	# 画面で2日分まわす（ここから先は _process で進め、最後に _finish を呼ぶ）
 	GameState.use_save_path(TEST_SAVE_PATH)
+	GameState.delete_save()
+	GameState.use_save_path(TEST_SAVE_PATH)
+	_days_started = Time.get_ticks_msec()
 	Engine.time_scale = 8.0
 	_main = MAIN_SCENE.instantiate()
 	add_child(_main)
 	print("[smoke] start money=%d day=%d rep=%d inv=%s" % [GameState.money, GameState.day, GameState.reputation, GameState.inventory])
+
+
+## --only=a,b を読む（staff は topping・shift・kitchen）。知らない名前があれば知らせて、全部を実行する
+func _parse_groups() -> PackedStringArray:
+	for arg: String in OS.get_cmdline_user_args():
+		if not arg.begins_with("--only="):
+			continue
+		var result: PackedStringArray = PackedStringArray()
+		for raw: String in arg.trim_prefix("--only=").split(",", false):
+			var name: String = raw.strip_edges()
+			var names: Array = GROUP_ALIASES.get(name, [name])
+			for n: String in names:
+				if not GROUPS.has(n):
+					push_error("[smoke] 知らないまとまり: %s（%s・staff）" % [n, ",".join(GROUPS)])
+					return GROUPS
+				if not result.has(n):
+					result.append(n)
+		return result
+	return GROUPS
+
+
+func _wants(group: String) -> bool:
+	return _groups.has(group)
+
+
+func _begin_group() -> void:
+	_group_started = Time.get_ticks_msec()
+
+
+func _end_group(group: String) -> void:
+	print("[smoke] time %s: %dms" % [group, Time.get_ticks_msec() - _group_started])
 
 
 func _check(name: String, ok: bool, detail: String = "") -> void:
@@ -1112,6 +1192,8 @@ func _shortages() -> Dictionary:
 
 
 func _finish() -> void:
+	if _days_started > 0:
+		print("[smoke] time days: %dms" % (Time.get_ticks_msec() - _days_started))
 	GameState.delete_save()
 	var test_file_left: bool = FileAccess.file_exists(TEST_SAVE_PATH)
 	var real_unchanged: bool = _read_real_save() == _real_save_before

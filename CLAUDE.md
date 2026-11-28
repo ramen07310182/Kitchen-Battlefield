@@ -11,6 +11,32 @@ Godot 4.x（GDScript）で作る iPhone / iPad 向けの2Dドット絵の定食�
 - 作業の区切りごとに、何を作ったか・未実装のもの・既知の問題を短く報告する
 - git: コミットは機能の区切りごとにしてよい。**pushはしない**（開発者がGitHub Desktopで行う）
 
+## 確認の段階
+作業時間を短くするため、確認は次の段階に分ける。指示に書かれていない確認は増やさない。
+
+- **軽い確認（ふだん。指示に特に書いていないとき）**
+  - ヘッドレス起動でエラーが出ないこと（`--import` でスクリプトのエラーが出ない）
+  - 変更に関係するスモークテストのまとまりだけを実行する（`--only=`）
+  - スクリーンショットは、見た目を変えた画面だけを、iPhoneの比率（1266×585）で1枚ずつ撮る（`--shots=`）
+- **しっかり確認（指示に「しっかり確認」と書かれたとき、またはセーブの形式を変えたとき）**
+  - スモークテストの全項目
+  - 見た目を変えた画面を、16:9（1280×720）・iPhone（1266×585）・iPad（1024×768）の3つの比率で撮る
+- **バランス確認（指示で数値の調整やボットでの確認を頼まれたときだけ）**
+  - `tests/reputation_sim.tscn` を高速モード（`--fast`）・seed 1 だけで回すのを基本にする
+  - seed を増やす・実際の営業画面でボットを動かす・比べる条件を増やすのは、指示があったときだけ
+- **報告書は短くする**。変更点・自分で決めた仕様・既知の問題を中心に書き、表は必要なものだけにする
+
+### 確認のコマンド（Godot は `C:\Godot\Godot_v4.7.2-stable_win64_console.exe`）
+- `--fixed-fps 60` を付けると、実時間を待たずにフレームを進める（ゲーム内の時間の進み方は同じなので、結果は変わらない）。テストとスクリーンショットでは付ける
+- 起動の確認: `godot --headless --path . --import`
+- スモークテスト: `godot --headless --fixed-fps 60 --path . res://tests/smoke_test.tscn -- --only=staff`
+  - まとまり: `save`（セーブの移行）・`rules`（お金・仕入れ・仕込み・評判とランク・日付・設備などのルール）・`layout`（客席の並び）・
+    `staff`（= `topping`・`shift`・`kitchen`）・`days`（準備〜営業〜結果〜強化を画面で2日分。準備・営業・結果の画面を変えたとき）
+  - カンマ区切りで複数指定できる。省略すると全部。最後に「本物のセーブは変わっていない」を必ず確かめる
+- スクリーンショット（ウィンドウが開く）: `godot --fixed-fps 60 --path . --resolution 1266x585 res://tests/screenshot.tscn -- --out=<フォルダ> --name=ip --shots=prep3,business`
+  - `--staff=3` で従業員がいる状態。場面の名前は `tests/screenshot.gd` の先頭に書いてある
+- バランス確認: `godot --headless --path . res://tests/reputation_sim.tscn -- --skill=good --days=365 --fast --seed=1`
+
 ## 絶対に守ること
 - **バンドルIDは固定し、変更しない**: `com.ramen07310182.oneopeshokudo`（変えるとセーブが引き継がれない。設定は `export_presets.cfg` の `application/bundle_identifier`）
 - アプリ拡張（ウィジェットなど）を追加しない

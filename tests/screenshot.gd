@@ -6,6 +6,10 @@ extends Node
 ## オプション: --seat-level=N（席の拡張のレベル）、--all-dishes（料理とトッピングをすべて解放）、
 ##   --staff=N（ランクを最大にして、従業員を N 人雇った状態で撮る。営業画面ではスタッフが運んでいるところを撮る。
 ##   3人以上のときは3人目を厨房担当にして、営業画面では店主とスタッフが同時に調理しているところも撮る）
+##   --shots=prep3,business（撮る場面を名前で選ぶ。カンマ区切り。最後の1枚を撮ったら終わる。省略時は全部）
+##   場面の名前: prep1 prep1_toppings prep1_detail prep2 prep2_shortage_dialog prep2_purchase_dialog prep3 prep3_staff
+##     business result upgrade upgrade_staff upgrade_detail prep_day2 calendar records records_30 business_max
+## --fixed-fps 60 を付けると、実時間を待たずに進むので速く終わる（撮れる絵は同じ）。
 ## 本物のセーブ（user://save.json）は読み書きしない。テスト用のファイルを使い、終わったら消す。
 
 const MAIN_SCENE: PackedScene = preload("res://scenes/main/main.tscn")
@@ -18,6 +22,8 @@ var _shot_name: String = "shot"
 var _seat_level: int = 0
 var _all_dishes: bool = false
 var _staff_count: int = 0
+## 撮る場面（空なら全部）と、まだ撮っていない場面
+var _wanted: PackedStringArray = PackedStringArray()
 
 
 func _ready() -> void:
@@ -32,6 +38,8 @@ func _ready() -> void:
 			_all_dishes = true
 		elif arg.begins_with("--staff="):
 			_staff_count = int(arg.trim_prefix("--staff="))
+		elif arg.begins_with("--shots="):
+			_wanted = arg.trim_prefix("--shots=").split(",", false)
 	DirAccess.make_dir_recursive_absolute(_out_dir)
 	GameState.use_save_path(TEST_SAVE_PATH)
 	GameState.delete_save()
@@ -319,8 +327,16 @@ func _wait_frames(count: int) -> void:
 
 
 func _shot(screen_name: String) -> void:
+	if not _wanted.is_empty() and not _wanted.has(screen_name):
+		return
 	await RenderingServer.frame_post_draw
 	var image: Image = get_viewport().get_texture().get_image()
 	var path: String = "%s/%s_%s.png" % [_out_dir, _shot_name, screen_name]
 	image.save_png(path)
 	print("[shot] ", path, " ", image.get_size())
+	# 選んだ場面を撮り終えたら、残りは進めずに終わる
+	if not _wanted.is_empty():
+		_wanted.remove_at(_wanted.find(screen_name))
+		if _wanted.is_empty():
+			GameState.delete_save()
+			get_tree().quit()
