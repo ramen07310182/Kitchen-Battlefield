@@ -1,0 +1,32 @@
+
+
+
+【iloaderからゲームを入れる】
+https://github.com/ramen07310182/Kitchen-Battlefield
+PCのブラウザで、GitHubのリポジトリの Releases → latest を開き、OneOpeShokudo.ipa をダウンロードする
+iPadをPCにつなぐ（ロックを解除しておく）
+iloaderで Import IPA を選び、ダウンロードした OneOpeShokudo.ipa を指定する
+終わると、iPadのホーム画面にゲームが出ます
+
+この方法の場合の、その後の決まりごと
+
+7日ごとの再署名は、iPadだけではできません。週に1回、iPadをPCにつないで、iloaderで同じ .ipa をもう一度 Import IPA します
+同じバンドルIDで上書きするので、セーブは消えません（ゲームのアプリは消さないでください）
+ゲームを更新するときも同じ手順です（新しい .ipa で Import IPA）
+
+
+--------------------------------------------------------------------------------------------------------------------------
+《初回に環境を整える》
+
+
+【2. PC：iTunes を入れる】
+PCのブラウザで「iTunes Windows ダウンロード」と検索し、Appleの公式サイトを開く
+Windows用（64ビット版） をダウンロードしてインストールする
+インストールできたら、一度 iTunes を起動しておく（閉じてもかまいません）
+
+iTunes は、PCがiPadを認識するためのドライバとして使うだけです。
+
+【3. PC：iloader を入れる】
+ブラウザで https://github.com/nab138/iloader/releases を開く
+いちばん上（最新版）の Assets を開き、iloader-windows-x64.msi をダウンロードする（見当たらなければ「Show all assets」を押す）
+ダウンロードしたファイルを開いてインストールする
