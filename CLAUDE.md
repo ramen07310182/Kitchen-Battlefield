@@ -3,6 +3,7 @@
 Godot 4.x（GDScript）で作る iPhone / iPad 向けの2Dドット絵の定食屋ゲーム。身内だけに配布する（App Storeには出さない）。
 - ゲーム仕様: `docs/game_design.md`
 - 配布方式の背景: `docs/distribution.md`
+- iOSビルドの手順: `docs/ios_build.md`
 
 ## 作業の進め方
 - **基本的に確認なしで作業を進めてよい**。仕様が曖昧なときは、妥当な案を選んで実装し、選んだ内容を作業後の報告に書く

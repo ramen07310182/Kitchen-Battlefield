@@ -1,6 +1,6 @@
 # 「ワンオペ！食堂は戦場に！？」iOS配布方針（開発用引き継ぎ）
 
-最終更新: 2026-11-26
+最終更新: 2026-11-28
 
 ## 前提・条件
 - エンジン: Godot 4.x（GDScriptで書く）
@@ -49,7 +49,7 @@
 - 家族への注意として「期限切れになっても**アプリを削除しない**。SideStoreで更新する」と伝える
 
 ## 今後のTODO
-- [ ] GitHub Actionsのワークフロー作成（Godotのヘッドレス書き出し → xcodebuildで署名なしビルド（`CODE_SIGNING_ALLOWED=NO`）→ Payloadフォルダをzipにして.ipa化 → Releases／Artifactsにアップロード）
+- [x] GitHub Actionsのワークフロー作成（手順は `docs/ios_build.md`。Godotのヘッドレス書き出し → xcodebuildで署名なしビルド（`CODE_SIGNING_ALLOWED=NO`）→ Payloadフォルダをzipにして.ipa化 → Releases／Artifactsにアップロード）
 - [ ] セーブと引き継ぎコード機能の実装
 - [ ] 自分の端末でSideStoreを導入し、実機テスト（このときにiOS実機テストの相談をする）
 - [ ] 家族の端末へ導入（それぞれの端末をWindows PCにつないで初回セットアップ）
