@@ -355,7 +355,7 @@ func _show_dish_detail(dish_id: String) -> void:
 		lines.append(UIText.DETAIL_DISH_LAST_NOT_SERVED)
 	else:
 		lines.append(UIText.DETAIL_DISH_LAST % [int(GameState.last_prep_counts.get(dish_id, 0)),
-			GameState.get_last_sold(dish_id), GameState.get_last_missed(dish_id)])
+			GameState.get_last_sold(dish_id)])
 	_detail.open(dish.display_name, lines, DetailPopup.Placement.RIGHT)
 
 

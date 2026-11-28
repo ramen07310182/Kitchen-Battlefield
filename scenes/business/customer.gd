@@ -131,6 +131,18 @@ func get_needed_items() -> Array[String]:
 	return result
 
 
+## あと何秒くらいで席を立つか（売り切れのあとの売り逃しを数えるときの目安）
+func get_estimated_stay() -> float:
+	match state:
+		State.WAITING_FOOD:
+			return minf(maxf(0.0, type_data.patience - wait_elapsed), 8.0) + type_data.eat_time
+		State.EATING:
+			return maxf(0.0, type_data.eat_time - _state_time)
+		State.LEAVING:
+			return 0.0
+	return _config.missed_stay_time
+
+
 ## 会計の金額（料理＋トッピング）
 func get_total_price() -> int:
 	return dish.price + (topping.price if topping != null else 0)

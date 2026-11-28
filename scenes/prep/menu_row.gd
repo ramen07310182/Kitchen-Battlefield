@@ -66,11 +66,9 @@ func _refresh_last_result() -> void:
 	if sold < 0:
 		_last_label.text = UIText.PREP_LAST_NOT_SERVED
 	else:
+		# 売り逃しの数は出さない（どれだけ仕込むかは自分で考える。結果画面ではその日の売り逃しを見られる）
 		var prepared: int = int(GameState.last_prep_counts.get(dish.id, 0))
-		var missed: int = GameState.get_last_missed(dish.id)
-		if missed > 0:
-			_last_label.text = UIText.PREP_LAST_SOLD_MORE % [sold, missed]
-		elif sold >= prepared and prepared > 0:
+		if sold >= prepared and prepared > 0:
 			_last_label.text = UIText.PREP_LAST_SOLD_ALL % sold
 		else:
 			_last_label.text = UIText.PREP_LAST_SOLD % sold

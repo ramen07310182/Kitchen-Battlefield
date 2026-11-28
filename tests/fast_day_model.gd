@@ -132,7 +132,7 @@ func run_day(opening: Dictionary) -> void:
 			# 注文できる料理がなくなったら、売り切れで閉店。残りの時間に来たはずの客は売り逃し
 			if not supply.has_orderable(menu):
 				GameState.record_sold_out()
-				_count_missed_after(menu, toppings, next_t, interval_scale)
+				_count_missed_after(menu, toppings, next_t, interval_scale, tables_free_at)
 				break
 		t = next_t
 	GameState.record_waste(supply.get_leftover())
@@ -172,9 +172,17 @@ func _precook(supply: DishSupply, buffer: Dictionary, capacity: int, chef_free: 
 	return maxf(free_at, chef_free)
 
 
-func _count_missed_after(menu: Array[DishData], toppings: Array[DishData], from_t: float, interval_scale: float) -> void:
+## 売り切れのあとに来たはずの客（営業画面と同じく、席が空いていない時に来た客は数えない）
+func _count_missed_after(menu: Array[DishData], toppings: Array[DishData], from_t: float, interval_scale: float,
+		tables_free_at: Array[float]) -> void:
+	var seats: Array[float] = tables_free_at.duplicate()
 	var t: float = from_t
 	while t < _config.business_duration:
+		var seat: int = _free_table(seats, t)
+		if seat < 0:
+			t += randf_range(_config.spawn_interval_min, _config.spawn_interval_max) * interval_scale
+			continue
+		seats[seat] = t + _config.missed_stay_time
 		var customer_type: CustomerTypeData = _pick_customer_type()
 		var wanted: DishData = OrderChooser.choose(customer_type, menu, _config)
 		if wanted != null:

@@ -96,12 +96,25 @@ func choose_order(customer_type: CustomerTypeData) -> Dictionary:
 
 ## 売り切れで閉店したあと、営業時間の残り seconds 秒のあいだに来店しようとしたはずの客を、
 ## いつもと同じ間隔・選び方で数える。戻り値: { 料理id: 頼みたかった人数 }
-func simulate_missed(seconds: float) -> Dictionary:
+## seat_free_in: 席ごとの「あと何秒で空くか」（空いていれば 0）。ふだんの営業と同じく、席が空いていない時に来た客は数えない。
+## 来たはずの客は1人 missed_stay_time 秒だけ席にいるとみなす
+func simulate_missed(seconds: float, seat_free_in: Array[float] = []) -> Dictionary:
 	var result: Dictionary = {}
 	if _config == null or _menu.is_empty():
 		return result
+	var seats: Array[float] = seat_free_in.duplicate()
 	var t: float = maxf(0.0, _timer)
 	while t <= seconds:
+		var seat: int = -1
+		for i: int in seats.size():
+			if seats[i] <= t:
+				seat = i
+				break
+		if not seats.is_empty() and seat < 0:
+			t += randf_range(_config.spawn_interval_min, _config.spawn_interval_max) * _interval_scale
+			continue
+		if seat >= 0:
+			seats[seat] = t + _config.missed_stay_time
 		var customer_type: CustomerTypeData = _pick_customer_type()
 		if customer_type != null:
 			var wanted: DishData = OrderChooser.choose(customer_type, _menu, _config)

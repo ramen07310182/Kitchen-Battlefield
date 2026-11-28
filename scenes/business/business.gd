@@ -107,7 +107,11 @@ func _close_sold_out() -> void:
 	_sold_out = true
 	GameState.record_sold_out()
 	# 閉店しなければ営業時間の残りに来たはずの客を、売り逃しとして数える
-	var missed: Dictionary = _spawner.simulate_missed(_time_left)
+	var seat_free_in: Array[float] = []
+	for i: int in _dining.get_seat_count():
+		var occupant: Customer = _dining.get_occupant(i)
+		seat_free_in.append(occupant.get_estimated_stay() if occupant != null else 0.0)
+	var missed: Dictionary = _spawner.simulate_missed(_time_left, seat_free_in)
 	for dish_id: String in missed:
 		GameState.record_missed(dish_id, int(missed[dish_id]))
 	_close()

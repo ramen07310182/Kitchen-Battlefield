@@ -36,6 +36,8 @@ var _last_time_left: float = 0.0
 ## 1日目の仕込み数と置き場（2日目の「前回と同じ仕込み」の確認用）
 var _day1_prep: Dictionary = {}
 var _day1_shelf: Array[String] = []
+## 1日目の集計（2日目の売り逃しに1日目の分が入っていないかの確認用）
+var _day1_stats: DayStats = null
 
 
 func _ready() -> void:
@@ -50,6 +52,7 @@ func _ready() -> void:
 	await _check_seat_layouts()
 	_check_unlock_schedule()
 	_check_regulars()
+	_check_missed_per_day()
 	var topping_staff: ToppingStaffChecks = ToppingStaffChecks.new()
 	add_child(topping_staff)
 	await topping_staff.run(_check)
@@ -76,6 +79,10 @@ func _process(delta: float) -> void:
 		_last_screen = screen.name
 		_cooldown = 0.5
 		print("[smoke] screen: ", screen.name)
+		if String(screen.name) == "Business" and _days_done == 1 and _day1_stats != null:
+			_check("2日目の営業は、売り逃しが0から始まる（1日目の集計とは別）",
+				GameState.today != _day1_stats and GameState.today.dish_missed.is_empty(),
+				"missed=%s" % [GameState.today.dish_missed])
 	if String(screen.name) == "Business":
 		_last_time_left = float(screen.get("_time_left"))
 	_cooldown -= delta
@@ -487,6 +494,31 @@ func _check_regulars() -> void:
 		GameState.reputation == 70 + Database.get_reputation_delta(-10.0, 3) and GameState.reputation < 70)
 
 
+## 売り逃しはその日の数: 2日目の集計・前回の売り逃し・評判の点数に1日目の分が入らない
+func _check_missed_per_day() -> void:
+	GameState.use_save_path(TEST_SAVE_PATH)
+	# 前回の売り逃しは、その日に仕込んだ料理について覚える
+	GameState.begin_business()
+	GameState.today.dish_prepared = { "karaage": 1, "yakizakana": 1 }
+	GameState.record_missed("karaage", 5)
+	GameState.finish_business()
+	var day1: int = GameState.get_last_missed("karaage")
+	GameState.advance_day()
+	GameState.begin_business()
+	GameState.today.dish_prepared = { "karaage": 1, "yakizakana": 1 }
+	var starts_empty: bool = GameState.today.dish_missed.is_empty()
+	GameState.record_missed("karaage", 2)
+	GameState.record_missed("yakizakana", 1)
+	var points: float = GameState.get_day_reputation_points()
+	GameState.finish_business()
+	_check("売り逃しはその日の数（2日目は1日目の分を含まない。前回の売り逃し・評判の点数も2日目の数）",
+		day1 == 5 and starts_empty and int(GameState.today.dish_missed.get("karaage", 0)) == 2
+		and GameState.get_last_missed("karaage") == 2 and GameState.get_last_missed("yakizakana") == 1
+		and is_equal_approx(points, 3.0 * Database.config.reputation_missed),
+		"day2=%s" % [GameState.today.dish_missed])
+	GameState.delete_save()
+
+
 ## 料理の解放日: 新しい20品が15〜340日目に順に散らばり、店主のおまかせ定食が最後（1年目の最後のほう）
 func _check_unlock_schedule() -> void:
 	var days: Array[int] = []
@@ -617,10 +649,10 @@ func _do_prep_day2(screen: Node, dialog: ConfirmDialog) -> void:
 	for row: MenuRow in menu_rows:
 		var label: Label = row.get("_last_label")
 		var sold: int = GameState.get_last_sold(row.dish.id)
-		if not label.visible or (sold >= 0 and not label.text.contains("%d食売れた" % sold)):
+		if not label.visible or (sold >= 0 and not label.text.contains("%d食売れた" % sold)) or label.text.contains("あと"):
 			last_ok = false
 		print("[smoke] %s: %s" % [row.dish.id, label.text])
-	_check("2日目の準備画面に「前回 ○食売れた」が出る", last_ok and not GameState.last_sold_counts.is_empty())
+	_check("2日目の準備画面に「前回 ○食売れた」が出る（売り逃しの「あと○食」は出さない）", last_ok and not GameState.last_sold_counts.is_empty())
 
 	# 所持金がマイナスのときは、上部バーの所持金が赤
 	var top_bar: TopBar = screen.get_node("SafeArea/VBox/TopBar")
@@ -667,6 +699,9 @@ func _do_prep_day2(screen: Node, dialog: ConfirmDialog) -> void:
 	await get_tree().create_timer(Database.config.long_press_time + 0.2).timeout
 	var opened: bool = detail.is_open()
 	var title: String = (detail.get("_title_label") as Label).text
+	var body: String = (detail.get("_body_label") as Label).text
+	_check("料理の詳細に、前回の仕込み数・売れた数は出て、売り逃しの数は出ない",
+		body.contains("前回: 仕込み") and not body.contains("売り逃し"), body.replace("\n", " / "))
 	_send_press_at(row_point, false)
 	await _frames(2)
 	_check("料理の行を長押しすると詳細が出て、離すと閉じる", opened and title == menu_rows[0].dish.display_name and not detail.is_open(),
@@ -898,6 +933,11 @@ func _do_result(screen: Node) -> void:
 		for dish_id: String in s.dish_missed:
 			missed += int(s.dish_missed[dish_id])
 		_check("売り切れで閉店したあとの客を売り逃しとして数える", missed > 0, "missed=%s" % [s.dish_missed])
+		var cfg: GameConfig = Database.config
+		var bound: int = s.visitors + GameState.get_seat_count() * ceili(cfg.business_duration / cfg.missed_stay_time) * 2
+		_check("売り切れのあとの売り逃しは、席の数の分までしか数えない（来客数に比べて多すぎない）",
+			missed <= bound, "missed=%d visitors=%d bound=%d" % [missed, s.visitors, bound])
+		_day1_stats = s
 	else:
 		var cost_check: int = 0
 		for dish_id: String in GameState.last_prep_counts:
@@ -906,6 +946,19 @@ func _do_result(screen: Node) -> void:
 			s.waste_count > 0 and s.waste_cost > 0 and s.ingredient_cost == cost_check,
 			"waste=%d cost=%d prep_cost=%d" % [s.waste_count, s.ingredient_cost, cost_check])
 		_check("結果画面に廃棄の行が出る", _grid_has_text(screen.get("_profit_grid"), "　" + UIText.RESULT_WASTE % s.waste_count))
+	if _days_done == 1 and _day1_stats != null:
+		var missed_total: int = 0
+		var same_as_last: bool = true
+		for dish_id: String in s.dish_missed:
+			missed_total += int(s.dish_missed[dish_id])
+		for dish_id: String in GameState.last_missed_counts:
+			if int(GameState.last_missed_counts[dish_id]) != int(s.dish_missed.get(dish_id, 0)):
+				same_as_last = false
+		var cfg2: GameConfig = Database.config
+		var expected_points: float = s.reputation_points + missed_total * cfg2.reputation_missed + s.mistakes * cfg2.reputation_mistake
+		_check("2日目の売り逃しは2日目の分だけ（保存する前回の売り逃し・評判の点数も同じ数を使う）",
+			s != _day1_stats and same_as_last and is_equal_approx(GameState.get_day_reputation_points(), expected_points),
+			"day1=%s day2=%s" % [_day1_stats.dish_missed, s.dish_missed])
 	var history_row: PackedInt32Array = GameState.get_history(GameState.day)
 	_check("営業結果で、その日の結果が履歴に入る（利益・来客数）",
 		not history_row.is_empty() and history_row[GameState.HISTORY_PROFIT] == s.profit()

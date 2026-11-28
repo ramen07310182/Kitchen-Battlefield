@@ -25,6 +25,9 @@ extends Resource
 @export var favorite_weight: float = 3.0
 ## 置き場の枠数（開店時に並べておける数もこれが上限）。設備「置き場の棚」があれば、そのデータの値を使う
 @export var shelf_capacity: int = 6
+## 売り切れで閉店したあと「来たはずの客」を数えるとき、1人が席にいるとみなす時間（秒）。
+## 席が空いていない時間に来た客は、ふだんの営業と同じく来店しない（売り逃しに数えない）
+@export var missed_stay_time: float = 15.0
 ## 営業終了後の画面に切り替わるまで（秒）
 @export var end_delay: float = 1.5
 
