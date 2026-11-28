@@ -394,6 +394,19 @@ func _check_migration() -> void:
 	GameState.use_save_path(TEST_SAVE_PATH)
 	_check("セーブ移行 v10 -> v11（常連さんの小数の持ち越しは 0 から。評判と従業員はそのまま）",
 		GameState.reputation == 40 and is_zero_approx(GameState.reputation_progress) and GameState.is_hired("sato"))
+	_write_test_save({"version": 11, "money": 9000, "day": 4, "reputation": 10, "inventory": {"rice": 4}, "unlocked": [],
+		"rank": 1, "equipment": {}, "staff": [], "reputation_progress": 0.5,
+		"history": [[1, 5000, 1000, 8, 40, 2], [2, 6000, 1500, 9, -1, 1], [3, 4000, -500, 7, 30, 0]]})
+	GameState.use_save_path(TEST_SAVE_PATH)
+	var old_rows_ok: bool = GameState.history.size() == 3
+	for row: PackedInt32Array in GameState.history:
+		if row.size() != GameState.HISTORY_SIZE or GameState.has_history_money(row):
+			old_rows_ok = false
+	var probe: RecordsChart = RecordsChart.new()
+	probe.set_rows(GameState.history)
+	probe.free()
+	_check("セーブ移行 v11 -> v12（履歴の売上などはそのまま、所持金は「記録なし」。グラフは所持金の線を描かない）",
+		old_rows_ok and GameState.get_history(2)[GameState.HISTORY_SALES] == 6000 and is_equal_approx(GameState.reputation_progress, 0.5))
 	_check("セーブ移行 v8 -> v9（テーブル8卓→10席、7卓→6席。ほかの設備はそのまま）",
 		converted_8 == 2 and converted_7 == 1, "8卓→Lv%d 7卓→Lv%d" % [converted_8, converted_7])
 	_write_test_save({"version": 6, "money": 9000, "day": 8, "reputation": 20,
@@ -653,6 +666,26 @@ func _do_prep_day2(screen: Node, dialog: ConfirmDialog) -> void:
 			last_ok = false
 		print("[smoke] %s: %s" % [row.dish.id, label.text])
 	_check("2日目の準備画面に「前回 ○食売れた」が出る（売り逃しの「あと○食」は出さない）", last_ok and not GameState.last_sold_counts.is_empty())
+
+	# 「記録」ボタンで通算の記録を出す。グラフの日を押すと、その日の日付と金額が出る
+	var records: RecordsPopup = screen.get("_records")
+	(screen.get("_records_button") as Button).pressed.emit()
+	await _frames(2)
+	var stats_grid: GridContainer = records.get("_stats_grid")
+	var first_value: Label = stats_grid.get_child(0).get_child(1) as Label
+	var chart: RecordsChart = records.get("_chart")
+	var chart_point: Vector2 = chart.get_global_rect().position + Vector2(chart.size.x * 0.5, chart.size.y * 0.5)
+	_send_press_at(chart_point, true)
+	await _frames(2)
+	_send_press_at(chart_point, false)
+	var detail_text: String = (records.get("_detail_label") as Label).text
+	var day1_row: PackedInt32Array = GameState.get_history(1)
+	_check("「記録」で通算の記録が開き、営業日数が出て、グラフを押すとその日の日付・売上・所持金が出る",
+		records.is_open() and first_value.text == UIText.REC_DAYS_VALUE % GameState.history.size()
+		and detail_text.contains("1日目") and detail_text.contains(UIText.money(day1_row[GameState.HISTORY_SALES]))
+		and detail_text.contains(UIText.money(day1_row[GameState.HISTORY_MONEY])), detail_text)
+	(records.get("_close_button") as Button).pressed.emit()
+	_check("記録の画面を閉じられる", not records.is_open())
 
 	# 所持金がマイナスのときは、上部バーの所持金が赤
 	var top_bar: TopBar = screen.get_node("SafeArea/VBox/TopBar")
@@ -960,9 +993,10 @@ func _do_result(screen: Node) -> void:
 			s != _day1_stats and same_as_last and is_equal_approx(GameState.get_day_reputation_points(), expected_points),
 			"day1=%s day2=%s" % [_day1_stats.dish_missed, s.dish_missed])
 	var history_row: PackedInt32Array = GameState.get_history(GameState.day)
-	_check("営業結果で、その日の結果が履歴に入る（利益・来客数）",
+	_check("営業結果で、その日の結果が履歴に入る（利益・来客数・営業が終わった時点の所持金）",
 		not history_row.is_empty() and history_row[GameState.HISTORY_PROFIT] == s.profit()
-		and history_row[GameState.HISTORY_VISITORS] == s.visitors)
+		and history_row[GameState.HISTORY_VISITORS] == s.visitors
+		and GameState.has_history_money(history_row) and history_row[GameState.HISTORY_MONEY] == GameState.money)
 	if _days_done == 0:
 		# 2日目は料理5種類で確かめるため、テストのために評判を上げて残りの料理を解放しておく
 		# （解放の判定そのものは _check_rules で確かめている）
@@ -978,8 +1012,8 @@ func _do_result(screen: Node) -> void:
 	if _days_done >= DAYS_TO_RUN:
 		var saved: String = FileAccess.get_file_as_string(GameState.save_path)
 		print("[smoke] save: ", saved.replace("\n", " "))
-		_check("セーブは version 11 で、前回の置き場・売れた数・売り逃し・解放済みの料理・ランク・履歴・設備・従業員・常連さんの持ち越しを含む",
-			saved.contains("\"version\": 11") and saved.contains("reputation_progress") and saved.contains("\"staff\"") and saved.contains("\"history\"") and saved.contains("\"equipment\"") and saved.contains("last_shelf") and saved.contains("last_sold")
+		_check("セーブは version 12 で、前回の置き場・売れた数・売り逃し・解放済みの料理・ランク・履歴・設備・従業員・常連さんの持ち越しを含む",
+			saved.contains("\"version\": 12") and saved.contains("reputation_progress") and saved.contains("\"staff\"") and saved.contains("\"history\"") and saved.contains("\"equipment\"") and saved.contains("last_shelf") and saved.contains("last_sold")
 			and saved.contains("last_missed") and saved.contains("\"unlocked\"") and saved.contains("\"rank\""))
 		_finish()
 

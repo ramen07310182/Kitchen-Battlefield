@@ -19,6 +19,7 @@ const COLOR_STEP_OTHER := Color(0.22, 0.2, 0.19)
 var _step: Step = Step.MENU
 var _step_buttons: Array[Button] = []
 var _calendar_button: Button
+var _records_button: Button
 ## ボタンを押した結果のお知らせ。次の操作をするまで表示する
 var _notice: String = ""
 var _pending: Pending = Pending.NONE
@@ -41,6 +42,7 @@ var _after_check_start: bool = false
 @onready var _dialog: ConfirmDialog = %ConfirmDialog
 @onready var _detail: DetailPopup = %DetailPopup
 @onready var _calendar: CalendarPopup = %CalendarPopup
+@onready var _records: RecordsPopup = %RecordsPopup
 
 
 func _ready() -> void:
@@ -102,6 +104,13 @@ func _build_step_bar() -> void:
 	calendar_button.pressed.connect(_calendar.open)
 	_step_bar.add_child(calendar_button)
 	_calendar_button = calendar_button
+	# カレンダーの横に「記録」（通算の数字とグラフ）
+	var records_button: Button = Button.new()
+	records_button.text = UIText.REC_BUTTON
+	records_button.custom_minimum_size = Vector2(64, 28)
+	records_button.pressed.connect(_records.open)
+	_step_bar.add_child(records_button)
+	_records_button = records_button
 
 
 func _on_back_pressed() -> void:

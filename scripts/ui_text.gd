@@ -235,6 +235,25 @@ const CAL_DETAIL_FUTURE := "%s　%d日目　まだ来ていない日です"
 const CAL_DETAIL_BEFORE := "%s　開店前です"
 
 
+# --- 通算の記録 ---
+const REC_BUTTON := "記録"
+const REC_TITLE := "通算の記録"
+const REC_PERIODS: Array[String] = ["30日", "90日", "全期間"]
+const REC_DAYS := "営業日数"
+const REC_DAYS_VALUE := "%d日"
+const REC_SALES := "通算の売上"
+const REC_PROFIT := "通算の利益"
+const REC_VISITORS := "通算の来客数"
+const REC_VISITORS_VALUE := "%d人"
+const REC_RATING := "評価の平均"
+const REC_STARS := "★%.1f"
+const REC_LEGEND := "棒：日ごとの売上（左の目盛り）　線：営業が終わった時点の所持金（右の目盛り。マイナスは赤）"
+const REC_HINT := "グラフを押すと、その日の日付と金額が出ます"
+const REC_DETAIL := "%s　%d日目　売上 %s　所持金 %s"
+const REC_NO_MONEY := "記録なし"
+const REC_EMPTY := "まだ記録がありません（営業すると記録されます）"
+
+
 ## マイナスの金額（所持金など）を出すときの色
 const COLOR_NEGATIVE_MONEY := Color(1.0, 0.45, 0.4)
 
@@ -252,6 +271,16 @@ static func money(value: int) -> String:
 		out = "," + digits.substr(digits.length() - 3) + out
 		digits = digits.substr(0, digits.length() - 3)
 	return ("-" if value < 0 else "") + "¥" + digits + out
+
+
+## グラフの目盛り用の短い金額（¥1.2万・¥350万・-¥3,000）
+static func money_short(value: int) -> String:
+	var a: int = absi(value)
+	var prefix: String = "-" if value < 0 else ""
+	if a >= 10000:
+		var man: float = a / 10000.0
+		return prefix + ("¥%d万" % roundi(man) if man >= 100.0 or is_equal_approx(man, roundf(man)) else "¥%.1f万" % man)
+	return money(value)
 
 
 static func stars(count: int) -> String:

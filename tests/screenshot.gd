@@ -167,6 +167,35 @@ func _run() -> void:
 	await _shot("calendar")
 	calendar.hide()
 
+	# 通算の記録（見た目の確認用に、テスト用のセーブの履歴を作る。最初の20日は所持金の記録がない古いセーブのつもり）
+	var keep_history: Array[PackedInt32Array] = GameState.history.duplicate()
+	var fake: Array = []
+	var fake_money: int = 10000
+	for d: int in range(1, 121):
+		var sales: int = 8000 + d * 150 + (d * 37 % 11) * 600
+		# 最初の1か月くらいは赤字続きで所持金がマイナスになる（赤い線の確認用）
+		fake_money += sales - 9000 - (6000 if d % 17 == 0 else 0) - (4500 if d <= 45 else 0)
+		var stars10: int = 30 + (d * 13 % 17)
+		fake.append([d, sales, sales - 9000, 10 + d / 8, stars10, 1, GameState.HISTORY_NO_MONEY if d <= 20 else fake_money])
+	GameState.call("_set_history", fake)
+	var records: RecordsPopup = prep2.get("_records")
+	records.open()
+	records.call("_set_period", 2)
+	await _wait_frames(3)
+	(records.get("_chart") as RecordsChart).select_index(60)
+	await _wait_frames(3)
+	await _shot("records")
+	records.call("_set_period", 0)
+	await _wait_frames(3)
+	(records.get("_chart") as RecordsChart).select_index(25)
+	await _wait_frames(3)
+	await _shot("records_30")
+	records.hide()
+	var restore: Array = []
+	for row: PackedInt32Array in keep_history:
+		restore.append(Array(row))
+	GameState.call("_set_history", restore)
+
 	# テーブル8卓・置き場8枠の営業画面（見た目の確認のため、設備を最大にする）
 	for e: EquipmentData in Database.equipment:
 		GameState.equipment_levels[e.id] = e.get_max_level()

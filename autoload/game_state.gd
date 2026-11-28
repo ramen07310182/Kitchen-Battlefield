@@ -18,7 +18,7 @@ signal inventory_changed
 signal reputation_changed(value: int)
 
 const DEFAULT_SAVE_PATH := "user://save.json"
-const SAVE_VERSION := 11
+const SAVE_VERSION := 12
 
 var money: int = 0
 var day: int = 1
@@ -44,7 +44,8 @@ var last_missed_counts: Dictionary = {}
 ## 店舗ランク（1始まり）。評判で上がり、一度上がったら評判が下がっても下げない（セーブする）
 var rank: int = 1
 ## 日ごとの結果の履歴（カレンダー用。セーブする）。1日1行の配列で持つ（何年分たまっても軽いように）
-##   [営業日, 売上, 利益, 来客数, 評価×10（評価なしは -1）, 評判の増減]
+##   [営業日, 売上, 利益, 来客数, 評価×10（評価なしは -1）, 評判の増減, その日の営業が終わった時点の所持金]
+##   所持金は version 12 から記録する（それより前の日は HISTORY_NO_MONEY）
 var history: Array[PackedInt32Array] = []
 ## 営業日 → history の位置
 var _history_index: Dictionary = {}
@@ -855,11 +856,16 @@ const HISTORY_PROFIT := 2
 const HISTORY_VISITORS := 3
 const HISTORY_STARS10 := 4
 const HISTORY_REPUTATION := 5
+const HISTORY_MONEY := 6
+const HISTORY_SIZE := 7
+## 所持金の記録がない日（古いセーブの日）
+const HISTORY_NO_MONEY := -2147483648
 
 
 func _record_history() -> void:
 	var stars10: int = roundi(today.average_stars() * 10.0) if today.has_ratings() else -1
-	var row: PackedInt32Array = PackedInt32Array([day, today.sales, today.profit(), today.visitors, stars10, today.reputation_change])
+	var row: PackedInt32Array = PackedInt32Array([day, today.sales, today.profit(), today.visitors, stars10, today.reputation_change,
+		clampi(money, HISTORY_NO_MONEY + 1, 2147483647)])
 	if _history_index.has(day):
 		history[int(_history_index[day])] = row
 	else:
@@ -885,8 +891,24 @@ func _set_history(rows: Variant) -> void:
 		var row: PackedInt32Array = PackedInt32Array()
 		for i: int in 6:
 			row.append(int((item as Array)[i]))
+		# 所持金の記録がない古い行は「記録なし」にする
+		row.append(int((item as Array)[HISTORY_MONEY]) if (item as Array).size() > HISTORY_MONEY else HISTORY_NO_MONEY)
 		_history_index[row[HISTORY_DAY]] = history.size()
 		history.append(row)
+
+
+## 履歴の営業日（日の順）
+func get_history_days() -> Array[int]:
+	var days: Array[int] = []
+	for row: PackedInt32Array in history:
+		days.append(row[HISTORY_DAY])
+	days.sort()
+	return days
+
+
+## その日の営業が終わった時点の所持金を記録しているか
+func has_history_money(row: PackedInt32Array) -> bool:
+	return row.size() > HISTORY_MONEY and row[HISTORY_MONEY] != HISTORY_NO_MONEY
 
 
 ## 前回の営業で、その料理が何食売れたか。前回仕込んでいない（または前回がない）なら -1
@@ -1105,5 +1127,17 @@ func _migrate(data: Dictionary) -> Dictionary:
 		# v11 で常連さんの分の評判（小数の持ち越し）を追加。古いセーブは 0 から始める
 		data["reputation_progress"] = 0.0
 		version = 11
+	if version == 11:
+		# v12 で履歴に「その日の営業が終わった時点の所持金」を追加。古い日は記録がないので「記録なし」にする
+		var rows: Array = []
+		var raw_history: Variant = data.get("history", [])
+		if raw_history is Array:
+			for item: Variant in raw_history:
+				if item is Array and (item as Array).size() >= 6:
+					var row: Array = (item as Array).slice(0, 6)
+					row.append(HISTORY_NO_MONEY)
+					rows.append(row)
+		data["history"] = rows
+		version = 12
 	data["version"] = version
 	return data

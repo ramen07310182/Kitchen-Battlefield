@@ -9,6 +9,7 @@
 [ext_resource type="PackedScene" path="res://scenes/common/confirm_dialog.tscn" id="7_dialog"]
 [ext_resource type="PackedScene" path="res://scenes/common/detail_popup.tscn" id="8_detail"]
 [ext_resource type="PackedScene" path="res://scenes/prep/calendar_popup.tscn" id="9_calendar"]
+[ext_resource type="PackedScene" path="res://scenes/prep/records_popup.tscn" id="10_records"]
 
 [node name="PrepScreen" type="Control"]
 layout_mode = 3
@@ -145,5 +146,9 @@ unique_name_in_owner = true
 layout_mode = 1
 
 [node name="CalendarPopup" parent="." instance=ExtResource("9_calendar")]
+unique_name_in_owner = true
+layout_mode = 1
+
+[node name="RecordsPopup" parent="." instance=ExtResource("10_records")]
 unique_name_in_owner = true
 layout_mode = 1
