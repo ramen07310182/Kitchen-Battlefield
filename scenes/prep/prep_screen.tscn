@@ -11,7 +11,9 @@
 [ext_resource type="PackedScene" path="res://scenes/prep/calendar_popup.tscn" id="9_calendar"]
 [ext_resource type="PackedScene" path="res://scenes/prep/records_popup.tscn" id="10_records"]
 
+[ext_resource type="Theme" path="res://assets/theme/bright_theme.tres" id="90_bright"]
 [node name="PrepScreen" type="Control"]
+theme = ExtResource("90_bright")
 layout_mode = 3
 anchors_preset = 15
 anchor_right = 1.0
@@ -28,7 +30,6 @@ anchor_bottom = 1.0
 grow_horizontal = 2
 grow_vertical = 2
 mouse_filter = 2
-color = Color(0.13, 0.11, 0.1, 1)
 
 [node name="SafeArea" type="MarginContainer" parent="."]
 layout_mode = 1
@@ -87,8 +88,7 @@ text_overrun_behavior = 3
 [node name="PaceLabel" type="Label" parent="SafeArea/VBox/Footer/FooterTexts"]
 unique_name_in_owner = true
 layout_mode = 2
-theme_type_variation = &"SmallLabel"
-theme_override_colors/font_color = Color(0.75, 0.75, 0.75, 1)
+theme_type_variation = &"SubLabel"
 text = "来店ペース"
 clip_text = true
 text_overrun_behavior = 3
@@ -108,8 +108,7 @@ horizontal_alignment = 2
 [node name="PurchaseNoteLabel" type="Label" parent="SafeArea/VBox/Footer/PurchaseTexts"]
 unique_name_in_owner = true
 layout_mode = 2
-theme_type_variation = &"SmallLabel"
-theme_override_colors/font_color = Color(1, 0.45, 0.4, 1)
+theme_type_variation = &"DangerSmallLabel"
 text = "所持金が足りません"
 horizontal_alignment = 2
 

@@ -53,6 +53,80 @@ const SHORT_BG := Color("f6d4cc")
 const STAFF_MOOD: Array[Color] = [Color("2e7a32"), Color("1d5fb4"), Color("b06200"), Color("bf3326")]
 ## 0（プラスでもマイナスでもない）
 const ZERO := Color("8a7a66")
+## ポップアップの後ろを暗くする色
+const DIM := Color(0.2, 0.13, 0.05, 0.45)
+## 料理の色の上に出す文字（置き場の枠など）
+const ON_ITEM := Color("2a1c0e")
+
+# --- 上部バー（準備・営業の両方で使う。自分の藍色の帯を持つので、どちらの背景でも読める） ---
+const TOPBAR := Color("223a63")
+const TOPBAR_TEXT := Color("ffffff")
+const TOPBAR_SUB := Color("c9d4e8")
+const TOPBAR_GAUGE_BG := Color(1, 1, 1, 0.18)
+const TOPBAR_GAUGE := Color("f2c14e")
+## 上部バー（暗い帯）の上の、マイナスの所持金・残り時間の注意
+const TOPBAR_DANGER := Color("ff8f80")
+const TOPBAR_WARNING := Color("ffd773")
+
+# --- カレンダー ---
+const CAL_CELL := Color("f7efdd")
+const CAL_CELL_EMPTY := Color("e9dfcc")
+const CAL_CELL_BORDER := Color("cdb994")
+const CAL_TODAY_BORDER := VERMILION
+const CAL_HOLIDAY := Color("9c8b74")
+
+# --- グラフ（記録の画面） ---
+const CHART_BAR := Color("e0a24a")
+const CHART_BAR_SELECTED := Color("c4462c")
+const CHART_LINE := Color("1d5fb4")
+const CHART_GRID := Color("e3d6bd")
+const CHART_AXIS := Color("b8a37f")
+const CHART_SELECT := Color(0.23, 0.16, 0.1, 0.45)
+
+# --- 営業画面（暗い背景。あとでドット絵に差し替える） ---
+const BIZ_PANEL := Color(0.22, 0.24, 0.26)
+const BIZ_PANEL_DARK := Color(0.15, 0.16, 0.17)
+const BIZ_ORDER_PANEL := Color(0.12, 0.12, 0.14, 0.95)
+const BIZ_SLOT_BORDER := Color(0.35, 0.35, 0.35)
+const BIZ_TEXT_SUB := Color(0.75, 0.75, 0.75)
+## 置き場で、持っていない枠を暗くする・スタッフが取りに来ている枠を薄くする
+const BIZ_DIMMED := Color(0.6, 0.6, 0.6)
+const BIZ_RESERVED := Color(1, 1, 1, 0.35)
+const BIZ_HELD_BORDER := Color(1, 1, 1)
+## 注文状況の行（待ち時間が短い・ふつう・長い）
+const BIZ_ORDER_OK := Color(0.2, 0.32, 0.22)
+const BIZ_ORDER_WAIT := Color(0.55, 0.45, 0.12)
+const BIZ_ORDER_DANGER := Color(0.7, 0.18, 0.15)
+## お客さんの待ち時間のゲージ（短い・ふつう・長い）
+const BIZ_GAUGE_OK := Color(0.4, 0.85, 0.4)
+const BIZ_GAUGE_WAIT := Color(0.95, 0.8, 0.3)
+const BIZ_GAUGE_DANGER := Color(0.95, 0.3, 0.25)
+## お客さんの上に出る文字（ちがう・満足度・あと○○・会計・怒って帰る）
+const BIZ_POPUP_WRONG := Color(1.0, 0.5, 0.4)
+const BIZ_POPUP_GOOD := Color(0.6, 1.0, 0.6)
+const BIZ_POPUP_PARTIAL := Color(0.85, 0.95, 1.0)
+const BIZ_POPUP_PAID := Color(1.0, 0.9, 0.4)
+const BIZ_POPUP_ANGRY := Color(1.0, 0.45, 0.4)
+## 料理の絵があるときの吹き出しの背景
+const BIZ_BUBBLE_WITH_ICON := Color(1, 1, 1, 0.9)
+## 配膳できる席を光らせる色
+const BIZ_SEAT_HIGHLIGHT := Color(1.0, 0.9, 0.3)
+## 絵がないときの家具の代用の色（カウンター・テーブルの天板と脚、イス、テーブルの番号）
+const BIZ_COUNTER_TOP := Color(0.62, 0.45, 0.28)
+const BIZ_COUNTER_LEG := Color(0.45, 0.32, 0.2)
+const BIZ_TABLE_TOP := Color(0.7, 0.5, 0.3)
+const BIZ_TABLE_LEG := Color(0.5, 0.35, 0.22)
+const BIZ_TABLE_LABEL := Color(0.3, 0.18, 0.1)
+const BIZ_STOOL := Color(0.5, 0.36, 0.24)
+const BIZ_CHAIR := Color(0.45, 0.3, 0.2)
+
+# --- 一覧のスクロールの棒 ---
+## 明るい画面
+const SCROLL_BAR := Color(0.23, 0.16, 0.1, 0.4)
+const SCROLL_BAR_BG := Color(0.23, 0.16, 0.1, 0.08)
+## 営業画面（暗い背景）
+const SCROLL_BAR_DARK := Color(1, 1, 1, 0.35)
+const SCROLL_BAR_BG_DARK := Color(1, 1, 1, 0.06)
 
 
 ## 角の丸いパネル（枠線つき）

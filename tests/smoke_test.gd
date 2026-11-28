@@ -697,10 +697,10 @@ func _do_prep_day2(screen: Node, dialog: ConfirmDialog) -> void:
 	var money_keep: int = GameState.money
 	GameState.add_money(-money_keep - 12300)
 	var money_label: Label = top_bar.get("_money_label")
-	var red: bool = money_label.text == "-¥12,300" and money_label.get_theme_color("font_color") == UIText.COLOR_NEGATIVE_MONEY
+	var red: bool = money_label.text == "-¥12,300" and money_label.get_theme_color("font_color") == UIColors.TOPBAR_DANGER
 	GameState.add_money(money_keep + 12300)
 	_check("所持金がマイナスのとき、上部バーに「-¥12,300」と赤で出る（プラスに戻ると白）",
-		red and money_label.get_theme_color("font_color") == Color.WHITE, money_label.text)
+		red and money_label.get_theme_color("font_color") == UIColors.TOPBAR_TEXT, money_label.text)
 
 	(menu_step.get("_repeat_button") as Button).pressed.emit()
 	_check("「前回と同じ仕込み」で仕込み数と置き場が前回と同じになる",

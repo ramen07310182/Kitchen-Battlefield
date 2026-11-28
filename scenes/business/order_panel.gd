@@ -19,7 +19,7 @@ var _blink_time: float = 0.0
 
 
 func _ready() -> void:
-	add_theme_stylebox_override("panel", UISkin.panel_box(SpriteKeys.PANEL, UIUtil.flat_box(Color(0.12, 0.12, 0.14, 0.95))))
+	add_theme_stylebox_override("panel", UISkin.panel_box(SpriteKeys.PANEL, UIUtil.flat_box(UIColors.BIZ_ORDER_PANEL)))
 	_title_label.text = UIText.ORDER_TITLE
 	_empty_label.text = UIText.ORDER_EMPTY
 
@@ -50,13 +50,13 @@ func show_orders(orders: Array[Dictionary], great_ratio: float, good_ratio: floa
 		_wait_labels[i].text = UIText.ORDER_WAIT % int(order["elapsed"])
 		var box: StyleBoxFlat = _row_boxes[i]
 		box.border_color = dish.color
-		row.modulate = Color.WHITE
+		row.modulate = Color(1, 1, 1, 1)
 		if ratio <= great_ratio:
-			box.bg_color = Color(0.2, 0.32, 0.22)
+			box.bg_color = UIColors.BIZ_ORDER_OK
 		elif ratio <= good_ratio:
-			box.bg_color = Color(0.55, 0.45, 0.12)
+			box.bg_color = UIColors.BIZ_ORDER_WAIT
 		else:
-			box.bg_color = Color(0.7, 0.18, 0.15)
+			box.bg_color = UIColors.BIZ_ORDER_DANGER
 			# 危ない注文は点滅させる
 			row.modulate = Color(1, 1, 1, 0.65 + 0.35 * absf(sin(_blink_time * 6.0)))
 	_empty_label.visible = orders.is_empty()
@@ -64,7 +64,7 @@ func show_orders(orders: Array[Dictionary], great_ratio: float, good_ratio: floa
 
 func _add_row() -> void:
 	var row: PanelContainer = PanelContainer.new()
-	var box: StyleBoxFlat = UIUtil.flat_box(Color(0.2, 0.32, 0.22), Color.WHITE, 0, 2)
+	var box: StyleBoxFlat = UIUtil.flat_box(UIColors.BIZ_ORDER_OK, Color.WHITE, 0, 2)
 	box.border_width_left = 5
 	box.content_margin_left = 9
 	row.add_theme_stylebox_override("panel", box)

@@ -38,7 +38,7 @@ var customer_position: Vector2 = Vector2.ZERO
 
 
 func _ready() -> void:
-	_highlight.add_theme_stylebox_override("panel", UIUtil.flat_box(Color(1.0, 0.9, 0.3, 0.14), Color(1.0, 0.9, 0.3), 2, 4))
+	_highlight.add_theme_stylebox_override("panel", UIUtil.flat_box(Color(UIColors.BIZ_SEAT_HIGHLIGHT, 0.14), UIColors.BIZ_SEAT_HIGHLIGHT, 2, 4))
 	_highlight.hide()
 	UIUtil.apply_button_style(_tap_button, StyleBoxEmpty.new())
 	_tap_button.pressed.connect(func() -> void: tapped.emit(seat_index))
@@ -52,7 +52,7 @@ func setup(index: int, label: String, short_label: String, seat_kind: Kind, tabl
 	table_index = table
 	_label.text = short_label
 	_chair.sprite_key = SpriteKeys.STOOL if kind == Kind.COUNTER else SpriteKeys.CHAIR
-	_chair_shape.color = Color(0.5, 0.36, 0.24) if kind == Kind.COUNTER else Color(0.45, 0.3, 0.2)
+	_chair_shape.color = UIColors.BIZ_STOOL if kind == Kind.COUNTER else UIColors.BIZ_CHAIR
 
 
 ## 席の置き場所を決める。tap_rect: タップできる範囲、customer_pos: お客さんの左上、chair_center: イスの中心（すべて客席エリアの座標）

@@ -5,13 +5,13 @@ extends Control
 ## 左右の矢印で前後の月へ（2027年1月より前と、今日の翌月より先には行けない）。日付を押すと、その日の結果の要約を出す。
 
 const CELL_SIZE := Vector2(58, 34)
-const COLOR_PLUS := Color(0.5, 0.72, 1.0)
-const COLOR_MINUS := Color(1.0, 0.48, 0.42)
-const COLOR_ZERO := Color(0.6, 0.6, 0.6)
-const COLOR_HOLIDAY := Color(0.5, 0.5, 0.5)
-const COLOR_CELL := Color(0.2, 0.18, 0.17)
-const COLOR_CELL_EMPTY := Color(0.14, 0.13, 0.12)
-const COLOR_TODAY_BORDER := Color(1.0, 0.85, 0.4)
+const COLOR_PLUS := UIColors.PLUS
+const COLOR_MINUS := UIColors.DANGER
+const COLOR_ZERO := UIColors.ZERO
+const COLOR_HOLIDAY := UIColors.CAL_HOLIDAY
+const COLOR_CELL := UIColors.CAL_CELL
+const COLOR_CELL_EMPTY := UIColors.CAL_CELL_EMPTY
+const COLOR_TODAY_BORDER := UIColors.CAL_TODAY_BORDER
 
 var _year: int = GameCalendar.START_YEAR
 var _month: int = GameCalendar.START_MONTH
@@ -28,7 +28,8 @@ var _month: int = GameCalendar.START_MONTH
 
 
 func _ready() -> void:
-	var box: StyleBoxFlat = UIUtil.flat_box(Color(0.12, 0.11, 0.1, 0.98), Color(0.85, 0.75, 0.55), 2, 4)
+	($Dim as ColorRect).color = UIColors.DIM
+	var box: StyleBoxFlat = UIUtil.flat_box(UIColors.PANEL, UIColors.ACCENT, 2, 6)
 	box.set_content_margin_all(8)
 	_panel.add_theme_stylebox_override("panel", box)
 	_close_button.text = UIText.CAL_CLOSE
@@ -41,7 +42,7 @@ func _ready() -> void:
 		label.custom_minimum_size = Vector2(CELL_SIZE.x, 0)
 		label.horizontal_alignment = HORIZONTAL_ALIGNMENT_CENTER
 		label.theme_type_variation = &"SmallLabel"
-		label.modulate = COLOR_HOLIDAY if i == GameCalendar.HOLIDAY_WEEKDAY else Color(0.85, 0.85, 0.85)
+		label.add_theme_color_override("font_color", COLOR_HOLIDAY if i == GameCalendar.HOLIDAY_WEEKDAY else UIColors.TEXT_SUB)
 		_weekdays.add_child(label)
 	hide()
 
@@ -105,7 +106,7 @@ func _rebuild() -> void:
 			total += int(cell["profit"])
 		_grid.add_child(_make_cell(d, offset, cell))
 	_total_label.text = UIText.CAL_MONTH_TOTAL % _signed_money(total)
-	_total_label.modulate = _profit_color(total)
+	_total_label.add_theme_color_override("font_color", _profit_color(total))
 
 
 ## その日のマスの中身。kind: "before"（開店前）/"holiday"/"done"（営業済み）/"no_record"/"today"/"future"
@@ -162,7 +163,7 @@ func _make_cell(date_number: int, offset: int, cell: Dictionary) -> Button:
 	button.custom_minimum_size = CELL_SIZE
 	var today: bool = kind == "today"
 	var bg: Color = COLOR_CELL if kind in ["done", "today", "no_record"] else COLOR_CELL_EMPTY
-	UIUtil.apply_button_style(button, UIUtil.flat_box(bg, COLOR_TODAY_BORDER if today else Color(0.3, 0.28, 0.26), 2 if today else 1, 2))
+	UIUtil.apply_button_style(button, UIUtil.flat_box(bg, COLOR_TODAY_BORDER if today else UIColors.CAL_CELL_BORDER, 2 if today else 1, 2))
 	var box: VBoxContainer = VBoxContainer.new()
 	box.set_anchors_preset(Control.PRESET_FULL_RECT)
 	box.add_theme_constant_override("separation", -2)
@@ -172,7 +173,7 @@ func _make_cell(date_number: int, offset: int, cell: Dictionary) -> Button:
 	date_label.text = str(date_number)
 	date_label.theme_type_variation = &"SmallLabel"
 	date_label.mouse_filter = Control.MOUSE_FILTER_IGNORE
-	date_label.modulate = COLOR_HOLIDAY if kind in ["holiday", "before"] else Color(0.85, 0.85, 0.85)
+	date_label.add_theme_color_override("font_color", COLOR_HOLIDAY if kind in ["holiday", "before"] else UIColors.TEXT)
 	box.add_child(date_label)
 	var value_label: Label = Label.new()
 	value_label.theme_type_variation = &"SmallLabel"
@@ -181,15 +182,15 @@ func _make_cell(date_number: int, offset: int, cell: Dictionary) -> Button:
 	match kind:
 		"holiday":
 			value_label.text = UIText.CAL_HOLIDAY
-			value_label.modulate = COLOR_HOLIDAY
+			value_label.add_theme_color_override("font_color", COLOR_HOLIDAY)
 		"done":
 			value_label.text = CalendarPopup.short_profit(int(cell["profit"]))
-			value_label.modulate = _profit_color(int(cell["profit"]))
+			value_label.add_theme_color_override("font_color", _profit_color(int(cell["profit"])))
 		_:
 			value_label.text = ""
 	box.add_child(value_label)
 	button.set_meta("value_text", value_label.text)
-	button.set_meta("value_color", value_label.modulate)
+	button.set_meta("value_color", value_label.get_theme_color("font_color"))
 	button.pressed.connect(_on_cell_pressed.bind(offset))
 	return button
 

@@ -3,7 +3,9 @@
 [ext_resource type="Script" path="res://scenes/result/result_screen.gd" id="1_result"]
 [ext_resource type="Script" path="res://scripts/ui/safe_area_container.gd" id="2_safe"]
 
+[ext_resource type="Theme" path="res://assets/theme/bright_theme.tres" id="90_bright"]
 [node name="ResultScreen" type="Control"]
+theme = ExtResource("90_bright")
 layout_mode = 3
 anchors_preset = 15
 anchor_right = 1.0
@@ -20,7 +22,6 @@ anchor_bottom = 1.0
 grow_horizontal = 2
 grow_vertical = 2
 mouse_filter = 2
-color = Color(0.13, 0.11, 0.1, 1)
 
 [node name="SafeArea" type="MarginContainer" parent="."]
 layout_mode = 1
@@ -57,8 +58,7 @@ text = "評判 +0"
 [node name="RatingLabel" type="Label" parent="SafeArea/VBox/Header"]
 unique_name_in_owner = true
 layout_mode = 2
-theme_override_colors/font_color = Color(1, 0.85, 0.35, 1)
-theme_type_variation = &"LargeLabel"
+theme_type_variation = &"GoldLargeLabel"
 text = "今日の評価"
 horizontal_alignment = 2
 
@@ -70,22 +70,20 @@ theme_override_constants/h_separation = 16
 [node name="RankUpLabel" type="Label" parent="SafeArea/VBox/News"]
 unique_name_in_owner = true
 layout_mode = 2
-theme_type_variation = &"HeaderLabel"
-theme_override_colors/font_color = Color(1, 0.85, 0.4, 1)
+theme_type_variation = &"VermilionHeaderLabel"
 text = "ランクアップ"
 
 [node name="UnlockLabel" type="Label" parent="SafeArea/VBox/News"]
 unique_name_in_owner = true
 layout_mode = 2
-theme_type_variation = &"HeaderLabel"
-theme_override_colors/font_color = Color(0.6, 1, 0.65, 1)
+theme_type_variation = &"GoodHeaderLabel"
 text = "新メニュー解放"
 
 [node name="NoteLabel" type="Label" parent="SafeArea/VBox/News"]
 unique_name_in_owner = true
+theme_type_variation = &"WarningLabel"
 layout_mode = 2
 size_flags_vertical = 4
-theme_override_colors/font_color = Color(1, 0.85, 0.4, 1)
 text = "売り切れで早めに閉店しました"
 
 [node name="Columns" type="HBoxContainer" parent="SafeArea/VBox"]
@@ -111,8 +109,7 @@ columns = 2
 [node name="ServiceLabel" type="Label" parent="SafeArea/VBox"]
 unique_name_in_owner = true
 layout_mode = 2
-theme_type_variation = &"SmallLabel"
-theme_override_colors/font_color = Color(0.8, 0.8, 0.8, 1)
+theme_type_variation = &"SubLabel"
 text = "来客数"
 clip_text = true
 text_overrun_behavior = 3
@@ -132,8 +129,7 @@ unique_name_in_owner = true
 layout_mode = 2
 size_flags_horizontal = 3
 size_flags_vertical = 8
-theme_type_variation = &"SmallLabel"
-theme_override_colors/font_color = Color(0.7, 0.7, 0.7, 1)
+theme_type_variation = &"SubLabel"
 text = "凡例"
 clip_text = true
 text_overrun_behavior = 3
@@ -159,8 +155,7 @@ unique_name_in_owner = true
 layout_mode = 2
 size_flags_horizontal = 3
 size_flags_vertical = 4
-theme_type_variation = &"SmallLabel"
-theme_override_colors/font_color = Color(0.6, 0.85, 1, 1)
+theme_type_variation = &"InfoLabel"
 text = "明日は定休日です"
 autowrap_mode = 3
 

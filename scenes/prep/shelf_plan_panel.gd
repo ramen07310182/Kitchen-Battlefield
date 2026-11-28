@@ -23,12 +23,12 @@ var _clear_button: Button
 
 
 func _ready() -> void:
-	add_theme_stylebox_override("panel", UIUtil.flat_box(Color(0.18, 0.19, 0.2)))
+	add_theme_stylebox_override("panel", UIColors.panel_box(UIColors.PANEL))
 	for i: int in GameState.get_shelf_capacity():
 		var slot: Button = Button.new()
 		slot.custom_minimum_size = slot_size
-		slot.add_theme_color_override("font_color", Color(0.1, 0.08, 0.05))
-		slot.add_theme_color_override("font_disabled_color", Color(0.1, 0.08, 0.05))
+		slot.add_theme_color_override("font_color", UIColors.ON_ITEM)
+		slot.add_theme_color_override("font_disabled_color", UIColors.ON_ITEM)
 		slot.icon_alignment = HORIZONTAL_ALIGNMENT_CENTER
 		slot.pressed.connect(func() -> void: remove_requested.emit(i))
 		_slots.add_child(slot)
@@ -58,7 +58,7 @@ func refresh() -> void:
 			slot.text = ""
 			slot.icon = null
 			slot.disabled = true
-			UIUtil.apply_button_style(slot, UIUtil.flat_box(Color(0.12, 0.13, 0.14), Color(0.35, 0.35, 0.35), 1))
+			UIUtil.apply_button_style(slot, UIUtil.flat_box(UIColors.ROW_DIM, UIColors.BORDER, 1))
 		else:
 			var icon: Texture2D = SpriteLibrary.get_icon(SpriteKeys.dish(dish.id))
 			slot.icon = icon

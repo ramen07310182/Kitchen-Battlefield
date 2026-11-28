@@ -22,7 +22,7 @@ var dish: DishData
 
 
 func _ready() -> void:
-	add_theme_stylebox_override("panel", UIUtil.flat_box(Color(0.2, 0.17, 0.15)))
+	add_theme_stylebox_override("panel", UIColors.panel_box(UIColors.ROW, 4))
 	_minus_button.step_requested.connect(func(step: int) -> void: prep_changed.emit(dish.id, step))
 	_plus_button.step_requested.connect(func(step: int) -> void: prep_changed.emit(dish.id, step))
 	_long_press.long_pressed.connect(func() -> void: detail_requested.emit(dish.id))
@@ -47,8 +47,8 @@ func refresh(expected_orders: Dictionary) -> void:
 		Database.get_ingredient_names(dish),
 	]
 	# 仕込み数が0の料理（今日は出さない）は少し暗くする
-	_name_label.modulate = Color.WHITE if on else Color(0.7, 0.7, 0.7)
-	_info_label.modulate = _name_label.modulate
+	_name_label.add_theme_color_override("font_color", UIColors.TEXT if on else UIColors.TEXT_SUB)
+	_info_label.add_theme_color_override("font_color", UIColors.TEXT_SUB)
 	_refresh_last_result()
 	_refresh_shortage(on)
 	_count_label.text = str(count)

@@ -22,7 +22,8 @@ var _period_buttons: Array[Button] = []
 
 
 func _ready() -> void:
-	var box: StyleBoxFlat = UIUtil.flat_box(Color(0.12, 0.11, 0.1, 0.98), Color(0.85, 0.75, 0.55), 2, 4)
+	($Dim as ColorRect).color = UIColors.DIM
+	var box: StyleBoxFlat = UIUtil.flat_box(UIColors.PANEL, UIColors.ACCENT, 2, 6)
 	box.set_content_margin_all(8)
 	_panel.add_theme_stylebox_override("panel", box)
 	_title_label.text = UIText.REC_TITLE
@@ -56,6 +57,8 @@ func _set_period(index: int) -> void:
 	_period = index
 	for i: int in _period_buttons.size():
 		_period_buttons[i].button_pressed = i == index
+		# 選んでいる期間は藍色、ほかは明るい色
+		UIColors.apply_toggle_style(_period_buttons[i], i == index)
 	var rows: Array[PackedInt32Array] = _rows_for_period(PERIODS[index])
 	_chart.set_rows(rows)
 	_empty_label.visible = rows.is_empty()
@@ -92,11 +95,11 @@ func _rebuild_stats() -> void:
 			star_total += row[GameState.HISTORY_STARS10]
 			star_days += 1
 	var stars_text: String = UIText.REC_STARS % (float(star_total) / 10.0 / star_days) if star_days > 0 else UIText.RESULT_NO_RATING
-	_add_stat(UIText.REC_DAYS, UIText.REC_DAYS_VALUE % days, Color.WHITE)
-	_add_stat(UIText.REC_SALES, UIText.money(sales), Color.WHITE)
+	_add_stat(UIText.REC_DAYS, UIText.REC_DAYS_VALUE % days, UIColors.TEXT)
+	_add_stat(UIText.REC_SALES, UIText.money(sales), UIColors.TEXT)
 	_add_stat(UIText.REC_PROFIT, UIText.money(profit), UIText.money_color(profit))
-	_add_stat(UIText.REC_VISITORS, UIText.REC_VISITORS_VALUE % visitors, Color.WHITE)
-	_add_stat(UIText.REC_RATING, stars_text, Color(1.0, 0.85, 0.4))
+	_add_stat(UIText.REC_VISITORS, UIText.REC_VISITORS_VALUE % visitors, UIColors.TEXT)
+	_add_stat(UIText.REC_RATING, stars_text, UIColors.WARNING)
 
 
 func _add_stat(name_text: String, value_text: String, color: Color) -> void:
@@ -106,7 +109,7 @@ func _add_stat(name_text: String, value_text: String, color: Color) -> void:
 	var name_label: Label = Label.new()
 	name_label.text = name_text
 	name_label.theme_type_variation = &"SmallLabel"
-	name_label.modulate = Color(0.75, 0.75, 0.75)
+	name_label.add_theme_color_override("font_color", UIColors.TEXT_SUB)
 	box.add_child(name_label)
 	var value_label: Label = Label.new()
 	value_label.text = value_text
@@ -122,4 +125,4 @@ func _on_day_selected(row: PackedInt32Array) -> void:
 	var money_text: String = UIText.money(row[GameState.HISTORY_MONEY]) if GameState.has_history_money(row) else UIText.REC_NO_MONEY
 	_detail_label.text = UIText.REC_DETAIL % [date_text, business_day, UIText.money(row[GameState.HISTORY_SALES]), money_text]
 	var negative: bool = GameState.has_history_money(row) and row[GameState.HISTORY_MONEY] < 0
-	_detail_label.add_theme_color_override("font_color", UIText.COLOR_NEGATIVE_MONEY if negative else Color.WHITE)
+	_detail_label.add_theme_color_override("font_color", UIColors.DANGER if negative else UIColors.TEXT)

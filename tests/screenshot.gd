@@ -49,6 +49,11 @@ func _ready() -> void:
 		for data: StaffData in Database.staff:
 			if GameState.hired_staff.size() < _staff_count:
 				GameState.hire_staff(data.id)
+		# 準備③の見た目の確認用: 1人目は疲れ気味（注意が出る）。1日目は金曜なので田中さんは定休で休み
+		if not GameState.hired_staff.is_empty():
+			var first: Dictionary = GameState.get_staff_state(GameState.hired_staff[0])
+			first["mood"] = Database.config.staff_mood_warn - 2.0
+			first["reasons"] = { StaffMood.REASON_STREAK: 12.0 }
 	_run()
 
 
@@ -126,6 +131,11 @@ func _run() -> void:
 	business.set("_time_left", minf(float(business.get("_time_left")), 20.0))
 	# 結果画面の「ランクアップ」「新メニュー解放」も撮るため、評判をランク2のしきい値にしておく（見た目の確認用）
 	GameState.add_reputation(maxi(0, Database.get_rank_threshold(2) - GameState.reputation))
+	# 結果画面の「○○さんが辞めました」も撮るため、1人目の満足度を下げて辞めるようにしておく（見た目の確認用）
+	var keep_quit_chance: float = Database.config.staff_quit_chance
+	if not GameState.hired_staff.is_empty():
+		GameState.get_staff_state(GameState.hired_staff[0])["mood"] = 0.0
+		Database.config.staff_quit_chance = 1.0
 	Engine.time_scale = 20.0
 	while String(_current_screen(main).name) == "Business":
 		_auto_serve(business)
@@ -135,6 +145,7 @@ func _run() -> void:
 	Engine.time_scale = 1.0
 	await _wait_frames(5)
 	await _shot("result")
+	Database.config.staff_quit_chance = keep_quit_chance
 
 	# お店の強化画面（見た目の確認のため、お金を足しておく）
 	GameState.add_money(20000)

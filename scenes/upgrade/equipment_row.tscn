@@ -33,8 +33,7 @@ text_overrun_behavior = 3
 [node name="DescriptionLabel" type="Label" parent="HBox/Texts"]
 unique_name_in_owner = true
 layout_mode = 2
-theme_type_variation = &"SmallLabel"
-theme_override_colors/font_color = Color(0.75, 0.75, 0.75, 1)
+theme_type_variation = &"SubLabel"
 text = "説明"
 clip_text = true
 text_overrun_behavior = 3
@@ -42,8 +41,7 @@ text_overrun_behavior = 3
 [node name="EffectLabel" type="Label" parent="HBox/Texts"]
 unique_name_in_owner = true
 layout_mode = 2
-theme_type_variation = &"SmallLabel"
-theme_override_colors/font_color = Color(0.6, 0.85, 1, 1)
+theme_type_variation = &"InfoLabel"
 text = "効果"
 clip_text = true
 text_overrun_behavior = 3

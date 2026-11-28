@@ -13,14 +13,14 @@ signal upgrade_requested
 const COLUMN_WIDTHS: Array[int] = [52, 52, 46, 72]
 const COLUMN_SOLD := 1
 const COLUMN_WASTE := 2
-const COLOR_ROW := Color(0.2, 0.17, 0.15)
-const COLOR_SOLD_OUT := Color(1.0, 0.82, 0.35)
-const COLOR_SOLD_OUT_BG := Color(0.33, 0.27, 0.1)
-const COLOR_WASTE := Color(1.0, 0.5, 0.42)
-const COLOR_WASTE_BG := Color(0.34, 0.15, 0.13)
-const COLOR_SUB := Color(0.7, 0.7, 0.7)
-const COLOR_PLUS := Color(0.6, 1.0, 0.6)
-const COLOR_MINUS := Color(1.0, 0.5, 0.45)
+const COLOR_ROW := UIColors.ROW
+const COLOR_SOLD_OUT := UIColors.WARNING
+const COLOR_SOLD_OUT_BG := UIColors.SOLD_OUT_BG
+const COLOR_WASTE := UIColors.DANGER
+const COLOR_WASTE_BG := UIColors.WASTE_BG
+const COLOR_SUB := UIColors.TEXT_SUB
+const COLOR_PLUS := UIColors.PLUS
+const COLOR_MINUS := UIColors.DANGER
 
 @onready var _title_label: Label = %TitleLabel
 @onready var _reputation_change_label: Label = %ReputationChangeLabel
@@ -41,6 +41,7 @@ const COLOR_MINUS := Color(1.0, 0.5, 0.45)
 
 
 func _ready() -> void:
+	($Background as ColorRect).color = UIColors.BACKGROUND
 	var stats: DayStats = GameState.today
 	_title_label.text = UIText.RESULT_TITLE % GameState.day
 	_next_button.text = UIText.RESULT_NEXT
@@ -108,19 +109,19 @@ func _ready() -> void:
 
 
 ## big: 大きく出す行（利益・所持金）。そうでない行は小さい文字で、少し下げて出す
-func _add_row(grid: GridContainer, name_text: String, value_text: String, value_color: Color = Color.WHITE, big: bool = false) -> void:
+func _add_row(grid: GridContainer, name_text: String, value_text: String, value_color: Color = UIColors.TEXT, big: bool = false) -> void:
 	var name_label: Label = Label.new()
 	name_label.text = name_text if big else "　" + name_text
 	name_label.size_flags_horizontal = Control.SIZE_EXPAND_FILL
 	name_label.theme_type_variation = &"MediumLabel" if big else &"SmallLabel"
 	if not big:
-		name_label.modulate = Color(0.85, 0.85, 0.85)
+		name_label.add_theme_color_override("font_color", UIColors.TEXT_SUB)
 	grid.add_child(name_label)
 	var value_label: Label = Label.new()
 	value_label.text = value_text
 	value_label.horizontal_alignment = HORIZONTAL_ALIGNMENT_RIGHT
 	value_label.theme_type_variation = &"MediumLabel" if big else &"SmallLabel"
-	value_label.modulate = value_color
+	value_label.add_theme_color_override("font_color", value_color)
 	grid.add_child(value_label)
 
 
@@ -145,7 +146,7 @@ func _build_dish_table(stats: DayStats) -> void:
 	if ids.is_empty():
 		var none: Label = Label.new()
 		none.text = UIText.RESULT_DISH_NONE
-		none.modulate = COLOR_SUB
+		none.add_theme_color_override("font_color", COLOR_SUB)
 		_dish_table.add_child(none)
 		return
 	for dish_id: String in ids:
@@ -157,7 +158,7 @@ func _build_dish_table(stats: DayStats) -> void:
 		var tag: String = ""
 		var bg: Color = COLOR_ROW
 		var accent: Color = Color.TRANSPARENT
-		var text_color: Color = Color.WHITE
+		var text_color: Color = UIColors.TEXT
 		if waste == 0 and sold >= prepared and prepared > 0:
 			# 仕込んだ分が全部売れた（完売）
 			tag = UIText.RESULT_DISH_SOLD_OUT
@@ -197,7 +198,7 @@ func _make_table_row(name_text: String, tag: String, values: Array, box: StyleBo
 	name_label.text_overrun_behavior = TextServer.OVERRUN_TRIM_ELLIPSIS
 	if is_header:
 		name_label.theme_type_variation = &"SmallLabel"
-		name_label.modulate = COLOR_SUB
+		name_label.add_theme_color_override("font_color", COLOR_SUB)
 	hbox.add_child(name_label)
 
 	if tag != "":
@@ -215,7 +216,7 @@ func _make_table_row(name_text: String, tag: String, values: Array, box: StyleBo
 		value_label.horizontal_alignment = HORIZONTAL_ALIGNMENT_RIGHT
 		if is_header:
 			value_label.theme_type_variation = &"SmallLabel"
-			value_label.modulate = COLOR_SUB
+			value_label.add_theme_color_override("font_color", COLOR_SUB)
 		elif i == COLUMN_WASTE and tag_color == COLOR_WASTE:
 			value_label.add_theme_color_override("font_color", COLOR_WASTE)
 		elif i == COLUMN_SOLD and tag_color == COLOR_SOLD_OUT:

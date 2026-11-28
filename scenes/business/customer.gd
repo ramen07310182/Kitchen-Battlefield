@@ -89,7 +89,7 @@ func _setup_bubble(bubble: ColorRect, label: Label, icon: SpriteView, item: Dish
 	icon.sprite_key = SpriteKeys.dish(item.id)
 	if icon.has_sprite():
 		# 料理の絵があれば、吹き出しは白い背景にして絵を見せる
-		bubble.color = Color(1, 1, 1, 0.9)
+		bubble.color = UIColors.BIZ_BUBBLE_WITH_ICON
 		bubble.position = icon.position
 		bubble.size = icon.size
 		label.hide()
@@ -215,7 +215,7 @@ func _process(delta: float) -> void:
 			_state_time += delta
 			if _state_time >= type_data.eat_time:
 				paid.emit(self)
-				show_popup(UIText.POPUP_PAID % UIText.money(get_total_price()), Color(1.0, 0.9, 0.4))
+				show_popup(UIText.POPUP_PAID % UIText.money(get_total_price()), UIColors.BIZ_POPUP_PAID)
 				_leave()
 
 
@@ -239,16 +239,16 @@ func _update_gauge() -> void:
 	var ratio: float = get_wait_ratio()
 	_gauge_fill.size.x = GAUGE_WIDTH * (1.0 - ratio)
 	if ratio <= _config.great_ratio:
-		_gauge_fill.color = Color(0.4, 0.85, 0.4)
+		_gauge_fill.color = UIColors.BIZ_GAUGE_OK
 	elif ratio <= _config.good_ratio:
-		_gauge_fill.color = Color(0.95, 0.8, 0.3)
+		_gauge_fill.color = UIColors.BIZ_GAUGE_WAIT
 	else:
-		_gauge_fill.color = Color(0.95, 0.3, 0.25)
+		_gauge_fill.color = UIColors.BIZ_GAUGE_DANGER
 
 
 func _leave_angry() -> void:
 	_face_label.text = UIText.SATISFACTION_MARKS[Satisfaction.Level.ANGRY]
-	show_popup(UIText.POPUP_ANGRY, Color(1.0, 0.45, 0.4))
+	show_popup(UIText.POPUP_ANGRY, UIColors.BIZ_POPUP_ANGRY)
 	left_angry.emit(self)
 	_leave()
 

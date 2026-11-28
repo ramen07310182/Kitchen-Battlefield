@@ -116,7 +116,7 @@ func _close_sold_out() -> void:
 		GameState.record_missed(dish_id, int(missed[dish_id]))
 	_close()
 	_sold_out_label.show()
-	_sold_out_label.modulate = Color.WHITE
+	_sold_out_label.modulate = Color(1, 1, 1, 1)
 	var tween: Tween = create_tween()
 	tween.tween_interval(2.0)
 	tween.tween_property(_sold_out_label, "modulate:a", 0.0, 0.6)
@@ -231,18 +231,18 @@ func deliver(customer: Customer, item_id: String) -> bool:
 	var result: Customer.Receive = customer.receive(item_id)
 	if result == Customer.Receive.WRONG:
 		GameState.record_mistake()
-		customer.show_popup(UIText.POPUP_WRONG, Color(1.0, 0.5, 0.4))
+		customer.show_popup(UIText.POPUP_WRONG, UIColors.BIZ_POPUP_WRONG)
 		return false
 	_supply.serve(item_id)
 	GameState.record_item_served(item_id)
 	if result == Customer.Receive.COMPLETE:
 		GameState.record_order_completed(customer.satisfaction)
-		customer.show_popup(UIText.SATISFACTION_NAMES[customer.satisfaction], Color(0.6, 1.0, 0.6))
+		customer.show_popup(UIText.SATISFACTION_NAMES[customer.satisfaction], UIColors.BIZ_POPUP_GOOD)
 	else:
 		var names: PackedStringArray = PackedStringArray()
 		for id: String in customer.get_needed_items():
 			names.append(Database.get_dish(id).short_name)
-		customer.show_popup(UIText.POPUP_PARTIAL % "・".join(names), Color(0.85, 0.95, 1.0))
+		customer.show_popup(UIText.POPUP_PARTIAL % "・".join(names), UIColors.BIZ_POPUP_PARTIAL)
 	return true
 
 

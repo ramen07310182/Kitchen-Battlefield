@@ -25,7 +25,7 @@ var _slot_size: Vector2 = Vector2(46, 32)
 
 
 func _ready() -> void:
-	add_theme_stylebox_override("panel", UISkin.panel_box(SpriteKeys.PANEL, UIUtil.flat_box(Color(0.22, 0.24, 0.26))))
+	add_theme_stylebox_override("panel", UISkin.panel_box(SpriteKeys.PANEL, UIUtil.flat_box(UIColors.BIZ_PANEL)))
 	_title_label.text = UIText.SHELF_TITLE
 
 
@@ -37,8 +37,8 @@ func setup(capacity: int) -> void:
 		_slots.append("")
 		var button: Button = Button.new()
 		button.custom_minimum_size = slot_size
-		button.add_theme_color_override("font_color", Color(0.1, 0.08, 0.05))
-		button.add_theme_color_override("font_disabled_color", Color(0.1, 0.08, 0.05))
+		button.add_theme_color_override("font_color", UIColors.ON_ITEM)
+		button.add_theme_color_override("font_disabled_color", UIColors.ON_ITEM)
 		button.icon_alignment = HORIZONTAL_ALIGNMENT_CENTER
 		button.pressed.connect(_on_slot_pressed.bind(i))
 		_grid.add_child(button)
@@ -130,7 +130,7 @@ func _refresh() -> void:
 			button.text = ""
 			button.icon = null
 			button.disabled = true
-			UIUtil.apply_button_style(button, UIUtil.flat_box(Color(0.15, 0.16, 0.17), Color(0.35, 0.35, 0.35), 1))
+			UIUtil.apply_button_style(button, UIUtil.flat_box(UIColors.BIZ_PANEL_DARK, UIColors.BIZ_SLOT_BORDER, 1))
 		else:
 			# 料理の絵があれば絵、なければ短い名前を出す
 			var dish_icon: Texture2D = SpriteLibrary.get_icon(SpriteKeys.dish(dish.id))
@@ -139,19 +139,19 @@ func _refresh() -> void:
 			button.add_theme_font_size_override("font_size", UIUtil.fit_font_size(dish.short_name, _slot_size.x - 6.0, 13))
 			button.disabled = _reserved.has(i)
 			var held: bool = i == _held_index
-			var box: StyleBoxFlat = UIUtil.flat_box(dish.color, Color(1, 1, 1) if held else dish.color.darkened(0.4), 3 if held else 1)
+			var box: StyleBoxFlat = UIUtil.flat_box(dish.color, UIColors.BIZ_HELD_BORDER if held else dish.color.darkened(0.4), 3 if held else 1)
 			UIUtil.apply_button_style(button, box)
-			button.modulate = Color(0.6, 0.6, 0.6) if _held_index >= 0 and not held else Color.WHITE
+			button.modulate = UIColors.BIZ_DIMMED if _held_index >= 0 and not held else Color(1, 1, 1, 1)
 			if _reserved.has(i):
 				# スタッフが取りに来ている枠
-				button.modulate = Color(1, 1, 1, 0.35)
+				button.modulate = UIColors.BIZ_RESERVED
 
 	var held_dish: DishData = Database.get_dish(get_held_dish()) if _held_index >= 0 else null
 	if held_dish != null:
 		_held_label.text = UIText.HOLDING % held_dish.short_name
-		_held_panel.add_theme_stylebox_override("panel", UIUtil.flat_box(held_dish.color, Color.WHITE, 2))
-		_held_label.add_theme_color_override("font_color", Color(0.1, 0.08, 0.05))
+		_held_panel.add_theme_stylebox_override("panel", UIUtil.flat_box(held_dish.color, UIColors.BIZ_HELD_BORDER, 2))
+		_held_label.add_theme_color_override("font_color", UIColors.ON_ITEM)
 	else:
 		_held_label.text = UIText.HOLDING_NONE
-		_held_panel.add_theme_stylebox_override("panel", UIUtil.flat_box(Color(0.15, 0.16, 0.17)))
-		_held_label.add_theme_color_override("font_color", Color(0.75, 0.75, 0.75))
+		_held_panel.add_theme_stylebox_override("panel", UIUtil.flat_box(UIColors.BIZ_PANEL_DARK))
+		_held_label.add_theme_color_override("font_color", UIColors.BIZ_TEXT_SUB)

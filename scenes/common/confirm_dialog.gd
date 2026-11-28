@@ -15,7 +15,8 @@ signal alt_chosen
 
 
 func _ready() -> void:
-	var box: StyleBoxFlat = UIUtil.flat_box(Color(0.16, 0.14, 0.13), Color(0.85, 0.75, 0.55), 2, 4)
+	($Dim as ColorRect).color = UIColors.DIM
+	var box: StyleBoxFlat = UIUtil.flat_box(UIColors.PANEL, UIColors.ACCENT, 2, 6)
 	box.set_content_margin_all(14)
 	_panel.add_theme_stylebox_override("panel", UISkin.panel_box(SpriteKeys.PANEL, box))
 	_ok_button.pressed.connect(_answer.bind(true))

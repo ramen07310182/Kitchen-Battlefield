@@ -9,8 +9,8 @@ extends ScrollContainer
 signal drag_started
 
 const BAR_WIDTH := 4.0
-const BAR_COLOR := Color(1, 1, 1, 0.35)
-const BAR_BG_COLOR := Color(1, 1, 1, 0.06)
+## スクロールの棒の色（明るい画面なら濃い色、暗い営業画面なら白っぽい色。dark_background で切り替える）
+@export var dark_background: bool = false
 
 var _tracking: bool = false
 var _dragging: bool = false
@@ -25,11 +25,11 @@ func _ready() -> void:
 	vertical_scroll_mode = ScrollContainer.SCROLL_MODE_AUTO
 	# スクロールできることがわかるように、端に細いスクロールバーを出す
 	var bar: VScrollBar = get_v_scroll_bar()
-	var grabber: StyleBoxFlat = UIUtil.flat_box(BAR_COLOR, Color.TRANSPARENT, 0, 2)
+	var grabber: StyleBoxFlat = UIUtil.flat_box(UIColors.SCROLL_BAR_DARK if dark_background else UIColors.SCROLL_BAR, Color.TRANSPARENT, 0, 2)
 	grabber.set_content_margin_all(0)
 	grabber.content_margin_left = BAR_WIDTH * 0.5
 	grabber.content_margin_right = BAR_WIDTH * 0.5
-	var track: StyleBoxFlat = UIUtil.flat_box(BAR_BG_COLOR, Color.TRANSPARENT, 0, 2)
+	var track: StyleBoxFlat = UIUtil.flat_box(UIColors.SCROLL_BAR_BG_DARK if dark_background else UIColors.SCROLL_BAR_BG, Color.TRANSPARENT, 0, 2)
 	track.set_content_margin_all(0)
 	track.content_margin_left = BAR_WIDTH * 0.5
 	track.content_margin_right = BAR_WIDTH * 0.5

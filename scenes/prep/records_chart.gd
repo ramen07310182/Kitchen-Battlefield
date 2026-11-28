@@ -7,15 +7,15 @@ extends Control
 
 signal day_selected(row: PackedInt32Array)
 
-const COLOR_BAR := Color(0.95, 0.72, 0.35)
-const COLOR_BAR_SELECTED := Color(1.0, 0.9, 0.55)
-const COLOR_LINE := Color(0.5, 0.78, 1.0)
-const COLOR_LINE_NEGATIVE := UIText.COLOR_NEGATIVE_MONEY
-const COLOR_AXIS := Color(0.45, 0.42, 0.4)
-const COLOR_GRID := Color(0.3, 0.28, 0.26)
-const COLOR_ZERO := Color(0.7, 0.66, 0.6)
-const COLOR_TEXT := Color(0.8, 0.8, 0.8)
-const COLOR_SELECT := Color(1, 1, 1, 0.5)
+const COLOR_BAR := UIColors.CHART_BAR
+const COLOR_BAR_SELECTED := UIColors.CHART_BAR_SELECTED
+const COLOR_LINE := UIColors.CHART_LINE
+const COLOR_LINE_NEGATIVE := UIColors.DANGER
+const COLOR_AXIS := UIColors.CHART_AXIS
+const COLOR_GRID := UIColors.CHART_GRID
+const COLOR_ZERO := UIColors.ZERO
+const COLOR_TEXT := UIColors.TEXT_SUB
+const COLOR_SELECT := UIColors.CHART_SELECT
 ## グラフの左右・上下の余白（目盛りの文字のぶん）
 const MARGIN_LEFT := 52.0
 const MARGIN_RIGHT := 60.0
@@ -131,7 +131,7 @@ func _draw() -> void:
 	for i: int in 5:
 		var y: float = plot.end.y - plot.size.y * i / 4.0
 		draw_line(Vector2(plot.position.x, y), Vector2(plot.end.x, y), COLOR_GRID, 1.0)
-		_draw_text(font, UIText.money_short(roundi(_sales_max * i / 4.0)), Vector2(2.0, y + 4.0), COLOR_BAR, MARGIN_LEFT - 6.0, HORIZONTAL_ALIGNMENT_RIGHT)
+		_draw_text(font, UIText.money_short(roundi(_sales_max * i / 4.0)), Vector2(2.0, y + 4.0), UIColors.WARNING, MARGIN_LEFT - 6.0, HORIZONTAL_ALIGNMENT_RIGHT)
 		if _has_money:
 			var money_value: float = _money_min + (_money_max - _money_min) * i / 4.0
 			_draw_text(font, UIText.money_short(roundi(money_value)), Vector2(plot.end.x + 4.0, y + 4.0),

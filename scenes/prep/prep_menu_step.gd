@@ -12,9 +12,9 @@ signal detail_closed
 signal notice_requested(text: String)
 
 const MENU_ROW_SCENE: PackedScene = preload("res://scenes/prep/menu_row.tscn")
-const COLOR_OK := Color(0.85, 0.85, 0.85)
-const COLOR_SHORT := Color(1.0, 0.45, 0.4)
-const COLOR_LOCKED := Color(0.55, 0.55, 0.55)
+const COLOR_OK := UIColors.TEXT
+const COLOR_SHORT := UIColors.DANGER
+const COLOR_LOCKED := UIColors.TEXT_DISABLED
 ## 一覧の最後に出す「まだ解放していない料理」の数（次に解放される順）
 const LOCKED_PREVIEW_COUNT := 3
 ## トッピングの一覧の最後に出す「まだ解放していないトッピング」の数
@@ -37,7 +37,7 @@ func _ready() -> void:
 	_help_label.text = UIText.PREP_MENU_HELP
 	_repeat_button.text = UIText.PREP_REPEAT
 	_usage_title.text = UIText.PREP_USAGE_TITLE
-	_usage_panel.add_theme_stylebox_override("panel", UIUtil.flat_box(Color(0.17, 0.15, 0.14)))
+	_usage_panel.add_theme_stylebox_override("panel", UIColors.panel_box(UIColors.PANEL))
 	_repeat_button.pressed.connect(_on_repeat_pressed)
 	_rebuild_rows()
 
@@ -61,7 +61,7 @@ func _rebuild_rows() -> void:
 	_topping_header = Label.new()
 	_topping_header.text = UIText.PREP_TOPPING_TITLE
 	_topping_header.theme_type_variation = &"HeaderLabel"
-	_topping_header.add_theme_color_override("font_color", Color(1.0, 0.85, 0.55))
+	_topping_header.theme_type_variation = &"SectionLabel"
 	var header_margin: MarginContainer = MarginContainer.new()
 	header_margin.add_theme_constant_override("margin_top", 8)
 	header_margin.add_child(_topping_header)
@@ -84,10 +84,10 @@ func _add_menu_row(dish: DishData) -> void:
 
 func _add_locked_row(dish: DishData) -> void:
 	var panel: PanelContainer = PanelContainer.new()
-	panel.add_theme_stylebox_override("panel", UIUtil.flat_box(Color(0.15, 0.14, 0.13), Color(0.3, 0.3, 0.3), 1))
+	panel.add_theme_stylebox_override("panel", UIColors.panel_box(UIColors.ROW_DIM, 4))
 	var label: Label = Label.new()
 	label.text = PrepMenuStep.locked_text(dish)
-	label.modulate = COLOR_LOCKED
+	label.add_theme_color_override("font_color", COLOR_LOCKED)
 	panel.add_child(label)
 	_menu_list.add_child(panel)
 	_locked_labels.append(label)

@@ -26,6 +26,7 @@ var _pending_action: String = ""
 
 
 func _ready() -> void:
+	($Background as ColorRect).color = UIColors.BACKGROUND
 	_title_label.text = UIText.UPGRADE_TITLE
 	_help_label.text = UIText.UPGRADE_HELP
 	_next_button.text = UIText.RESULT_NEXT

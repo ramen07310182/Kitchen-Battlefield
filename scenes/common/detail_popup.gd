@@ -15,7 +15,7 @@ const MARGIN := 8.0
 
 
 func _ready() -> void:
-	var box: StyleBoxFlat = UIUtil.flat_box(Color(0.1, 0.09, 0.09, 0.96), Color(0.85, 0.75, 0.55), 2, 4)
+	var box: StyleBoxFlat = UIUtil.flat_box(UIColors.PANEL, UIColors.ACCENT, 2, 6)
 	box.set_content_margin_all(8)
 	_panel.add_theme_stylebox_override("panel", box)
 	_catcher.gui_input.connect(_on_catcher_input)

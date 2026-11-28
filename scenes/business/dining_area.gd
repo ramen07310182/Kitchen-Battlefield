@@ -40,15 +40,15 @@ var _counter: Control
 ## seat_count: 使える席の数（4〜18）
 func setup(seat_count: int) -> void:
 	var count: int = clampi(seat_count, 1, MAX_SEATS)
-	_counter = _make_furniture(SpriteKeys.COUNTER, Color(0.62, 0.45, 0.28), Color(0.45, 0.32, 0.2))
+	_counter = _make_furniture(SpriteKeys.COUNTER, UIColors.BIZ_COUNTER_TOP, UIColors.BIZ_COUNTER_LEG)
 	var used_tables: int = clampi(ceili(float(count - COUNTER_SEATS) / SEATS_PER_TABLE), 0, TABLE_COUNT)
 	for t: int in used_tables:
-		var table: Control = _make_furniture(SpriteKeys.TABLE4, Color(0.7, 0.5, 0.3), Color(0.5, 0.35, 0.22))
+		var table: Control = _make_furniture(SpriteKeys.TABLE4, UIColors.BIZ_TABLE_TOP, UIColors.BIZ_TABLE_LEG)
 		# テーブルの真ん中に「T1」。席の番号（1〜4）はテーブルの四隅に出す
 		var name_label: Label = Label.new()
 		name_label.text = UIText.TABLE_NAME % (t + 1)
 		name_label.theme_type_variation = &"SmallLabel"
-		name_label.add_theme_color_override("font_color", Color(0.3, 0.18, 0.1))
+		name_label.add_theme_color_override("font_color", UIColors.BIZ_TABLE_LABEL)
 		name_label.horizontal_alignment = HORIZONTAL_ALIGNMENT_CENTER
 		name_label.vertical_alignment = VERTICAL_ALIGNMENT_CENTER
 		name_label.set_anchors_preset(Control.PRESET_FULL_RECT)

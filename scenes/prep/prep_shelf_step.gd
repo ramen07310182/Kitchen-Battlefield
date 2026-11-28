@@ -8,7 +8,7 @@ signal notice_requested(text: String)
 @onready var _help_label: Label = %HelpLabel
 @onready var _shelf_plan: ShelfPlanPanel = %ShelfPlanPanel
 @onready var _summary_label: Label = %SummaryLabel
-@onready var _body: HBoxContainer = %Body
+@onready var _staff_scroll: ScrollContainer = %StaffScroll
 var _staff_panel: StaffShiftPanel
 
 
@@ -18,10 +18,9 @@ func _ready() -> void:
 	_shelf_plan.remove_requested.connect(_on_remove)
 	_shelf_plan.clear_requested.connect(_on_clear)
 	_staff_panel = StaffShiftPanel.new()
-	_staff_panel.custom_minimum_size = Vector2(250, 0)
-	_staff_panel.size_flags_vertical = Control.SIZE_SHRINK_BEGIN
+	_staff_panel.size_flags_horizontal = Control.SIZE_EXPAND_FILL
 	_staff_panel.notice_requested.connect(notice_requested.emit)
-	_body.add_child(_staff_panel)
+	_staff_scroll.add_child(_staff_panel)
 	_staff_panel.rebuild()
 
 

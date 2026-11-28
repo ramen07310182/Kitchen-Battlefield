@@ -29,7 +29,7 @@ var _full: bool = false
 
 
 func _ready() -> void:
-	add_theme_stylebox_override("panel", UISkin.panel_box(SpriteKeys.KITCHEN_BACK, UIUtil.flat_box(Color(0.22, 0.24, 0.26))))
+	add_theme_stylebox_override("panel", UISkin.panel_box(SpriteKeys.KITCHEN_BACK, UIUtil.flat_box(UIColors.BIZ_PANEL)))
 	_chef_label.text = UIText.CHEF
 	_return_button.text = UIText.COOK_RETURN
 	_return_button.disabled = true

@@ -11,10 +11,8 @@ enum Step { MENU, PURCHASE, SHELF }
 ## 確認ダイアログで何を聞いているか
 enum Pending { NONE, PURCHASE, SHORTAGE, PLAN_LEFT_TO_SHELF, PLAN_LEFT_TO_START }
 
-const COLOR_MESSAGE := Color.WHITE
-const COLOR_WARNING := Color(1.0, 0.45, 0.4)
-const COLOR_STEP_CURRENT := Color(0.85, 0.65, 0.25)
-const COLOR_STEP_OTHER := Color(0.22, 0.2, 0.19)
+const COLOR_MESSAGE := UIColors.TEXT
+const COLOR_WARNING := UIColors.DANGER
 
 var _step: Step = Step.MENU
 var _step_buttons: Array[Button] = []
@@ -46,6 +44,7 @@ var _after_check_start: bool = false
 
 
 func _ready() -> void:
+	($Background as ColorRect).color = UIColors.BACKGROUND
 	_build_step_bar()
 	_back_button.text = UIText.PREP_BACK
 	_next_button.text = UIText.PREP_NEXT
@@ -85,7 +84,7 @@ func _build_step_bar() -> void:
 		if i > 0:
 			var sep: Label = Label.new()
 			sep.text = UIText.PREP_STEP_SEPARATOR
-			sep.modulate = Color(0.6, 0.6, 0.6)
+			sep.add_theme_color_override("font_color", UIColors.TEXT_SUB)
 			sep.size_flags_vertical = Control.SIZE_SHRINK_CENTER
 			_step_bar.add_child(sep)
 		var button: Button = Button.new()
@@ -141,10 +140,11 @@ func _show_step(step: Step) -> void:
 	_shelf_step.visible = step == Step.SHELF
 	for i: int in _step_buttons.size():
 		var current: bool = i == step
-		var box: StyleBoxFlat = UIUtil.flat_box(COLOR_STEP_CURRENT if current else COLOR_STEP_OTHER,
-			Color(1, 0.9, 0.6) if current else Color(0.4, 0.38, 0.36), 2 if current else 1, 4)
+		# 今の手順は朱色、ほかの手順は明るい色に藍の文字（どれも押して移動できる）
+		var box: StyleBoxFlat = UIUtil.flat_box(UIColors.VERMILION if current else UIColors.BUTTON_OFF,
+			UIColors.VERMILION if current else UIColors.ACCENT, 2 if current else 1, 6)
 		UIUtil.apply_button_style(_step_buttons[i], box)
-		var text_color: Color = Color(0.12, 0.08, 0.04) if current else Color(0.85, 0.85, 0.85)
+		var text_color: Color = UIColors.BUTTON_TEXT if current else UIColors.BUTTON_OFF_TEXT
 		_step_buttons[i].add_theme_color_override("font_color", text_color)
 		_step_buttons[i].add_theme_color_override("font_pressed_color", text_color)
 		_step_buttons[i].add_theme_color_override("font_hover_color", text_color)

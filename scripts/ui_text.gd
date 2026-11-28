@@ -40,7 +40,7 @@ const PREP_REDUCE_TO_STOCK := "在庫に合わせて減らす"
 const PREP_REDUCED := "仕込み数を在庫に合わせて減らしました"
 const PREP_PLAN_LEFT := "仕入れ予定が残っています（%s）。\n仕入れずに次へ進みますか？"
 const PREP_PLAN_LEFT_OK := "仕入れずに進む"
-const PREP_SHELF_STEP_HELP := "営業開始のときに置き場に並べておく料理を、仕込み数の中から決めます。料理のボタンで並べ、並べた枠を押すと外します"
+const PREP_SHELF_STEP_HELP := "開店時に置き場に並べる料理（ボタンで並べ、枠を押すと外す）と、今日出勤するスタッフを決めます"
 const PREP_SUMMARY := "今日の仕込み：%s"
 const PREP_SUMMARY_ITEM := "%s %d"
 const PREP_SUMMARY_NONE := "なし"
@@ -284,12 +284,12 @@ const REC_EMPTY := "まだ記録がありません（営業すると記録され
 
 
 ## マイナスの金額（所持金など）を出すときの色
-const COLOR_NEGATIVE_MONEY := Color(1.0, 0.45, 0.4)
+const COLOR_NEGATIVE_MONEY := UIColors.DANGER
 
 
-## 所持金の表示の色（マイナスなら赤、それ以外は白）
+## 所持金の表示の色（マイナスなら赤、それ以外はふつうの文字の色）。明るい画面用（上部バーは UIColors.TOPBAR_*）
 static func money_color(value: int) -> Color:
-	return COLOR_NEGATIVE_MONEY if value < 0 else Color.WHITE
+	return UIColors.money(value)
 
 
 ## 金額を「¥10,000」の形にする（マイナスは「-¥12,300」）

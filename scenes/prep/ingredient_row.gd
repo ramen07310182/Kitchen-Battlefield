@@ -9,11 +9,11 @@ signal purchase_changed(ingredient_id: String, delta: int)
 signal detail_requested(ingredient_id: String)
 signal detail_closed
 
-const COLOR_OK := Color.WHITE
-const COLOR_SUB := Color(0.7, 0.7, 0.7)
-const COLOR_SHORT := Color(1.0, 0.4, 0.35)
-const COLOR_PLAN_OK := Color(1.0, 0.85, 0.45)
-const COLOR_PLANNED := Color(0.55, 0.85, 1.0)
+const COLOR_OK := UIColors.TEXT
+const COLOR_SUB := UIColors.TEXT_SUB
+const COLOR_SHORT := UIColors.DANGER
+const COLOR_PLAN_OK := UIColors.WARNING
+const COLOR_PLANNED := UIColors.PLUS
 
 var ingredient: IngredientData
 
@@ -32,8 +32,8 @@ var _box_short: StyleBoxFlat
 
 
 func _ready() -> void:
-	_box_normal = UIUtil.flat_box(Color(0.2, 0.17, 0.15))
-	_box_short = UIUtil.flat_box(Color(0.3, 0.14, 0.13), COLOR_SHORT, 1)
+	_box_normal = UIColors.panel_box(UIColors.ROW, 4)
+	_box_short = UIColors.panel_box(UIColors.SHORT_BG, 4, COLOR_SHORT)
 	add_theme_stylebox_override("panel", _box_normal)
 	var cfg: GameConfig = Database.config
 	_minus_large.text = UIText.PREP_PURCHASE_STEP % -cfg.buy_step_large
