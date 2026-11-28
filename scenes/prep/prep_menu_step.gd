@@ -84,7 +84,7 @@ func _add_menu_row(dish: DishData) -> void:
 
 func _add_locked_row(dish: DishData) -> void:
 	var panel: PanelContainer = PanelContainer.new()
-	panel.add_theme_stylebox_override("panel", UIColors.panel_box(UIColors.ROW_DIM, 4))
+	panel.add_theme_stylebox_override("panel", UIColors.card_box(UIColors.ROW_DIM, UIColors.ROW_DIM_BORDER))
 	var label: Label = Label.new()
 	label.text = PrepMenuStep.locked_text(dish)
 	label.add_theme_color_override("font_color", COLOR_LOCKED)

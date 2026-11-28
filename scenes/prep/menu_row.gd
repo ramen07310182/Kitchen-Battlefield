@@ -9,6 +9,8 @@ signal detail_requested(dish_id: String)
 signal detail_closed
 
 var dish: DishData
+var _box_on: StyleBoxFlat
+var _box_off: StyleBoxFlat
 
 @onready var _swatch: ColorRect = %Swatch
 @onready var _name_label: Label = %NameLabel
@@ -22,7 +24,9 @@ var dish: DishData
 
 
 func _ready() -> void:
-	add_theme_stylebox_override("panel", UIColors.panel_box(UIColors.ROW, 4))
+	_box_on = UIColors.card_box()
+	_box_off = UIColors.card_box(UIColors.ROW_DIM, UIColors.ROW_DIM_BORDER)
+	add_theme_stylebox_override("panel", _box_on)
 	_minus_button.step_requested.connect(func(step: int) -> void: prep_changed.emit(dish.id, step))
 	_plus_button.step_requested.connect(func(step: int) -> void: prep_changed.emit(dish.id, step))
 	_long_press.long_pressed.connect(func() -> void: detail_requested.emit(dish.id))
@@ -40,6 +44,8 @@ func setup(data: DishData) -> void:
 ## expected_orders: GameState.get_expected_orders() の結果
 func refresh(expected_orders: Dictionary) -> void:
 	var on: bool = GameState.is_on_menu(dish.id)
+	# 仕込み数0（今日は出さない）の行は、少しくすんだカードにする
+	add_theme_stylebox_override("panel", _box_on if on else _box_off)
 	var count: int = GameState.get_prep_count(dish.id)
 	_info_label.text = UIText.PREP_DISH_INFO % [
 		UIText.money(Database.get_dish_cost(dish)),

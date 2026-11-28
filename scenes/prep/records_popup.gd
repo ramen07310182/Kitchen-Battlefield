@@ -23,7 +23,7 @@ var _period_buttons: Array[Button] = []
 
 func _ready() -> void:
 	($Dim as ColorRect).color = UIColors.DIM
-	var box: StyleBoxFlat = UIUtil.flat_box(UIColors.PANEL, UIColors.ACCENT, 2, 6)
+	var box: StyleBoxFlat = UIColors.card_box(UIColors.CARD, UIColors.ACCENT, 6)
 	box.set_content_margin_all(8)
 	_panel.add_theme_stylebox_override("panel", box)
 	_title_label.text = UIText.REC_TITLE

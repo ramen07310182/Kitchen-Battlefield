@@ -7,14 +7,19 @@ extends RefCounted
 # --- 明るい画面の基本の色 ---
 ## 背景（生成り）
 const BACKGROUND := Color("f3e9d2")
-## パネル（背景より少し白い）
-const PANEL := Color("fbf6ea")
-## 一覧の行（明るい木目）
-const ROW := Color("efe1c4")
-## 暗くした行（今日は出さない料理など）
-const ROW_DIM := Color("e6dccb")
-## 枠線
-const BORDER := Color("c8b28c")
+## 一覧を囲むパネル（背景と行の中間の色。枠で囲む）。背景・パネル・行の3段階が見分けられるようにする
+const PANEL := Color("faf4e6")
+const PANEL_BORDER := Color("c8b28c")
+## 一覧の行（白に近いカード。濃い枠線と、下に薄い影）
+const ROW := Color("fffdf8")
+const CARD := ROW
+const CARD_BORDER := Color("a88a5c")
+const CARD_SHADOW := Color(0.36, 0.25, 0.1, 0.22)
+## 暗くした行（仕込み数0・解放前・空き枠）。カードより少しくすんだ色（背景とは色味と枠で見分ける）
+const ROW_DIM := Color("e9e4da")
+const ROW_DIM_BORDER := Color("b9a585")
+## 枠線（パネルなど）
+const BORDER := PANEL_BORDER
 ## 文字（こげ茶）と、控えめな文字
 const TEXT := Color("3b2a1a")
 const TEXT_SUB := Color("6b5844")
@@ -45,10 +50,22 @@ const DANGER := Color("bf3326")
 const WARNING := Color("9a6400")
 ## よい・足りている（緑）
 const GOOD := Color("2e7a32")
-## 完売の行・廃棄多めの行・不足の行の背景
-const SOLD_OUT_BG := Color("f8e6ad")
-const WASTE_BG := Color("f6d4cc")
-const SHORT_BG := Color("f6d4cc")
+## 完売の行・廃棄多めの行・不足の行の背景（白いカードの上でも目立つ濃さ）
+const SOLD_OUT_BG := Color("fbe29a")
+const WASTE_BG := Color("f8cdc4")
+const SHORT_BG := Color("f8cdc4")
+
+# --- 結果画面の料理ごとの内訳（ベージュから離れた、藍・青灰色の系統） ---
+const TABLE_HEADER := Color("2c4a7a")
+const TABLE_HEADER_TEXT := Color("ffffff")
+const TABLE_ROW_A := Color("eaf0f8")
+const TABLE_ROW_B := Color("ffffff")
+const TABLE_BORDER := Color("b7c6dc")
+## 青い表の上の完売（黄）・廃棄多め（赤）の行と文字
+const TABLE_SOLD_OUT_BG := Color("ffe9a6")
+const TABLE_SOLD_OUT := Color("8a5a00")
+const TABLE_WASTE_BG := Color("fbd2ca")
+const TABLE_WASTE := Color("b32a1d")
 ## スタッフの機嫌（ごきげん・ふつう・疲れ気味・限界。StaffMood.Level の順）
 const STAFF_MOOD: Array[Color] = [Color("2e7a32"), Color("1d5fb4"), Color("b06200"), Color("bf3326")]
 ## 0（プラスでもマイナスでもない）
@@ -69,9 +86,6 @@ const TOPBAR_DANGER := Color("ff8f80")
 const TOPBAR_WARNING := Color("ffd773")
 
 # --- カレンダー ---
-const CAL_CELL := Color("f7efdd")
-const CAL_CELL_EMPTY := Color("e9dfcc")
-const CAL_CELL_BORDER := Color("cdb994")
 const CAL_TODAY_BORDER := VERMILION
 const CAL_HOLIDAY := Color("9c8b74")
 
@@ -127,6 +141,20 @@ const SCROLL_BAR_BG := Color(0.23, 0.16, 0.1, 0.08)
 ## 営業画面（暗い背景）
 const SCROLL_BAR_DARK := Color(1, 1, 1, 0.35)
 const SCROLL_BAR_BG_DARK := Color(1, 1, 1, 0.06)
+
+
+## 一覧の行のカード（白に近い色・濃い枠線・下に薄い影）。color と border で色付きの行（不足・空き枠など）にもする
+static func card_box(color: Color = CARD, border: Color = CARD_BORDER, radius: int = 5) -> StyleBoxFlat:
+	var box: StyleBoxFlat = UIUtil.flat_box(color, border, 1, radius)
+	box.border_width_bottom = 2
+	box.shadow_color = CARD_SHADOW
+	box.shadow_size = 1
+	box.shadow_offset = Vector2(0, 1)
+	box.content_margin_left = 6
+	box.content_margin_right = 6
+	box.content_margin_top = 4
+	box.content_margin_bottom = 4
+	return box
 
 
 ## 角の丸いパネル（枠線つき）

@@ -2,7 +2,8 @@ extends Control
 ## 営業結果画面。今日の集計と料理ごとの内訳を表示し、「次の日へ」で次の営業準備に進む。
 ## お金は「利益」と「所持金」の2つを大きく出し、内訳は小さく出す。
 ##   利益 ＝ 所持金の増減 ＋ 在庫の増減（原価）（仕入れた日と使った日がずれると、2つの数字が違う）
-## 内訳では、完売した料理（黄：廃棄0で、仕込んだ分が全部売れた）と、廃棄が多かった料理（赤）に色を付ける。
+## 内訳の表は藍・青灰色の系統（見出しは藍色の帯、行は薄い青と白を交互）。
+## 完売した料理（黄：廃棄0で、仕込んだ分が全部売れた）と、廃棄が多かった料理（赤）に色を付ける。
 ## 売り逃しの数は画面には出さない（評判の計算にだけ使う）。
 
 signal next_day_requested
@@ -13,11 +14,10 @@ signal upgrade_requested
 const COLUMN_WIDTHS: Array[int] = [52, 52, 46, 72]
 const COLUMN_SOLD := 1
 const COLUMN_WASTE := 2
-const COLOR_ROW := UIColors.ROW
-const COLOR_SOLD_OUT := UIColors.WARNING
-const COLOR_SOLD_OUT_BG := UIColors.SOLD_OUT_BG
-const COLOR_WASTE := UIColors.DANGER
-const COLOR_WASTE_BG := UIColors.WASTE_BG
+const COLOR_SOLD_OUT := UIColors.TABLE_SOLD_OUT
+const COLOR_SOLD_OUT_BG := UIColors.TABLE_SOLD_OUT_BG
+const COLOR_WASTE := UIColors.TABLE_WASTE
+const COLOR_WASTE_BG := UIColors.TABLE_WASTE_BG
 const COLOR_SUB := UIColors.TEXT_SUB
 const COLOR_PLUS := UIColors.PLUS
 const COLOR_MINUS := UIColors.DANGER
@@ -135,11 +135,28 @@ func _signed_money(value: int) -> String:
 
 func _build_dish_table(stats: DayStats) -> void:
 	_dish_title.text = UIText.RESULT_DISH_TITLE
-	_dish_legend.text = UIText.RESULT_DISH_LEGEND % roundi(Database.config.waste_warning_ratio * 100.0)
+	# 凡例: 表の行と同じ色の小さな見本と、同じ色の文字
+	_dish_legend.text = UIText.RESULT_DISH_LEGEND
+	_dish_legend.add_theme_color_override("font_color", COLOR_SOLD_OUT)
+	_dish_legend.size_flags_horizontal = Control.SIZE_SHRINK_BEGIN
+	_dish_legend.clip_text = false
+	_dish_legend.text_overrun_behavior = TextServer.OVERRUN_NO_TRIMMING
+	var legend_parent: Node = _dish_legend.get_parent()
+	legend_parent.add_child(_legend_chip(COLOR_SOLD_OUT_BG, COLOR_SOLD_OUT))
+	legend_parent.move_child(legend_parent.get_child(legend_parent.get_child_count() - 1), _dish_legend.get_index())
+	legend_parent.add_child(_legend_chip(COLOR_WASTE_BG, COLOR_WASTE))
+	var waste_legend: Label = Label.new()
+	waste_legend.theme_type_variation = &"SmallLabel"
+	waste_legend.text = UIText.RESULT_DISH_LEGEND_WASTE % roundi(Database.config.waste_warning_ratio * 100.0)
+	waste_legend.add_theme_color_override("font_color", COLOR_WASTE)
+	waste_legend.size_flags_vertical = Control.SIZE_SHRINK_END
+	legend_parent.add_child(waste_legend)
+	var header_box: StyleBoxFlat = UIUtil.flat_box(UIColors.TABLE_HEADER, UIColors.TABLE_HEADER, 0, 4)
+	header_box.content_margin_left = 12
 	var header: PanelContainer = _make_table_row(
 		UIText.RESULT_DISH_NAME, "",
 		[UIText.RESULT_DISH_PREPARED, UIText.RESULT_DISH_SOLD, UIText.RESULT_DISH_WASTE, UIText.RESULT_DISH_SALES],
-		StyleBoxEmpty.new(), COLOR_SUB, true)
+		header_box, UIColors.TABLE_HEADER_TEXT, true)
 	_dish_table.add_child(header)
 
 	var ids: Array[String] = stats.get_prepared_dish_ids()
@@ -149,14 +166,16 @@ func _build_dish_table(stats: DayStats) -> void:
 		none.add_theme_color_override("font_color", COLOR_SUB)
 		_dish_table.add_child(none)
 		return
-	for dish_id: String in ids:
+	for row_index: int in ids.size():
+		var dish_id: String = ids[row_index]
 		var dish: DishData = Database.get_dish(dish_id)
 		var prepared: int = int(stats.dish_prepared.get(dish_id, 0))
 		var sold: int = int(stats.dish_sold.get(dish_id, 0))
 		var waste: int = int(stats.dish_waste.get(dish_id, 0))
 		var sales: int = int(stats.dish_sales.get(dish_id, 0))
 		var tag: String = ""
-		var bg: Color = COLOR_ROW
+		# 行は薄い青と白を交互に
+		var bg: Color = UIColors.TABLE_ROW_A if row_index % 2 == 0 else UIColors.TABLE_ROW_B
 		var accent: Color = Color.TRANSPARENT
 		var text_color: Color = UIColors.TEXT
 		if waste == 0 and sold >= prepared and prepared > 0:
@@ -170,7 +189,7 @@ func _build_dish_table(stats: DayStats) -> void:
 			bg = COLOR_WASTE_BG
 			accent = COLOR_WASTE
 			text_color = COLOR_WASTE
-		var box: StyleBoxFlat = UIUtil.flat_box(bg, accent, 1 if accent.a > 0.0 else 0)
+		var box: StyleBoxFlat = UIUtil.flat_box(bg, accent if accent.a > 0.0 else UIColors.TABLE_BORDER, 2 if accent.a > 0.0 else 1)
 		box.border_width_left = 6
 		box.content_margin_left = 12
 		box.border_color = dish.color if accent.a <= 0.0 else accent
@@ -198,7 +217,7 @@ func _make_table_row(name_text: String, tag: String, values: Array, box: StyleBo
 	name_label.text_overrun_behavior = TextServer.OVERRUN_TRIM_ELLIPSIS
 	if is_header:
 		name_label.theme_type_variation = &"SmallLabel"
-		name_label.add_theme_color_override("font_color", COLOR_SUB)
+		name_label.add_theme_color_override("font_color", tag_color)
 	hbox.add_child(name_label)
 
 	if tag != "":
@@ -216,13 +235,22 @@ func _make_table_row(name_text: String, tag: String, values: Array, box: StyleBo
 		value_label.horizontal_alignment = HORIZONTAL_ALIGNMENT_RIGHT
 		if is_header:
 			value_label.theme_type_variation = &"SmallLabel"
-			value_label.add_theme_color_override("font_color", COLOR_SUB)
+			value_label.add_theme_color_override("font_color", tag_color)
 		elif i == COLUMN_WASTE and tag_color == COLOR_WASTE:
 			value_label.add_theme_color_override("font_color", COLOR_WASTE)
 		elif i == COLUMN_SOLD and tag_color == COLOR_SOLD_OUT:
 			value_label.add_theme_color_override("font_color", COLOR_SOLD_OUT)
 		hbox.add_child(value_label)
 	return row
+
+
+## 凡例の色の見本（表の行と同じ背景と枠）
+func _legend_chip(bg: Color, border: Color) -> Control:
+	var chip: Panel = Panel.new()
+	chip.custom_minimum_size = Vector2(14, 12)
+	chip.size_flags_vertical = Control.SIZE_SHRINK_CENTER
+	chip.add_theme_stylebox_override("panel", UIUtil.flat_box(bg, border, 2, 2))
+	return chip
 
 
 func _on_next_pressed() -> void:

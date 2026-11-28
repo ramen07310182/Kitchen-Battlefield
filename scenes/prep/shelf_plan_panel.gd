@@ -58,14 +58,14 @@ func refresh() -> void:
 			slot.text = ""
 			slot.icon = null
 			slot.disabled = true
-			UIUtil.apply_button_style(slot, UIUtil.flat_box(UIColors.ROW_DIM, UIColors.BORDER, 1))
+			UIUtil.apply_button_style(slot, UIColors.card_box(UIColors.ROW_DIM, UIColors.ROW_DIM_BORDER, 4))
 		else:
 			var icon: Texture2D = SpriteLibrary.get_icon(SpriteKeys.dish(dish.id))
 			slot.icon = icon
 			slot.text = "" if icon != null else dish.short_name
 			slot.add_theme_font_size_override("font_size", UIUtil.fit_font_size(dish.short_name, slot_size.x - 6.0, 13))
 			slot.disabled = false
-			UIUtil.apply_button_style(slot, UIUtil.flat_box(dish.color, dish.color.darkened(0.4), 1))
+			UIUtil.apply_button_style(slot, UIColors.card_box(dish.color, dish.color.darkened(0.45), 4))
 	for dish: DishData in Database.items:
 		var button: Button = _add_buttons[dish.id]
 		button.visible = GameState.is_on_menu(dish.id)

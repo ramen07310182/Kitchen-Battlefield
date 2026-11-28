@@ -47,7 +47,7 @@ func rebuild() -> void:
 
 func _make_row(data: StaffData) -> Control:
 	var row: PanelContainer = PanelContainer.new()
-	row.add_theme_stylebox_override("panel", UIColors.panel_box(UIColors.ROW, 4))
+	row.add_theme_stylebox_override("panel", UIColors.card_box())
 	row.name = data.id
 	var hbox: HBoxContainer = HBoxContainer.new()
 	hbox.add_theme_constant_override("separation", 6)

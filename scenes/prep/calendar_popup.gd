@@ -9,8 +9,8 @@ const COLOR_PLUS := UIColors.PLUS
 const COLOR_MINUS := UIColors.DANGER
 const COLOR_ZERO := UIColors.ZERO
 const COLOR_HOLIDAY := UIColors.CAL_HOLIDAY
-const COLOR_CELL := UIColors.CAL_CELL
-const COLOR_CELL_EMPTY := UIColors.CAL_CELL_EMPTY
+const COLOR_CELL := UIColors.CARD
+const COLOR_CELL_EMPTY := UIColors.ROW_DIM
 const COLOR_TODAY_BORDER := UIColors.CAL_TODAY_BORDER
 
 var _year: int = GameCalendar.START_YEAR
@@ -29,7 +29,7 @@ var _month: int = GameCalendar.START_MONTH
 
 func _ready() -> void:
 	($Dim as ColorRect).color = UIColors.DIM
-	var box: StyleBoxFlat = UIUtil.flat_box(UIColors.PANEL, UIColors.ACCENT, 2, 6)
+	var box: StyleBoxFlat = UIColors.card_box(UIColors.CARD, UIColors.ACCENT, 6)
 	box.set_content_margin_all(8)
 	_panel.add_theme_stylebox_override("panel", box)
 	_close_button.text = UIText.CAL_CLOSE
@@ -163,7 +163,10 @@ func _make_cell(date_number: int, offset: int, cell: Dictionary) -> Button:
 	button.custom_minimum_size = CELL_SIZE
 	var today: bool = kind == "today"
 	var bg: Color = COLOR_CELL if kind in ["done", "today", "no_record"] else COLOR_CELL_EMPTY
-	UIUtil.apply_button_style(button, UIUtil.flat_box(bg, COLOR_TODAY_BORDER if today else UIColors.CAL_CELL_BORDER, 2 if today else 1, 2))
+	var cell_box: StyleBoxFlat = UIColors.card_box(bg, COLOR_TODAY_BORDER if today else (UIColors.CARD_BORDER if bg == COLOR_CELL else UIColors.ROW_DIM_BORDER), 3)
+	if today:
+		cell_box.set_border_width_all(2)
+	UIUtil.apply_button_style(button, cell_box)
 	var box: VBoxContainer = VBoxContainer.new()
 	box.set_anchors_preset(Control.PRESET_FULL_RECT)
 	box.add_theme_constant_override("separation", -2)

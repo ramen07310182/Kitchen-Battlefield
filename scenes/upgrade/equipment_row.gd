@@ -23,7 +23,7 @@ var equipment: EquipmentData
 
 
 func _ready() -> void:
-	add_theme_stylebox_override("panel", UIColors.panel_box(UIColors.ROW, 4))
+	add_theme_stylebox_override("panel", UIColors.card_box())
 	_buy_button.text = UIText.UPGRADE_BUY
 	_buy_button.pressed.connect(func() -> void: buy_requested.emit(equipment.id))
 	_long_press.long_pressed.connect(func() -> void: detail_requested.emit(equipment.id))

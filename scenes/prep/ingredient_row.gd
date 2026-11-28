@@ -32,8 +32,8 @@ var _box_short: StyleBoxFlat
 
 
 func _ready() -> void:
-	_box_normal = UIColors.panel_box(UIColors.ROW, 4)
-	_box_short = UIColors.panel_box(UIColors.SHORT_BG, 4, COLOR_SHORT)
+	_box_normal = UIColors.card_box()
+	_box_short = UIColors.card_box(UIColors.SHORT_BG, COLOR_SHORT)
 	add_theme_stylebox_override("panel", _box_normal)
 	var cfg: GameConfig = Database.config
 	_minus_large.text = UIText.PREP_PURCHASE_STEP % -cfg.buy_step_large

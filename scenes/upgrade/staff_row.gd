@@ -19,7 +19,7 @@ var _button: Button
 
 
 func _init() -> void:
-	add_theme_stylebox_override("panel", UIColors.panel_box(UIColors.ROW, 4))
+	add_theme_stylebox_override("panel", UIColors.card_box())
 	var hbox: HBoxContainer = HBoxContainer.new()
 	hbox.add_theme_constant_override("separation", 8)
 	add_child(hbox)
