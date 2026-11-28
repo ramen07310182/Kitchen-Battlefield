@@ -1,0 +1,3 @@
+
+GitHubの Actions タブ → iOS Build → Run workflow を押す
+
