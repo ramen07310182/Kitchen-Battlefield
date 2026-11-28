@@ -2,17 +2,17 @@ extends Control
 ## 営業結果画面。今日の集計と料理ごとの内訳を表示し、「次の日へ」で次の営業準備に進む。
 ## お金は「利益」と「所持金」の2つを大きく出し、内訳は小さく出す。
 ##   利益 ＝ 所持金の増減 ＋ 在庫の増減（原価）（仕入れた日と使った日がずれると、2つの数字が違う）
-## 内訳では、売り切れて売り逃しが出た料理（黄）と、廃棄が多かった料理（赤）に色を付ける。
+## 内訳では、完売した料理（黄：廃棄0で、仕込んだ分が全部売れた）と、廃棄が多かった料理（赤）に色を付ける。
+## 売り逃しの数は画面には出さない（評判の計算にだけ使う）。
 
 signal next_day_requested
 ## 「お店を強化」を押した（強化画面へ進む）
 signal upgrade_requested
 
-## 内訳の表の列の幅（仕込み数・売れた数・売り逃し・廃棄数・売上）
-const COLUMN_WIDTHS: Array[int] = [46, 46, 56, 40, 68]
+## 内訳の表の列の幅（仕込み数・売れた数・廃棄数・売上）
+const COLUMN_WIDTHS: Array[int] = [52, 52, 46, 72]
 const COLUMN_SOLD := 1
-const COLUMN_MISSED := 2
-const COLUMN_WASTE := 3
+const COLUMN_WASTE := 2
 const COLOR_ROW := Color(0.2, 0.17, 0.15)
 const COLOR_SOLD_OUT := Color(1.0, 0.82, 0.35)
 const COLOR_SOLD_OUT_BG := Color(0.33, 0.27, 0.1)
@@ -25,7 +25,7 @@ const COLOR_MINUS := Color(1.0, 0.5, 0.45)
 @onready var _title_label: Label = %TitleLabel
 @onready var _reputation_change_label: Label = %ReputationChangeLabel
 @onready var _rating_label: Label = %RatingLabel
-@onready var _news: HBoxContainer = %News
+@onready var _news: HFlowContainer = %News
 @onready var _rank_up_label: Label = %RankUpLabel
 @onready var _unlock_label: Label = %UnlockLabel
 @onready var _note_label: Label = %NoteLabel
@@ -65,7 +65,16 @@ func _ready() -> void:
 	_unlock_label.visible = not names.is_empty()
 	_note_label.text = UIText.RESULT_SOLD_OUT
 	_note_label.visible = stats.sold_out
-	_news.visible = _rank_up_label.visible or _unlock_label.visible or _note_label.visible
+	# 辞めたスタッフ（いちばん大きな理由を出す）
+	for quit: Dictionary in stats.staff_quits:
+		var staff: StaffData = Database.get_staff(String(quit["id"]))
+		var quit_label: Label = Label.new()
+		quit_label.text = UIText.RESULT_STAFF_QUIT % [staff.display_name if staff != null else String(quit["id"]),
+			UIText.STAFF_QUIT_REASONS.get(String(quit["reason"]), "")]
+		quit_label.add_theme_color_override("font_color", UIColors.DANGER)
+		quit_label.name = "StaffQuit"
+		_news.add_child(quit_label)
+	_news.visible = _rank_up_label.visible or _unlock_label.visible or _note_label.visible or not stats.staff_quits.is_empty()
 
 	# 利益（大）と内訳（小）
 	var profit: int = stats.profit()
@@ -128,7 +137,7 @@ func _build_dish_table(stats: DayStats) -> void:
 	_dish_legend.text = UIText.RESULT_DISH_LEGEND % roundi(Database.config.waste_warning_ratio * 100.0)
 	var header: PanelContainer = _make_table_row(
 		UIText.RESULT_DISH_NAME, "",
-		[UIText.RESULT_DISH_PREPARED, UIText.RESULT_DISH_SOLD, UIText.RESULT_DISH_MISSED, UIText.RESULT_DISH_WASTE, UIText.RESULT_DISH_SALES],
+		[UIText.RESULT_DISH_PREPARED, UIText.RESULT_DISH_SOLD, UIText.RESULT_DISH_WASTE, UIText.RESULT_DISH_SALES],
 		StyleBoxEmpty.new(), COLOR_SUB, true)
 	_dish_table.add_child(header)
 
@@ -145,13 +154,12 @@ func _build_dish_table(stats: DayStats) -> void:
 		var sold: int = int(stats.dish_sold.get(dish_id, 0))
 		var waste: int = int(stats.dish_waste.get(dish_id, 0))
 		var sales: int = int(stats.dish_sales.get(dish_id, 0))
-		var missed: int = int(stats.dish_missed.get(dish_id, 0))
 		var tag: String = ""
 		var bg: Color = COLOR_ROW
 		var accent: Color = Color.TRANSPARENT
 		var text_color: Color = Color.WHITE
-		if waste == 0 and missed > 0:
-			# 仕込んだ分が全部売れて、まだ頼みたい客がいた
+		if waste == 0 and sold >= prepared and prepared > 0:
+			# 仕込んだ分が全部売れた（完売）
 			tag = UIText.RESULT_DISH_SOLD_OUT
 			bg = COLOR_SOLD_OUT_BG
 			accent = COLOR_SOLD_OUT
@@ -168,12 +176,12 @@ func _build_dish_table(stats: DayStats) -> void:
 		var row_name: String = UIText.RESULT_TOPPING_NAME % dish.display_name if dish.is_topping() else dish.display_name
 		var row: PanelContainer = _make_table_row(
 			row_name, tag,
-			[str(prepared), str(sold), str(missed), str(waste), UIText.money(sales)],
+			[str(prepared), str(sold), str(waste), UIText.money(sales)],
 			box, text_color, false)
 		_dish_table.add_child(row)
 
 
-## 表の1行。values は 仕込み数・売れた数・売り逃し・廃棄数・売上 の順
+## 表の1行。values は 仕込み数・売れた数・廃棄数・売上 の順
 func _make_table_row(name_text: String, tag: String, values: Array, box: StyleBox, tag_color: Color,
 		is_header: bool) -> PanelContainer:
 	var row: PanelContainer = PanelContainer.new()
@@ -210,7 +218,7 @@ func _make_table_row(name_text: String, tag: String, values: Array, box: StyleBo
 			value_label.modulate = COLOR_SUB
 		elif i == COLUMN_WASTE and tag_color == COLOR_WASTE:
 			value_label.add_theme_color_override("font_color", COLOR_WASTE)
-		elif (i == COLUMN_SOLD or i == COLUMN_MISSED) and tag_color == COLOR_SOLD_OUT:
+		elif i == COLUMN_SOLD and tag_color == COLOR_SOLD_OUT:
 			value_label.add_theme_color_override("font_color", COLOR_SOLD_OUT)
 		hbox.add_child(value_label)
 	return row

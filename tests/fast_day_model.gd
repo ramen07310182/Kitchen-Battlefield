@@ -49,7 +49,7 @@ func run_day(opening: Dictionary) -> void:
 	var server_free: Array[float] = [0.0]
 	# ボットが次に調理ボタンを押せる時刻
 	var press_free: float = 0.0
-	var staff_list: Array[StaffData] = GameState.get_hired_staff()
+	var staff_list: Array[StaffData] = GameState.get_working_staff()
 	for s: StaffData in staff_list:
 		server_free.append(0.0)
 	var interval_scale: float = _config.get_spawn_interval_scale(GameState.reputation)
@@ -112,6 +112,7 @@ func run_day(opening: Dictionary) -> void:
 					else:
 						var s2: StaffData = staff_list[best - 1]
 						server_free[best] = best_time + STAFF_DISTANCE / maxf(s2.walk_speed, 1.0)
+						GameState.record_staff_delivery(s2.id)
 					done = maxf(done, best_time)
 				var wait: float = done - order_time
 				if wait >= customer_type.patience:

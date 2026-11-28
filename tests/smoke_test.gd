@@ -58,6 +58,11 @@ func _ready() -> void:
 	await topping_staff.run(_check)
 	_check("トッピングと従業員の確認が最後まで進んだ（途中でエラーが出ていない）", topping_staff.completed)
 	topping_staff.queue_free()
+	var staff_shift: StaffShiftChecks = StaffShiftChecks.new()
+	add_child(staff_shift)
+	await staff_shift.run(_check)
+	_check("スタッフの出勤・満足度の確認が最後まで進んだ（途中でエラーが出ていない）", staff_shift.completed)
+	staff_shift.queue_free()
 	GameState.use_save_path(TEST_SAVE_PATH)
 	Engine.time_scale = 8.0
 	_main = MAIN_SCENE.instantiate()
@@ -1012,8 +1017,8 @@ func _do_result(screen: Node) -> void:
 	if _days_done >= DAYS_TO_RUN:
 		var saved: String = FileAccess.get_file_as_string(GameState.save_path)
 		print("[smoke] save: ", saved.replace("\n", " "))
-		_check("セーブは version 12 で、前回の置き場・売れた数・売り逃し・解放済みの料理・ランク・履歴・設備・従業員・常連さんの持ち越しを含む",
-			saved.contains("\"version\": 12") and saved.contains("reputation_progress") and saved.contains("\"staff\"") and saved.contains("\"history\"") and saved.contains("\"equipment\"") and saved.contains("last_shelf") and saved.contains("last_sold")
+		_check("セーブは version 13 で、前回の置き場・売れた数・売り逃し・解放済みの料理・ランク・履歴・設備・従業員・常連さんの持ち越しを含む",
+			saved.contains("\"version\": 13") and saved.contains("staff_states") and saved.contains("reputation_progress") and saved.contains("\"staff\"") and saved.contains("\"history\"") and saved.contains("\"equipment\"") and saved.contains("last_shelf") and saved.contains("last_sold")
 			and saved.contains("last_missed") and saved.contains("\"unlocked\"") and saved.contains("\"rank\""))
 		_finish()
 
@@ -1035,6 +1040,14 @@ func _check_dish_breakdown(screen: Node, s: DayStats) -> void:
 		sold == s.completed_orders and waste == s.waste_count and sales == s.sales and sold + waste <= prepared,
 		"sold=%d/%d waste=%d/%d sales=%d/%d" % [sold, s.completed_orders, waste, s.waste_count, sales, s.sales])
 	_check("内訳の表に仕込んだ料理の行が出る", table.get_child_count() == s.get_prepared_dish_ids().size() + 1)
+	# 結果画面には売り逃しを出さない（列も凡例も）
+	var header_texts: PackedStringArray = PackedStringArray()
+	for node: Node in table.get_child(0).find_children("*", "Label", true, false):
+		header_texts.append((node as Label).text)
+	var legend: String = (screen.get("_dish_legend") as Label).text
+	_check("結果画面の内訳に「売り逃し」の列がなく、黄色は「完売」の意味になっている",
+		not " ".join(header_texts).contains("売り逃し") and not legend.contains("売り逃し") and legend.contains("完売"),
+		" ".join(header_texts))
 
 
 ## 強化画面: 画面のボタンで設備を買う（確認ダイアログを通す）→「次の日へ」

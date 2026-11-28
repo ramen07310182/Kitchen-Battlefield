@@ -82,6 +82,30 @@ const PREP_NEED_UNUSED := "今日のメニューでは使わない"
 const PREP_REPEAT := "前回と同じ仕込み"
 const PREP_REPEAT_DONE := "仕込み数と置き場を前回と同じにしました"
 const PREP_REPEAT_PARTIAL := "まだ解放していない料理は、前回と同じにできませんでした"
+## 準備③の「今日のスタッフ」
+const PREP_STAFF_TITLE := "今日のスタッフ（出勤 %d / %d人・日給 %s）"
+const PREP_STAFF_NONE := "雇っているスタッフはいません（「お店を強化」で雇えます）"
+const PREP_STAFF_NAME := "%s　%s"
+const PREP_STAFF_ON := "出勤"
+const PREP_STAFF_OFF := "休み"
+const PREP_STAFF_WAGE := "日給 %s"
+const PREP_STAFF_OFF_FIXED := "休み（定休：%s）"
+const PREP_STAFF_OFF_SUDDEN := "休み（急用）"
+## スタッフの機嫌（ごきげん・ふつう・疲れ気味・限界。StaffMood.Level の順）
+const STAFF_MOOD_MARKS: Array[String] = ["◎", "○", "△", "×"]
+const STAFF_MOOD_NAMES: Array[String] = ["ごきげん", "ふつう", "疲れ気味", "限界"]
+## 満足度が低いスタッフへの注意（StaffMood の理由ごと）
+const STAFF_WARNINGS: Dictionary = {
+	"streak": "%s：最近疲れているようです（連勤が続いています）",
+	"busy": "%s：忙しすぎて参っているようです",
+	"bench": "%s：なかなか出番がなくて不満そうです",
+}
+## 辞めた理由（StaffMood の理由ごと）
+const STAFF_QUIT_REASONS: Dictionary = {
+	"streak": "連勤が続いたため",
+	"busy": "忙しすぎる日が続いたため",
+	"bench": "なかなか出勤させてもらえなかったため",
+}
 ## 準備①のトッピングの区切り
 const PREP_TOPPING_TITLE := "トッピング（注文のときに追加で頼まれる1皿）"
 const PREP_PACE := "評判 %d：お客さんが来るペース ×%.2f（平均 %.1f秒ごと）"
@@ -155,18 +179,18 @@ const RESULT_STOCK_CHANGE := "在庫の増減（原価）"
 const RESULT_PROFIT_FORMULA := "利益 ＝ 所持金の増減 ＋ 在庫の増減"
 const RESULT_SERVICE_LINE := "来客数 %d人　完了した注文 %d件　帰ってしまった客 %d人　ミス %d回　評判 %d"
 const RESULT_DISH_TITLE := "料理ごとの内訳"
-const RESULT_DISH_LEGEND := "黄：売り切れて売り逃しあり　赤：廃棄が仕込みの%d%%以上"
+const RESULT_DISH_LEGEND := "黄：完売（仕込んだ分が全部売れた）　赤：廃棄が仕込みの%d%%以上"
 const RESULT_DISH_NAME := "料理"
 const RESULT_DISH_PREPARED := "仕込み"
 const RESULT_DISH_SOLD := "売れた"
-const RESULT_DISH_MISSED := "売り逃し"
 const RESULT_DISH_WASTE := "廃棄"
 const RESULT_DISH_SALES := "売上"
-const RESULT_DISH_SOLD_OUT := "売り切れ"
+const RESULT_DISH_SOLD_OUT := "完売"
 const RESULT_DISH_MANY_WASTE := "廃棄多め"
 const RESULT_DISH_NONE := "今日は仕込んだ料理がありません"
 const RESULT_OTHER := "その他経費"
 const RESULT_LABOR := "人件費（従業員 %d人）"
+const RESULT_STAFF_QUIT := "%sが辞めました（%s）"
 ## 内訳の表で、トッピングの名前の前に付ける印
 const RESULT_TOPPING_NAME := "＋%s"
 const RESULT_PROFIT := "利益"
@@ -210,15 +234,20 @@ const UPGRADE_STAFF_HELP := "置き場の料理を自分で取って、お客さ
 const UPGRADE_STAFF_SPEED := "歩く速さ %s・料理を取るまで %.1f秒"
 const UPGRADE_STAFF_SPEED_NAMES: Array[String] = ["ゆっくり", "ふつう", "速い", "とても速い"]
 const UPGRADE_STAFF_WAGE := "日給 %s"
-const UPGRADE_STAFF_HIRED := "雇っています"
+const UPGRADE_STAFF_HIRED := "雇っています（%s）"
 const UPGRADE_STAFF_HIRE := "雇う"
-const UPGRADE_STAFF_DISMISS := "やめてもらう"
+const UPGRADE_STAFF_DAYS_OFF := "定休：%s"
+const UPGRADE_STAFF_NO_DAYS_OFF := "定休：なし"
+const UPGRADE_STAFF_DETAIL_SPEED := "歩く速さ %s（%d）・料理を取るまで %.1f秒"
+const UPGRADE_STAFF_DETAIL_WAGE := "日給 %s（出勤した日だけ）"
+const UPGRADE_STAFF_DETAIL_DAYS_OFF := "毎週の休み：%s"
+const UPGRADE_STAFF_DETAIL_ABSENCE := "急な休み：ときどき（営業日の約%d%%）"
+const UPGRADE_STAFF_DETAIL_MOOD := "今の機嫌：%s %s"
+const UPGRADE_STAFF_DETAIL_NOT_HIRED := "雇うと、機嫌は「ふつう」から始まります"
 const UPGRADE_STAFF_NEED_RANK := "%sで雇えます"
 const UPGRADE_STAFF_FULL := "雇える人数がいっぱい"
 const UPGRADE_STAFF_HIRE_DONE := "%sを雇いました（次の営業から働きます）"
-const UPGRADE_STAFF_DISMISS_CONFIRM := "%sにやめてもらいます。\nよろしいですか？"
-const UPGRADE_STAFF_DISMISS_OK := "やめてもらう"
-const UPGRADE_STAFF_DISMISS_DONE := "%sにやめてもらいました"
+const UPGRADE_STAFF_HELP2 := "スタッフは自分からは辞めさせられません。連勤や忙しすぎる日が続くと、疲れて辞めてしまうことがあります（行を長押しで詳細）"
 
 # --- カレンダー ---
 const CAL_BUTTON := "カレンダー"
@@ -281,6 +310,16 @@ static func money_short(value: int) -> String:
 		var man: float = a / 10000.0
 		return prefix + ("¥%d万" % roundi(man) if man >= 100.0 or is_equal_approx(man, roundf(man)) else "¥%.1f万" % man)
 	return money(value)
+
+
+## 曜日の並び（「金・土」）。なければ「なし」
+static func weekday_list(days: PackedInt32Array) -> String:
+	if days.is_empty():
+		return "なし"
+	var names: PackedStringArray = PackedStringArray()
+	for d: int in days:
+		names.append(WEEKDAYS[clampi(d, 0, 6)])
+	return "・".join(names)
 
 
 static func stars(count: int) -> String:

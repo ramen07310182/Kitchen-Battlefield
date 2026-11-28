@@ -11,3 +11,5 @@ pick_time = 1.5
 daily_wage = 1500
 color = Color(0.75, 0.7, 0.45, 1)
 sort_order = 0
+days_off = PackedInt32Array(1)
+absence_rate = 0.05

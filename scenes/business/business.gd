@@ -73,7 +73,7 @@ func _ready() -> void:
 	_spawner.start(_config, _menu, GameState.reputation, _supply, _toppings)
 	# 画面の大きさが決まってから、スタッフを待機場所に置く
 	await get_tree().process_frame
-	_staff.setup(_dining, _shelf, _kitchen, GameState.get_hired_staff(), _get_waiting_customers, deliver)
+	_staff.setup(_dining, _shelf, _kitchen, GameState.get_working_staff(), _get_waiting_customers, deliver)
 
 
 func _process(delta: float) -> void:

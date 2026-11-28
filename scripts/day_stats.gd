@@ -5,9 +5,15 @@ extends RefCounted
 var sales: int = 0
 var ingredient_cost: int = 0
 var other_expense: int = 0
-## 人件費（雇っている従業員の日給の合計）と、その日に働いた従業員の人数
+## 人件費（その日に出勤した従業員の日給の合計）と、その日に出勤した従業員の人数
 var labor_cost: int = 0
 var staff_count: int = 0
+## その日に出勤した従業員のid
+var staff_worked: Array[String] = []
+## 従業員ごとの配膳の皿数 { 従業員id: 皿数 }
+var staff_deliveries: Dictionary = {}
+## 営業結果のときに辞めた従業員 [{ "id": 従業員id, "reason": StaffMood の理由 }]
+var staff_quits: Array[Dictionary] = []
 var visitors: int = 0
 var completed_orders: int = 0
 var left_angry: int = 0

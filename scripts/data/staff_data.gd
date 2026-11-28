@@ -12,6 +12,10 @@ extends Resource
 @export var pick_time: float = 1.0
 ## 日給（円）
 @export var daily_wage: int = 3000
+## 毎週の休み（固定の休み）の曜日（0 = 日曜 … 6 = 土曜。水曜はお店の定休日）
+@export var days_off: PackedInt32Array = PackedInt32Array()
+## 急な休みになる確率（営業日ごと）
+@export var absence_rate: float = 0.05
 ## 体の色（絵ができるまでの代用）
 @export var color: Color = Color(0.9, 0.5, 0.3)
 ## 一覧に並べる順番（小さいほど上）

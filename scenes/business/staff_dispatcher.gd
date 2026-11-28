@@ -132,6 +132,7 @@ func _on_arrived(s: HallStaff) -> void:
 	for item_id: String in s.items.duplicate():
 		if c != null and is_instance_valid(c) and c.needs_item(item_id) and bool(_deliver.call(c, item_id)):
 			s.remove_item(item_id)
+			GameState.record_staff_delivery(s.data.id)
 	# 渡せなかった料理（お客さんが帰った・もう出してあった）は持ったまま戻る
 	s.go_home()
 

@@ -17,7 +17,7 @@ var _add_buttons: Dictionary = {}  # 料理id -> Button
 var _clear_button: Button
 
 @onready var _title_label: Label = %TitleLabel
-@onready var _slots: HBoxContainer = %Slots
+@onready var _slots: HFlowContainer = %Slots
 @onready var _add_row: HFlowContainer = %AddRow
 @onready var _header: HBoxContainer = %Header
 

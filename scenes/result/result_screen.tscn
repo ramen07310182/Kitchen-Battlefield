@@ -62,10 +62,10 @@ theme_type_variation = &"LargeLabel"
 text = "今日の評価"
 horizontal_alignment = 2
 
-[node name="News" type="HBoxContainer" parent="SafeArea/VBox"]
+[node name="News" type="HFlowContainer" parent="SafeArea/VBox"]
 unique_name_in_owner = true
 layout_mode = 2
-theme_override_constants/separation = 16
+theme_override_constants/h_separation = 16
 
 [node name="RankUpLabel" type="Label" parent="SafeArea/VBox/News"]
 unique_name_in_owner = true

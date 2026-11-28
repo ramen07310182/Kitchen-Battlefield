@@ -57,6 +57,33 @@ extends Resource
 ## その他経費（1日あたり固定）
 @export var other_expense: int = 2000
 
+@export_group("従業員の満足度")
+## 満足度は 0〜100。雇ったとき（雇い直したときも）は「ふつう」から始まる
+@export var staff_mood_start: float = 60.0
+## これ以上なら「ごきげん」、warn 以下なら「疲れ気味」（注意を出す）、quit より低いと辞めることがある
+@export var staff_mood_good: float = 70.0
+@export var staff_mood_warn: float = 35.0
+@export var staff_mood_quit: float = 20.0
+## 満足度が quit より低い日に、営業結果で辞める確率
+@export var staff_quit_chance: float = 0.35
+## 連勤: この日数以上つづけて出勤した日は、1日ごとに下がる
+@export var staff_streak_days: int = 4
+@export var staff_streak_penalty: float = 6.0
+## 忙しすぎる日（怒って帰る客がこの人数以上か、そのスタッフの配膳がこの皿数以上）は下がる
+@export var staff_busy_angry: int = 3
+@export var staff_busy_deliveries: int = 30
+@export var staff_busy_penalty: float = 5.0
+## 落ち着いた日（怒って帰る客が0人で、そのスタッフの配膳がこの皿数以下）は少し上がる
+@export var staff_calm_deliveries: int = 20
+@export var staff_calm_bonus: float = 2.0
+## 出勤のあとに休んだ日（ほどよい休み）は上がる
+@export var staff_rest_bonus: float = 5.0
+## 出られるのに出勤させてもらえない日が、この日数以上つづくと1日ごとに下がる
+@export var staff_bench_days: int = 4
+@export var staff_bench_penalty: float = 4.0
+## 店のランクが上がった日は上がる
+@export var staff_rank_up_bonus: float = 8.0
+
 @export_group("満足度")
 ## 待ち時間 ÷ 待てる時間 がこの値以下なら大満足
 @export var great_ratio: float = 0.35

@@ -31,10 +31,11 @@ func run(check: Callable) -> void:
 func _check_wage() -> void:
 	GameState.use_save_path(SAVE_PATH)
 	GameState.rank = 2
-	var hired_a: bool = GameState.hire_staff("tanaka")
+	# 1日目は金曜日（田中さんは定休なので、出られる佐藤さんと鈴木さんで確かめる）
+	var hired_a: bool = GameState.hire_staff("sato")
 	var hired_b: bool = GameState.hire_staff("suzuki")
 	var over: bool = GameState.hire_staff("takahashi")
-	var wage: int = Database.get_staff("tanaka").daily_wage + Database.get_staff("suzuki").daily_wage
+	var wage: int = Database.get_staff("sato").daily_wage + Database.get_staff("suzuki").daily_wage
 	GameState.begin_business()
 	var before: int = GameState.money
 	GameState.finish_business()
@@ -44,11 +45,11 @@ func _check_wage() -> void:
 		hired_a and hired_b and not over and s.labor_cost == wage and paid == wage + s.other_expense
 		and s.profit() == s.sales - s.ingredient_cost - s.other_expense - wage and s.staff_count == 2,
 		"labor=%d paid=%d" % [s.labor_cost, paid])
-	var dismissed: bool = GameState.dismiss_staff("tanaka")
+	var dismissed: bool = GameState.dismiss_staff("sato")
 	GameState.rank = 1
 	var full_at_rank1: bool = not GameState.can_hire("tanaka")
 	GameState.hired_staff.clear()
-	_check.call("従業員: やめてもらうと日給がかからない。無名店（ランク1）でも1人まで雇える",
+	_check.call("従業員: 辞めた人の日給はかからない。無名店（ランク1）でも1人まで雇える",
 		dismissed and full_at_rank1 and GameState.can_hire("sato") and GameState.hire_staff("sato")
 		and not GameState.can_hire("tanaka") and Database.get_staff_limit(3) == 3 and Database.get_staff_limit(4) == 3)
 	_check.call("従業員: 日給のいちばん安い候補は佐藤さん（¥1,500・ゆっくり）",

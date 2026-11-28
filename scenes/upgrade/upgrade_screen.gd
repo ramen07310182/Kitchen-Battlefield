@@ -1,6 +1,7 @@
 extends Control
 ## お店の強化画面（営業結果のあと、次の日の準備の前）。設備を買って、次の営業から効果を出す。
-## 「従業員」の区切りでは、ホールスタッフを雇う・やめてもらう（雇える人数はランクで決まる。費用は日給だけ）。
+## 「従業員」の区切りでは、ホールスタッフを雇う（雇える人数はランクで決まる。費用は出勤した日の日給だけ）。
+## プレイヤーからは辞めさせられない（満足度が低いと、営業結果で辞めてしまうことがある）。行の長押しで詳細（毎週の休みなど）。
 ## 購入は確認ダイアログを出してから。所持金・ランクが足りないものは押せず、理由を出す。行の長押しで詳細（今と次のレベルの比較）。
 
 signal next_day_requested
@@ -45,16 +46,17 @@ func _ready() -> void:
 	_list.add_child(_staff_header)
 	var staff_help: Label = Label.new()
 	staff_help.theme_type_variation = &"SmallLabel"
-	staff_help.text = UIText.UPGRADE_STAFF_HELP
+	staff_help.text = "\n".join([UIText.UPGRADE_STAFF_HELP, UIText.UPGRADE_STAFF_HELP2])
 	staff_help.autowrap_mode = TextServer.AUTOWRAP_WORD_SMART
-	staff_help.modulate = Color(0.8, 0.8, 0.8)
+	staff_help.add_theme_color_override("font_color", UIColors.TEXT_SUB)
 	_list.add_child(staff_help)
 	for data: StaffData in Database.staff:
 		var staff_row: StaffRow = StaffRow.new()
 		_list.add_child(staff_row)
 		staff_row.setup(data)
 		staff_row.hire_requested.connect(_on_hire_requested)
-		staff_row.dismiss_requested.connect(_on_dismiss_requested)
+		staff_row.detail_requested.connect(_show_staff_detail)
+		staff_row.detail_closed.connect(_detail.close)
 		_staff_rows.append(staff_row)
 	_dialog.answered.connect(_on_dialog_answered)
 	_next_button.pressed.connect(_on_next_pressed)
@@ -78,7 +80,7 @@ func _section_label(text: String) -> Label:
 	var label: Label = Label.new()
 	label.text = text
 	label.theme_type_variation = &"HeaderLabel"
-	label.add_theme_color_override("font_color", Color(1.0, 0.85, 0.55))
+	label.add_theme_color_override("font_color", UIColors.ACCENT)
 	return label
 
 
@@ -88,13 +90,11 @@ func _on_hire_requested(staff_id: String) -> void:
 	_refresh()
 
 
-func _on_dismiss_requested(staff_id: String) -> void:
-	if not GameState.is_hired(staff_id):
-		return
-	_pending_id = staff_id
-	_pending_action = "dismiss"
-	_dialog.ask(UIText.UPGRADE_STAFF_DISMISS_CONFIRM % Database.get_staff(staff_id).display_name,
-		UIText.UPGRADE_STAFF_DISMISS_OK, UIText.PREP_CANCEL)
+## 従業員の詳細: 速さ・日給・毎週の休み・急な休み・機嫌
+func _show_staff_detail(staff_id: String) -> void:
+	var data: StaffData = Database.get_staff(staff_id)
+	if data != null:
+		_detail.open(data.display_name, StaffRow.detail_lines(data), DetailPopup.Placement.RIGHT)
 
 
 func _on_buy_requested(equipment_id: String) -> void:
@@ -110,15 +110,9 @@ func _on_buy_requested(equipment_id: String) -> void:
 
 func _on_dialog_answered(ok: bool) -> void:
 	var equipment_id: String = _pending_id
-	var action: String = _pending_action
 	_pending_id = ""
 	_pending_action = ""
 	if not ok or equipment_id == "":
-		return
-	if action == "dismiss":
-		if GameState.dismiss_staff(equipment_id):
-			_message_label.text = UIText.UPGRADE_STAFF_DISMISS_DONE % Database.get_staff(equipment_id).display_name
-		_refresh()
 		return
 	if GameState.buy_equipment(equipment_id):
 		var e: EquipmentData = Database.get_equipment(equipment_id)
