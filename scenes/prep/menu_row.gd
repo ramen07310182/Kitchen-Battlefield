@@ -84,6 +84,8 @@ func _refresh_last_result() -> void:
 func _refresh_shortage(on: bool) -> void:
 	var shortage: Dictionary = GameState.get_dish_shortage(dish) if on else {}
 	_warn_label.visible = not shortage.is_empty()
+	# 食材が足りない料理は、白いカードのまま左端の色の帯を赤にする（文字は WarnLabel が赤）
+	_swatch.color = UIColors.STATUS_SHORT if not shortage.is_empty() else dish.color
 	if shortage.is_empty():
 		return
 	var parts: PackedStringArray = PackedStringArray()

@@ -53,7 +53,10 @@ const GOOD := Color("2e7a32")
 ## 完売の行・廃棄多めの行・不足の行の背景（白いカードの上でも目立つ濃さ）
 const SOLD_OUT_BG := Color("fbe29a")
 const WASTE_BG := Color("f8cdc4")
-const SHORT_BG := Color("f8cdc4")
+## 準備画面の不足の行は白いカードのまま、左端の色の帯と不足の文字だけを色にする
+## （足りない＝赤、今は足りないが予定どおり仕入れれば足りる＝山吹）
+const STATUS_SHORT := DANGER
+const STATUS_PLAN_OK := WARNING
 
 # --- 結果画面の料理ごとの内訳（ベージュから離れた、藍・青灰色の系統） ---
 const TABLE_HEADER := Color("2c4a7a")

@@ -18,7 +18,6 @@ const COLOR_PLANNED := UIColors.PLUS
 var ingredient: IngredientData
 
 var _box_normal: StyleBoxFlat
-var _box_short: StyleBoxFlat
 
 @onready var _swatch: ColorRect = %Swatch
 @onready var _name_label: Label = %NameLabel
@@ -33,7 +32,6 @@ var _box_short: StyleBoxFlat
 
 func _ready() -> void:
 	_box_normal = UIColors.card_box()
-	_box_short = UIColors.card_box(UIColors.SHORT_BG, COLOR_SHORT)
 	add_theme_stylebox_override("panel", _box_normal)
 	var cfg: GameConfig = Database.config
 	_minus_large.text = UIText.PREP_PURCHASE_STEP % -cfg.buy_step_large
@@ -83,11 +81,16 @@ func refresh(needs: Dictionary) -> void:
 		_need_label.text = UIText.PREP_NEED_SHORT % [need, shortage_after]
 		_need_label.add_theme_color_override("font_color", COLOR_SHORT)
 
-	var stock_color: Color = COLOR_SHORT if short else COLOR_OK
-	if planned > 0:
-		stock_color = COLOR_PLANNED if not short or shortage_after <= 0 else COLOR_SHORT
-	_stock_label.add_theme_color_override("font_color", stock_color)
-	add_theme_stylebox_override("panel", _box_short if short else _box_normal)
+	# 不足の行も白いカードのまま。左端の色の帯と、不足の文字（目安の行）だけを色にする
+	# （足りない＝赤、予定でOK＝山吹）。在庫の文字はふつうの色（仕入れ予定があれば青）
+	_stock_label.add_theme_color_override("font_color", COLOR_PLANNED if planned > 0 else COLOR_OK)
+	if not short or need <= 0:
+		_swatch.color = ingredient.color
+	elif shortage_after <= 0:
+		_swatch.color = UIColors.STATUS_PLAN_OK
+	else:
+		_swatch.color = UIColors.STATUS_SHORT
+	add_theme_stylebox_override("panel", _box_normal)
 
 	_minus_large.disabled = planned <= 0
 	_minus_small.disabled = planned <= 0
