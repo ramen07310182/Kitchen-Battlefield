@@ -15,8 +15,11 @@ var staff: StaffData
 var _icon: TextureRect
 var _name_label: Label
 var _speed_label: Label
+var _info_label: Label
 var _wage_label: Label
 var _note_label: Label
+## 研修の代金（雇っている人だけ）
+var _train_label: Label
 var _button: Button
 
 
@@ -45,6 +48,12 @@ func _init() -> void:
 	_speed_label.clip_text = true
 	_speed_label.text_overrun_behavior = TextServer.OVERRUN_TRIM_ELLIPSIS
 	texts.add_child(_speed_label)
+	_info_label = Label.new()
+	_info_label.theme_type_variation = &"SmallLabel"
+	_info_label.add_theme_color_override("font_color", UIColors.TEXT_SUB)
+	_info_label.clip_text = true
+	_info_label.text_overrun_behavior = TextServer.OVERRUN_TRIM_ELLIPSIS
+	texts.add_child(_info_label)
 	var right: VBoxContainer = VBoxContainer.new()
 	right.custom_minimum_size = Vector2(170, 0)
 	right.alignment = BoxContainer.ALIGNMENT_CENTER
@@ -57,6 +66,10 @@ func _init() -> void:
 	_note_label.theme_type_variation = &"SmallLabel"
 	_note_label.horizontal_alignment = HORIZONTAL_ALIGNMENT_RIGHT
 	right.add_child(_note_label)
+	_train_label = Label.new()
+	_train_label.theme_type_variation = &"SmallLabel"
+	_train_label.horizontal_alignment = HORIZONTAL_ALIGNMENT_RIGHT
+	right.add_child(_train_label)
 	_button = Button.new()
 	_button.custom_minimum_size = Vector2(96, 40)
 	_button.size_flags_vertical = Control.SIZE_SHRINK_CENTER
@@ -78,9 +91,8 @@ func setup(data: StaffData) -> void:
 func refresh() -> void:
 	var level: int = GameState.get_staff_level(staff.id)
 	_name_label.text = "%s　%s" % [staff.display_name, UIText.UPGRADE_STAFF_LEVEL % level]
-	_speed_label.text = "%s　%s　%s" % [
-		UIText.UPGRADE_STAFF_SPEED % [StaffRow.speed_name(GameState.get_staff_walk_speed(staff)), GameState.get_staff_pick_time(staff)],
-		StaffRow.days_off_text(staff), UIText.UPGRADE_STAFF_TENURE % staff.tenure_days]
+	_speed_label.text = UIText.UPGRADE_STAFF_SPEED % [StaffRow.speed_name(GameState.get_staff_walk_speed(staff)), GameState.get_staff_pick_time(staff)]
+	_info_label.text = "%s　%s" % [StaffRow.days_off_text(staff), UIText.UPGRADE_STAFF_TENURE % staff.tenure_days]
 	_wage_label.text = UIText.UPGRADE_STAFF_WAGE % UIText.money(GameState.get_staff_wage(staff))
 	if GameState.is_hired(staff.id):
 		_refresh_hired(level)
@@ -102,12 +114,16 @@ func _refresh_hired(level: int) -> void:
 			train_text = UIText.UPGRADE_STAFF_TRAIN_NEED_MONEY % UIText.money(Database.staff_training.get_price(level) - GameState.money)
 		_:
 			train_text = UIText.UPGRADE_STAFF_TRAIN_PRICE % [UIText.money(Database.staff_training.get_price(level)), level, level + 1]
-	_note_label.text = "%s\n%s" % [days_left, train_text]
-	_note_label.add_theme_color_override("font_color", UIColors.DANGER if block == GameState.TrainBlock.MONEY else UIColors.PLUS)
+	_note_label.text = days_left
+	_note_label.add_theme_color_override("font_color", UIColors.PLUS)
+	_train_label.visible = true
+	_train_label.text = train_text
+	_train_label.add_theme_color_override("font_color", UIColors.DANGER if block == GameState.TrainBlock.MONEY else UIColors.TEXT_SUB)
 
 
 ## 雇っていない人: 雇うボタンと、面接代・雇えない理由
 func _refresh_candidate() -> void:
+	_train_label.visible = false
 	_button.text = UIText.UPGRADE_STAFF_HIRE
 	var block: GameState.HireBlock = GameState.get_hire_block(staff.id)
 	_button.disabled = block != GameState.HireBlock.NONE
