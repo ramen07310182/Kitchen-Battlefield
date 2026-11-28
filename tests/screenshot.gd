@@ -4,7 +4,8 @@ extends Node
 ##   Godot --path . --resolution 1280x720 res://tests/screenshot.tscn -- --out=<保存先フォルダ> --name=16x9
 ## 保存先を省略すると user://screenshots/ に保存する。
 ## オプション: --seat-level=N（席の拡張のレベル）、--all-dishes（料理とトッピングをすべて解放）、
-##   --staff=N（ランクを最大にして、従業員を N 人雇った状態で撮る。営業画面ではスタッフが運んでいるところを撮る）
+##   --staff=N（ランクを最大にして、従業員を N 人雇った状態で撮る。営業画面ではスタッフが運んでいるところを撮る。
+##   3人以上のときは3人目を厨房担当にして、営業画面では店主とスタッフが同時に調理しているところも撮る）
 ## 本物のセーブ（user://save.json）は読み書きしない。テスト用のファイルを使い、終わったら消す。
 
 const MAIN_SCENE: PackedScene = preload("res://scenes/main/main.tscn")
@@ -55,6 +56,9 @@ func _ready() -> void:
 			GameState.get_staff_state(first.id)["enrolled"] = first.tenure_days - 3
 			GameState.staff_levels[first.id] = 2
 			GameState.staff_levels[GameState.hired_staff[1]] = 3
+		# 3人目は厨房担当（Lv1 なので、かんたんな料理だけ作れる。ほかの料理のボタンに「店主」が付く）
+		if GameState.hired_staff.size() >= 3:
+			GameState.set_staff_role(GameState.hired_staff[2], GameState.ROLE_KITCHEN)
 	_run()
 
 
@@ -112,6 +116,17 @@ func _run() -> void:
 	GameState.add_to_shelf_plan("tamagoyaki")
 	await _wait_frames(3)
 	await _shot("prep3")
+	# 今日のスタッフの一覧を下までスクロールして、厨房担当の行も撮る
+	var shift_panel: StaffShiftPanel = prep.find_children("*", "StaffShiftPanel", true, false)[0] as StaffShiftPanel
+	var shift_rows: Array[Node] = shift_panel.find_children("*", "PanelContainer", true, false)
+	var shift_scroll: Node = shift_panel.get_parent()
+	while shift_scroll != null and not shift_scroll is ScrollContainer:
+		shift_scroll = shift_scroll.get_parent()
+	if shift_scroll != null and not shift_rows.is_empty():
+		(shift_scroll as ScrollContainer).ensure_control_visible(shift_rows[shift_rows.size() - 1] as Control)
+		await _wait_frames(3)
+		await _shot("prep3_staff")
+		(shift_scroll as ScrollContainer).scroll_vertical = 0
 
 	(prep.get("_start_button") as Button).pressed.emit()
 	await _wait_frames(2)
@@ -123,6 +138,14 @@ func _run() -> void:
 	var buttons: Array[Button] = shelf.get("_buttons")
 	if not buttons.is_empty() and not buttons[0].disabled:
 		buttons[0].pressed.emit()
+	# 厨房のスタッフがいれば、店主とスタッフが同時に調理しているところを撮る（焼き魚は店主、唐揚げはスタッフ）
+	var kitchen: Kitchen = business.get("_kitchen")
+	if kitchen.get_kitchen_staff() != null:
+		var cook_buttons: Dictionary = kitchen.get("_buttons")
+		for dish_id: String in ["yakizakana", "karaage"]:
+			if cook_buttons.has(dish_id) and not (cook_buttons[dish_id] as Button).disabled:
+				(cook_buttons[dish_id] as Button).pressed.emit()
+		await get_tree().create_timer(2.0, true, false, false).timeout
 	Engine.time_scale = 1.0
 	await _wait_frames(3)
 	await _shot("business")
@@ -251,7 +274,8 @@ func _auto_cook(business: Node) -> void:
 	var kitchen: Kitchen = business.get("_kitchen")
 	var slots: Array[String] = shelf.get("_slots")
 	var cook_buttons: Dictionary = kitchen.get("_buttons")
-	if kitchen.get_pending_count() > 0:
+	# 厨房にスタッフがいれば2つまで（店主とスタッフが同時に作る）
+	if kitchen.get_pending_count() >= (2 if kitchen.get_kitchen_staff() != null else 1):
 		return
 	for c: Customer in (business.get("_customers") as Array[Customer]):
 		for item_id: String in c.get_needed_items():

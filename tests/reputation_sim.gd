@@ -10,6 +10,7 @@ extends Node
 ## シフト: 出られない日は休み、出られる人は全員出勤。
 ## 担当: 調理が追いつかない日（最近の調理の量が営業時間の KITCHEN_LOAD 以上）は、出勤する人のうち調理のいちばん速い人を厨房に入れる
 ##   （ホールに残る人が足りるとき。上手なボットは配膳が速いので1人でも入れる。ほかは2人以上いるときだけ）。
+##   厨房に入れた日に、スタッフが作った数が KITCHEN_MIN_SHARE より少なければ（調理より配膳が詰まっている）、KITCHEN_PAUSE_DAYS 日は入れない。
 ## 研修: 設備を買ったあと、手元に BUY_RESERVE を残せれば、レベルの低い人から1日1回研修する（--no-train で研修しない）。
 ## 在籍日数が終わって退職したら、人手が足りないときにまた雇う（雇う条件は _hire_staff）。
 ## ボットは、営業結果のあとに「手元に一定のお金を残して」優先順位に沿って設備を買う（BUY_PRIORITY）。
@@ -33,6 +34,9 @@ const HIRE_STARS := 4.2
 const DEFAULT_CSV := "user://reputation_sim.csv"
 ## 調理が追いつかないとみなす目安: 最近7日の「店主に換算した調理の時間 ÷ 営業時間」の平均
 const KITCHEN_LOAD := 0.6
+## 厨房のスタッフが作った割合がこれより少ない日は、しばらく厨房に入れない
+const KITCHEN_MIN_SHARE := 0.15
+const KITCHEN_PAUSE_DAYS := 14
 
 ## ボットの設定（上手／ふつう／ミスが多い）
 const SKILLS: Dictionary = {
@@ -64,6 +68,8 @@ var _train: bool = true
 var _kitchen: bool = true
 ## 最近の調理の量（店主に換算した調理の時間 ÷ 営業時間）
 var _recent_cook_load: Array[float] = []
+## この営業日までは厨房に入れない（入れても役に立たなかった）
+var _kitchen_pause_until: int = 0
 ## その日に買った設備・雇った従業員（表に出す）
 var _bought_today: PackedStringArray = PackedStringArray()
 ## 最近の売上（雇うかどうかの判断）
@@ -100,7 +106,7 @@ func _ready() -> void:
 	GameState.use_save_path(SIM_SAVE_PATH)
 	_rows.append("| 日 | 日付 | 来客 | 提供 | 怒って帰った | 売り逃し | ★ | 評判の増減 | 評判 | ランク | 利益 | 所持金 | 設備（卓・棚・コ・フ・炊） | 従業員 | 買った設備・雇った人 |")
 	_rows.append("|---|---|---|---|---|---|---|---|---|---|---|---|---|---|---|")
-	_csv_rows.append("day,date,reputation,reputation_change,rank,money,profit,visitors,served,angry,missed,stars,seats,shelf,stove,fryer,rice_cooker,unlocked_count,unlocked,bought,sales,labor,staff,topping_sold,worked,retired,levels,kitchen,cooked_chef,cooked_staff,cook_load")
+	_csv_rows.append("day,date,reputation,reputation_change,rank,money,profit,visitors,served,angry,missed,stars,seats,shelf,stove,fryer,rice_cooker,unlocked_count,unlocked,bought,sales,labor,staff,topping_sold,worked,retired,levels,kitchen,cooked_chef,cooked_staff,cook_load,chef_load,kitchen_cap")
 	if _fast:
 		_run_fast()
 		return
@@ -167,7 +173,7 @@ func _plan_shift() -> void:
 ## 調理が追いつかない日は、出勤する人のうち調理のいちばん速い人を厨房に入れる
 func _plan_kitchen() -> void:
 	var working: Array[StaffData] = GameState.get_working_staff()
-	if not _kitchen or _recent_cook_load.is_empty() or working.size() < int(_skill["kitchen_min_staff"]):
+	if not _kitchen or _recent_cook_load.is_empty() or working.size() < int(_skill["kitchen_min_staff"]) 			or GameState.day <= _kitchen_pause_until:
 		return
 	var cook_load: float = 0.0
 	for v: float in _recent_cook_load:
@@ -284,6 +290,9 @@ func _record_day() -> void:
 	if s0.staff_kitchen != "":
 		cook_work += s0.staff_cook_seconds * GameState.get_staff_cook_speed(Database.get_staff(s0.staff_kitchen))
 	_recent_cook_load.append(cook_work / Database.config.business_duration)
+	var cooked_total: int = s0.cooked_by_chef + s0.cooked_by_staff
+	if s0.staff_kitchen != "" and cooked_total > 0 and float(s0.cooked_by_staff) / cooked_total < KITCHEN_MIN_SHARE:
+		_kitchen_pause_until = GameState.day + KITCHEN_PAUSE_DAYS
 	if _recent_cook_load.size() > RECENT_DAYS:
 		_recent_cook_load.pop_front()
 	if _recent_sales.size() > RECENT_DAYS:
@@ -319,12 +328,33 @@ func _record_day() -> void:
 	var levels_text: PackedStringArray = PackedStringArray()
 	for staff_id: String in GameState.hired_staff:
 		levels_text.append("%s:%d" % [staff_id, GameState.get_staff_level(staff_id)])
-	_csv_rows.append("%d,%04d-%02d-%02d,%d,%d,%d,%d,%d,%d,%d,%d,%d,%s,%s,%d,%s,%s,%d,%d,%s,%d,%s,%s,%s,%s,%d,%d,%.3f" % [
+	_csv_rows.append("%d,%04d-%02d-%02d,%d,%d,%d,%d,%d,%d,%d,%d,%d,%s,%s,%d,%s,%s,%d,%d,%s,%d,%s,%s,%s,%s,%d,%d,%.3f,%.3f,%.3f" % [
 		GameState.day, int(date["year"]), int(date["month"]), int(date["day"]), GameState.reputation, s.reputation_change,
 		GameState.rank, GameState.money, s.profit(), s.visitors, s.completed_orders, s.left_angry, missed, stars,
 		",".join(levels), unlocked.size(), "|".join(unlocked), "|".join(_bought_today), s.sales, s.labor_cost,
 		"|".join(GameState.hired_staff), topping_sold, "|".join(s.staff_worked), "|".join(s.staff_retired), "|".join(levels_text),
-		s.staff_kitchen, s.cooked_by_chef, s.cooked_by_staff, _recent_cook_load[_recent_cook_load.size() - 1]])
+		s.staff_kitchen, s.cooked_by_chef, s.cooked_by_staff, _recent_cook_load[_recent_cook_load.size() - 1],
+		s.chef_cook_seconds / Database.config.business_duration, _kitchen_capacity(s)])
+
+
+## 厨房の調理能力（店主1人を 1.0 とした、1日に作れる量の倍率の目安）。厨房担当がいない日は 1.0。
+## 今日仕込んだ料理の「調理時間 × 仕込み数」のうち、スタッフが作れる分の割合を f、スタッフの調理の速さを s として、
+## min(1 + s, 1 / (1 - f))（スタッフが作れない料理は店主が作るので、f が小さいと店主が詰まる）
+func _kitchen_capacity(s: DayStats) -> float:
+	if s.staff_kitchen == "":
+		return 1.0
+	var staff: StaffData = Database.get_staff(s.staff_kitchen)
+	var total: float = 0.0
+	var doable: float = 0.0
+	for dish_id: String in s.dish_prepared:
+		var dish: DishData = Database.get_dish(dish_id)
+		var work: float = GameState.get_cook_time(dish) * int(s.dish_prepared[dish_id])
+		total += work
+		if GameState.can_staff_cook(staff, dish):
+			doable += work
+	var speed: float = GameState.get_staff_cook_speed(staff)
+	var f: float = doable / maxf(total, 0.001)
+	return 1.0 + speed if f >= 0.999 else minf(1.0 + speed, 1.0 / (1.0 - f))
 
 
 ## 表の「設備」の列の並び（卓・棚・コンロ・フライヤー・炊飯器）

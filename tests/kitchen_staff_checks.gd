@@ -3,7 +3,7 @@ extends Node
 ## スモークテストの一部: スタッフの担当（ホール／厨房）と、厨房での調理。
 ##   - 厨房に入れるのは1日1人まで、前回の担当から始まる、厨房担当は配膳しない、厨房手当が人件費に入る
 ##   - 店主とスタッフが同時に2つ作る、置き場の空き枠に2人分の調理中を数える
-##   - スタッフの研修のレベルで調理時間と作れる難しさが変わる、作れない難しさの料理はスタッフが作らない（「店主のみ」の印）
+##   - スタッフの研修のレベルで調理時間と作れる難しさが変わる、作れない難しさの料理はスタッフが作らない（「店主」の印）
 ## GameState はこのテスト用のセーブの場所で使い、終わったら消す。
 
 const BUSINESS_SCENE: PackedScene = preload("res://scenes/business/business.tscn")
@@ -197,7 +197,7 @@ func _check_two_cooks_and_slots() -> void:
 	await _close_business(business)
 
 
-## スタッフは作れない難しさの料理を作らない（調理待ちの先頭から、作れる料理を探して作る）。ボタンに「店主のみ」の印が付く
+## スタッフは作れない難しさの料理を作らない（調理待ちの先頭から、作れる料理を探して作る）。ボタンに「店主」の印が付く
 func _check_difficulty() -> void:
 	_fresh()
 	GameState.hire_staff("sato")
@@ -227,13 +227,13 @@ func _check_difficulty() -> void:
 	_check.call("作れない難しさの料理（焼き魚）はスタッフが作らず、店主だけが作る（スタッフは後ろの唐揚げを先に作る）",
 		skipped and left_for_chef and not staff_made_hard and kitchen.get_pending_count() == 0,
 		"pending=%d" % kitchen.get_pending_count())
-	_check.call("厨房のボタンで、スタッフが作れない料理にだけ「店主のみ」の印が付く", marks_ok)
+	_check.call("厨房のボタンで、スタッフが作れない料理にだけ「店主」の印が付く", marks_ok)
 	await _close_business(business)
 	# スタッフが厨房にいない日は印を付けない
 	_fresh()
 	var business2: Node = await _open_business({"karaage": 1, "yakizakana": 1})
 	var kitchen2: Kitchen = business2.get("_kitchen")
-	_check.call("スタッフが厨房にいない日は、店主だけで作り、「店主のみ」の印も付けない",
+	_check.call("スタッフが厨房にいない日は、店主だけで作り、「店主」の印も付けない",
 		kitchen2.get_kitchen_staff() == null and not kitchen2.has_chef_only_mark("yakizakana")
 		and (kitchen2.get("_cooks") as Array).size() == 1)
 	await _close_business(business2)

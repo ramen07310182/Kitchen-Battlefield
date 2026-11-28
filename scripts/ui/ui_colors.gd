@@ -108,7 +108,7 @@ const BIZ_TEXT_SUB := Color(0.75, 0.75, 0.75)
 const BIZ_DIMMED := Color(0.6, 0.6, 0.6)
 const BIZ_RESERVED := Color(1, 1, 1, 0.35)
 const BIZ_HELD_BORDER := Color(1, 1, 1)
-## 厨房のボタンの「店主のみ」の印（スタッフが作れない料理）
+## 厨房のボタンの「店主」の印（スタッフが作れない料理）
 const BIZ_CHEF_ONLY_BG := Color(0.85, 0.6, 0.15)
 const BIZ_CHEF_ONLY_TEXT := Color(0.15, 0.1, 0.05)
 ## 注文状況の行（待ち時間が短い・ふつう・長い）

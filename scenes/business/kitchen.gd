@@ -37,10 +37,12 @@ class Cook:
 		return GameState.get_cook_time(dish) if staff == null else GameState.get_staff_cook_time(staff, dish)
 
 
-## スタッフが厨房にいる日の、調理の表示の幅（店主とスタッフを横に並べる）
-const STATUS_WIDTH_TWO := 214.0
-## 「店主のみ」の印の幅（ボタンの文字をこの分だけ狭くする）
-const CHEF_ONLY_MARK_WIDTH := 30.0
+## スタッフが厨房にいる日は、調理の表示（店主とスタッフを横に並べる）を広げ、その分ボタンを1列にして狭くする
+## （640×360基準の画面の幅に収めるため）
+const STATUS_WIDTH_TWO := 196.0
+const BUTTONS_WIDTH_TWO := 104.0
+## 「店主」の印の幅（ボタンの文字をこの分だけ狭くする）
+const CHEF_ONLY_MARK_WIDTH := 20.0
 
 var _dishes: Array[DishData] = []
 var _buttons: Dictionary = {}  # 料理id -> Button
@@ -54,6 +56,7 @@ var _supply: DishSupply = null
 var _full: bool = false
 
 @onready var _buttons_box: GridContainer = %CookButtons
+@onready var _buttons_scroll: ScrollContainer = %CookScroll
 @onready var _status_box: VBoxContainer = %Status
 @onready var _cooks_row: HBoxContainer = %CooksRow
 @onready var _chef_label: Label = %ChefLabel
@@ -108,6 +111,8 @@ func setup(menu_dishes: Array[DishData], supply: DishSupply, kitchen_staff: Staf
 ## 厨房担当のスタッフの表示（絵・名前・調理中の料理・進み具合のバー）を店主の横に足す
 func _add_staff_cook(data: StaffData) -> void:
 	_status_box.custom_minimum_size.x = STATUS_WIDTH_TWO
+	_buttons_scroll.custom_minimum_size.x = BUTTONS_WIDTH_TWO
+	_buttons_box.columns = 1
 	var cook: Cook = Cook.new()
 	cook.staff = data
 	var box: VBoxContainer = VBoxContainer.new()
@@ -165,7 +170,7 @@ func _add_staff_cook(data: StaffData) -> void:
 	_cooks.append(cook)
 
 
-## ボタンの右上に「店主のみ」の小さな印を付ける
+## ボタンの右上に「店主」の小さな印を付ける（スタッフが作れない料理）
 func _make_chef_only_mark(button: Button) -> Label:
 	var mark: Label = Label.new()
 	mark.text = UIText.COOK_CHEF_ONLY
@@ -200,7 +205,7 @@ func get_cooking() -> Array[DishData]:
 	return result
 
 
-## スタッフが作れない料理に「店主のみ」の印が付いているか（テスト用）
+## スタッフが作れない料理に「店主」の印が付いているか（テスト用）
 func has_chef_only_mark(dish_id: String) -> bool:
 	return _chef_only_marks.has(dish_id)
 
@@ -273,7 +278,7 @@ func _refresh_buttons() -> void:
 		var remaining: int = _supply.get_remaining(dish.id)
 		button.disabled = not _can_cook(dish)
 		button.text = UIText.COOK_BUTTON % [_button_name(dish), remaining]
-		# 名前が長いときは文字を小さくして、残りの数が切れないようにする（「店主のみ」の印の分も空ける）
+		# 名前が長いときは文字を小さくして、残りの数が切れないようにする（「店主」の印の分も空ける）
 		if button.size.x > 0.0:
 			var room: float = button.size.x - 22.0 - (CHEF_ONLY_MARK_WIDTH if _chef_only_marks.has(dish.id) else 0.0)
 			button.add_theme_font_size_override("font_size", UIUtil.fit_font_size(button.text, room, 13, 9))

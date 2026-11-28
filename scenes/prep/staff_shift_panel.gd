@@ -138,8 +138,7 @@ func refresh() -> void:
 			status.text = UIText.PREP_STAFF_OFF_SUDDEN
 			status.add_theme_color_override("font_color", UIColors.WARNING)
 		elif data == cook:
-			status.text = UIText.PREP_STAFF_WAGE_KITCHEN % [UIText.money(GameState.get_staff_day_wage(data, true)),
-				UIText.money(Database.config.staff_kitchen_allowance)]
+			status.text = UIText.PREP_STAFF_WAGE_KITCHEN % UIText.money(GameState.get_staff_day_wage(data, true))
 			status.add_theme_color_override("font_color", UIColors.TEXT_SUB)
 		else:
 			status.text = UIText.PREP_STAFF_WAGE % UIText.money(GameState.get_staff_wage(data))
